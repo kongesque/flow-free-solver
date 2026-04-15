@@ -8,7 +8,6 @@
 </p>
 
 [![Live Demo](https://img.shields.io/badge/demo-live-brightgreen)](https://flow.kongesque.com/)
-[![Author](https://img.shields.io/badge/Author-Kongesque-blue)](https://www.kongesque.com/)
 [![React](https://img.shields.io/badge/React-18.3-61DAFB?logo=react)](https://reactjs.org/)
 [![Vite](https://img.shields.io/badge/Vite-7.3-646CFF?logo=vite)](https://vitejs.dev/)
 

@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { savePuzzleState, loadPuzzleState, clearPuzzleState } from '@/hooks/useStorage';
+import { Loader2, X, Check, ChevronDown, Github } from 'lucide-react';
 
 const FlowSolver = () => {
     const defaultSize = 5;
@@ -271,7 +272,16 @@ const FlowSolver = () => {
 
     return (
 
-        <main className='flex flex-col justify-center items-center h-[100dvh] w-full bg-stoic-bg safe-area-inset touch-manipulation overflow-hidden gap-3'>
+        <main className='relative flex flex-col justify-center items-center h-[100dvh] w-full bg-stoic-bg safe-area-inset touch-manipulation overflow-hidden gap-3'>
+            <a
+                href="https://github.com/Kongesque/flow-free-solver"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="absolute top-4 right-4 sm:top-6 sm:right-6 text-stoic-secondary hover:text-stoic-primary transition-colors z-50 p-2"
+                aria-label="View source on GitHub"
+            >
+                <Github className="w-5 h-5 sm:w-6 sm:h-6" />
+            </a>
             {/* Header with clear hierarchy */}
             <header className='text-center flex flex-col items-center gap-1 selectable-text shrink-0 mb-2'>
                 <h1
@@ -280,6 +290,9 @@ const FlowSolver = () => {
                 >
                     Flow Free Solver
                 </h1>
+                <p className="text-stoic-secondary text-xs mt-1 mx-4">
+                    <strong className="text-stoic-primary">Tips:</strong> Click to place endpoints, click again to remove.
+                </p>
             </header>
 
             {/* Grid - Core Interaction Area */}
@@ -340,21 +353,18 @@ const FlowSolver = () => {
                 <div role="status" className='flex items-center gap-3 min-h-[28px] selectable-text'>
                     {isSolving ? (
                         <span className='text-stoic-accent text-sm uppercase tracking-widest font-semibold flex items-center gap-2'>
-                            <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
-                                <path className="opacity-100" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                            </svg>
+                            <Loader2 className="animate-spin h-4 w-4" aria-hidden="true" />
                             Solving…
                         </span>
                     ) : error ? (
-                        <span className='text-sm uppercase tracking-widest font-semibold animate-pulse'
+                        <span className='text-sm uppercase tracking-widest font-semibold animate-pulse flex items-center gap-2'
                             style={{ color: '#FF3B30' }}
                         >
-                            ✗ {error}
+                            <X className="h-4 w-4" /> {error}
                         </span>
                     ) : solvedBoard ? (
                         <span className='text-stoic-accent text-sm uppercase tracking-widest font-semibold flex items-center gap-2'>
-                            ✓ Solved
+                            <Check className="h-4 w-4" /> Solved
                             {solveTime !== null && (
                                 <span className="text-stoic-secondary text-xs opacity-75">
                                     ({solveTime < 1000 ? `${Math.round(solveTime)}ms` : `${(solveTime / 1000).toFixed(2)}s`})
@@ -390,7 +400,7 @@ const FlowSolver = () => {
                                 <option key={option} value={option}>{option}×{option}</option>
                             ))}
                         </select>
-                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-stoic-secondary pointer-events-none text-[10px]">▼</span>
+                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-stoic-secondary pointer-events-none h-3 w-3" />
                     </div>
 
                     <div className="relative">
@@ -414,7 +424,7 @@ const FlowSolver = () => {
                             <option value="z3">SAT (Z3)</option>
                             <option value="heuristic_bfs">Heuristic BFS</option>
                         </select>
-                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-stoic-secondary pointer-events-none text-[10px]">▼</span>
+                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-stoic-secondary pointer-events-none h-3 w-3" />
                     </div>
 
                     <button
@@ -423,10 +433,7 @@ const FlowSolver = () => {
                         disabled={isSolving}
                     >
                         {isSolving && (
-                            <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
-                                <path className="opacity-100" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                            </svg>
+                            <Loader2 className="animate-spin h-3 w-3" aria-hidden="true" />
                         )}
                         {isSolving ? 'Solving' : 'Solve'}
                     </button>
@@ -444,14 +451,11 @@ const FlowSolver = () => {
                 <p>
                     Solve any Flow Free or Numberlink puzzle instantly.
                     <br className="hidden sm:block" />
-                    Powered by C++ Heuristic BFS, SAT (Z3) & A* search.
+                    Powered by C++ Heuristic BFS, SAT (Z3) & A* search.{' '}
+                    <a href="https://www.kongesque.com/blog/flow-free-solver" target="_blank" rel="noopener noreferrer" className="hover:text-stoic-primary underline transition-colors">
+                        Read more
+                    </a>
                 </p>
-                <p className="mt-2">
-                    <strong className="text-stoic-secondary">Tips:</strong>  Click to place endpoints, click again to remove.
-                </p>
-                <div className="mt-4 flex justify-center gap-2">
-                    <a href="https://github.com/Kongesque/flow-free-solver" target="_blank" rel="noopener noreferrer" className="hover:text-stoic-primary underline transition-colors uppercase">Source Code</a>
-                </div>
             </footer>
         </main>
     );
