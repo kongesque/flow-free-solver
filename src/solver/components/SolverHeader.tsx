@@ -9,7 +9,7 @@ const SolverHeader = () => (
             className="absolute top-4 right-4 sm:top-6 sm:right-6 text-stoic-secondary hover:text-stoic-primary transition-colors z-50 p-2"
             aria-label="View source on GitHub"
         >
-            <GitHubIcon className="size-8" />
+            <GitHubIcon className="size-6 sm:size-8" />
         </a>
 
         <header className='text-center flex flex-col items-center gap-1 selectable-text shrink-0 mb-2'>
