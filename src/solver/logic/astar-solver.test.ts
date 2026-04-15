@@ -9,19 +9,16 @@ describe('Solver', () => {
         // Direct path is length 2 (leaves 2 empty).
         // Snake path: (0,0) -> (1,0) -> (1,1) -> (0,1). Length 4. Fills board.
 
-        // Note: Solver uses board[row][col] or board[x][y]?
-        // Our refactor assumed row-major for input.
-
         const simpleBoard = [
             [1, 1],
             [0, 0]
         ];
 
         const result = solve(simpleBoard);
-        expect(result).not.toBeNull();
+        expect(result.board).not.toBeNull();
         // Verify it's full (all cells are 1 because 0s are filled)
-        if (result) {
-            expect(result.flat().every(c => c === 1)).toBe(true);
+        if (result.board) {
+            expect(result.board.flat().every(c => c === 1)).toBe(true);
         }
     });
 
@@ -33,6 +30,6 @@ describe('Solver', () => {
             [2, 1]
         ];
         const result = solve(unsolvable);
-        expect(result).toBeNull();
+        expect(result.board).toBeNull();
     });
 });

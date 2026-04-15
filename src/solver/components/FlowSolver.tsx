@@ -169,6 +169,26 @@ const FlowSolver = () => {
 
     const solveBoard = async () => {
         setError(null);
+
+        // ── Validation ──────────────────────────────────────────────────────────
+        const placedColors = Array.from(new Set(board.flat())).filter(c => c !== 0);
+
+        if (placedColors.length === 0) {
+            setError('Please place some endpoints');
+            setTimeout(() => setError(null), 3000);
+            return;
+        }
+
+        for (const color of placedColors) {
+            const count = countColor(board, color);
+            if (count === 1) {
+                setError(`Color ${color} is missing an endpoint`);
+                setTimeout(() => setError(null), 3000);
+                return;
+            }
+        }
+
+        // ── Start Solver ────────────────────────────────────────────────────────
         setIsSolving(true);
 
         if (workerRef.current) workerRef.current.terminate();
