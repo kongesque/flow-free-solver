@@ -21,7 +21,7 @@ const SolverControls = ({
     onSolve,
     onReset,
 }: SolverControlsProps) => (
-    <div className="flex flex-wrap items-center justify-center gap-3 mb-2">
+    <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 mb-2">
         {/* Grid size selector */}
         <div className="relative">
             <select
@@ -53,25 +53,28 @@ const SolverControls = ({
             <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-stoic-secondary pointer-events-none h-3 w-3" />
         </div>
 
-        {/* Solve button */}
-        <button
-            className='h-9 sm:h-10 px-4 text-xs border-2 border-stoic-accent bg-stoic-accent text-stoic-bg font-bold uppercase tracking-wider hover:bg-transparent hover:text-stoic-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-stoic-accent disabled:hover:text-stoic-bg select-none flex items-center gap-2 rounded-md'
-            onClick={onSolve}
-            disabled={isSolving}
-        >
-            {isSolving && (
-                <Loader2 className="animate-spin h-3 w-3" aria-hidden="true" />
-            )}
-            {isSolving ? 'Solving' : 'Solve'}
-        </button>
+        {/* Solve + Reset always stay together */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+            {/* Solve button — fixed width so spinner doesn't shift layout */}
+            <button
+                className='h-9 sm:h-10 w-24 text-xs border-2 border-stoic-accent bg-stoic-accent text-stoic-bg font-bold uppercase tracking-wider hover:bg-transparent hover:text-stoic-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-stoic-accent disabled:hover:text-stoic-bg select-none flex items-center justify-center gap-1.5 rounded-md'
+                onClick={onSolve}
+                disabled={isSolving}
+            >
+                {isSolving && (
+                    <Loader2 className="animate-spin h-3 w-3 flex-shrink-0" aria-hidden="true" />
+                )}
+                {isSolving ? 'Solving' : 'Solve'}
+            </button>
 
-        {/* Reset button */}
-        <button
-            className='h-9 sm:h-10 px-3 text-xs border border-stoic-line bg-transparent text-stoic-secondary uppercase tracking-wider hover:border-stoic-secondary hover:text-stoic-primary transition-colors select-none rounded-md'
-            onClick={onReset}
-        >
-            Reset
-        </button>
+            {/* Reset button */}
+            <button
+                className='h-9 sm:h-10 px-3 text-xs border border-stoic-line bg-transparent text-stoic-secondary uppercase tracking-wider hover:border-stoic-secondary hover:text-stoic-primary transition-colors select-none rounded-md'
+                onClick={onReset}
+            >
+                Reset
+            </button>
+        </div>
     </div>
 );
 
