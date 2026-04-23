@@ -6,7 +6,7 @@ const SolverHeader = () => (
             href="https://github.com/Kongesque/flow-free-solver"
             target="_blank"
             rel="noopener noreferrer"
-            className="absolute top-4 right-4 sm:top-6 sm:right-6 text-stoic-secondary hover:text-stoic-primary transition-colors z-50 p-2"
+            className="absolute top-4 right-4 sm:top-6 sm:right-6 text-stoic-secondary hover:text-stoic-primary transition-colors z-50"
             aria-label="View source on GitHub"
         >
             <GitHubIcon className="size-6 sm:size-8" />
@@ -19,7 +19,7 @@ const SolverHeader = () => (
             >
                 Flow Free Solver
             </h1>
-            <p className="text-stoic-secondary text-xs mt-1 mx-4">
+            <p className="text-stoic-secondary text-xs mt-1">
                 <strong className="text-stoic-primary">Tips:</strong> Click to place endpoints, click again to remove.
             </p>
         </header>

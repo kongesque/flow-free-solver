@@ -1,5 +1,5 @@
 const SolverFooter = () => (
-    <footer className="px-6 max-w-[min(90vw,32rem)] text-center text-stoic-secondary text-xs leading-relaxed selectable-text shrink-0">
+    <footer className="max-w-[min(90vw,32rem)] text-center text-stoic-secondary text-xs leading-relaxed selectable-text shrink-0">
         <p>
             Solve any Flow Free or Numberlink puzzle instantly.
             <br className="hidden sm:block" />
