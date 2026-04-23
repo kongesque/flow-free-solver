@@ -12,7 +12,7 @@ const SolverHeader = () => (
             <GitHubIcon className="size-6 sm:size-8" />
         </a>
 
-        <header className='text-center flex flex-col items-center gap-1 selectable-text shrink-0 mb-2'>
+        <header className='text-center flex flex-col items-center gap-1 selectable-text shrink-0 mb-2 max-w-[90vw]'>
             <h1
                 className='text-stoic-primary text-xl sm:text-2xl md:text-3xl lg:text-4xl uppercase tracking-[0.1em]'
                 style={{ fontFamily: 'Geist Pixel Circle' }}

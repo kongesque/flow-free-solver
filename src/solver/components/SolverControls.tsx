@@ -21,7 +21,7 @@ const SolverControls = ({
     onSolve,
     onReset,
 }: SolverControlsProps) => (
-    <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 mb-2">
+    <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 mb-2 max-w-[90vw]">
         {/* Grid size selector */}
         <div className="relative">
             <select

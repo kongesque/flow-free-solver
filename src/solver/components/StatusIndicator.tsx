@@ -18,7 +18,7 @@ const StatusIndicator = ({
     activeColor,
     isPlacingSecond,
 }: StatusIndicatorProps) => (
-    <div role="status" className='flex items-center gap-3 min-h-[28px] selectable-text'>
+    <div role="status" className='flex items-center gap-3 min-h-[28px] selectable-text max-w-[90vw]'>
         {isSolving ? (
             <span className='text-stoic-accent text-sm uppercase tracking-widest font-semibold flex items-center gap-2'>
                 <Loader2 className="animate-spin h-4 w-4" aria-hidden="true" />
