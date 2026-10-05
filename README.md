@@ -8,8 +8,8 @@
 </p>
 
 [![Live Demo](https://img.shields.io/badge/demo-live-brightgreen)](https://flow.kongesque.com/)
-[![React](https://img.shields.io/badge/React-18.3-61DAFB?logo=react)](https://reactjs.org/)
-[![Vite](https://img.shields.io/badge/Vite-7.3-646CFF?logo=vite)](https://vitejs.dev/)
+[![React](https://img.shields.io/badge/React-19.3-61DAFB?logo=react)](https://react.dev/)
+[![Vite](https://img.shields.io/badge/Vite-8.3-646CFF?logo=vite)](https://vite.dev/)
 
 ### 🧩 What is Flow Free?
 Flow Free (classically known as **Number Link**) is a logic puzzle where players must connect colored dots on a grid.
@@ -71,7 +71,7 @@ A traditional graph search approach:
 - **Heuristics**: A* estimates the remaining distance (Manhattan distance) to guide the search.
 - **Pruning**: `lookaheadHeuristics` discard invalid states early (e.g., if a color gets trapped).
 
-### Method 3: Heuristic BFS 
+### Method 3: Heuristic BFS
 An optimized solver (based on [Matt Zucker's flow_solver](https://mzucker.github.io/2016/08/28/flow-solver.html)) written in C and compiled to WebAssembly. It achieves extreme performance through advanced pruning techniques:
 
 -   **Active Color Selection**: At each step, it only moves the "most constrained" color (the one with the fewest valid moves), drastically reducing the search tree size.
@@ -84,21 +84,100 @@ An optimized solver (based on [Matt Zucker's flow_solver](https://mzucker.github
 ## 🚀 Local Development
 
 ### Prerequisites
-- Node.js 18+ and npm
 
-### Installation
+- Node.js 24 LTS (see `.nvmrc`) and npm.
+- Emscripten for editing and compiling C. CI uses the version in `.emscripten-version`.
+- Chromium for browser tests: `npx playwright install chromium`.
+
+### Web development
+
 ```bash
-git clone https://github.com/Kongesque/Flow-Free-Solver.git
-cd Flow-Free-Solver
-npm install
+npm ci
+npm run dev
 ```
 
-### Commands
+The compiled C artifacts are checked in, so web-only development and production
+builds do not need Emscripten. Installation and web builds synchronize Z3 and the
+cross-origin isolation service worker from the installed dependency versions.
+
+### Edit C and rebuild Wasm
+
+Install [Emscripten's SDK](https://emscripten.org/docs/getting_started/downloads.html)
+once (or use your existing `emcc` installation):
+
+```bash
+git clone https://github.com/emscripten-core/emsdk.git .emsdk
+./.emsdk/emsdk install "$(cat .emscripten-version)"
+./.emsdk/emsdk activate "$(cat .emscripten-version)"
+source .emsdk/emsdk_env.sh
+```
+
+Edit `native/flow_solver.c`, then run:
+
+```bash
+npm run build:wasm
+npm run test:wasm
+npm run dev
+```
+
+The build script generates **both** `public/wasm/flow_solver_c.mjs` and
+`public/wasm/flow_solver_c.wasm`. Commit both files with C changes. Never edit the
+generated JavaScript by hand. Set `EMCC=/path/to/emcc` if the compiler is outside
+`PATH`. Compilation failures return a nonzero exit code and retain the previous
+artifacts. See [native/README.md](native/README.md) for flags and the C API.
+
+For automatic compilation, run `npm run watch:wasm` in one terminal and
+`npm run dev` in another. Refresh the page after a rebuild to load the new module;
+Vite does not hot-reload runtime imports from `public/`.
+
+### Project layout
+
+```text
+native/                 Editable C solver
+reference/              Historical Python implementations
+scripts/                C compilation and runtime asset synchronization
+src/app/                App shell, entry point, styles
+src/solver/components/  Puzzle editor and controls
+src/solver/logic/       TypeScript solvers and C bridge
+src/solver/workers/     Background solving
+src/hooks/              IndexedDB persistence
+public/wasm/            Generated and upstream runtime artifacts
+tests/fixtures/         Puzzle corpus and independent solution validation
+tests/wasm/             Compiled C regression tests
+tests/e2e/              Real browser, worker, and Wasm checks
+```
+
+### Commands and verification
+
 | Command | Description |
 |---------|-------------|
-| `npm start` | Start local dev server |
-| `npm run build` | Build for production |
-| `npm run deploy` | Deploy to GitHub Pages |
+| `npm run dev` / `npm start` | Start the development server |
+| `npm run build:wasm` | Compile C into the browser's Wasm module |
+| `npm run watch:wasm` | Recompile when native sources change |
+| `npm run sync:wasm` | Copy matching installed Z3/runtime assets |
+| `npm run build` | Type-check and build the web app using existing C artifacts |
+| `npm run build:all` | Rebuild C, type-check, and build the web app |
+| `npm run preview` | Serve the production build with COOP/COEP headers |
+| `npm test` | Run TypeScript/React unit tests |
+| `npm run test:wasm` | Recompile C and run its full puzzle regression suite |
+| `npm run test:e2e` | Test the existing production build in Chromium |
+| `npm run check` | Compile C, run tests, type-check, build, and test the browser |
+
+```bash
+npx playwright install chromium
+npm run check
+E2E_SERVER=dev npm run test:e2e
+VITE_BASE_PATH=/flow-free-solver/ npm run build
+VITE_BASE_PATH=/flow-free-solver/ npm run test:e2e
+npm run build # Restore the default root-hosted build
+```
+
+Browser tests solve a puzzle with each of C/Wasm, A*, and Z3 in real workers,
+validate the resulting paths, reset the grid, cancel active solving, check input
+validation, and verify IndexedDB persistence. C tests cover every fixture, 15×15 grids, malformed input,
+and repeated calls. CI runs these checks for production, development, and subpath
+hosting. Z3 uses shared memory and requires cross-origin isolation; preserve the
+COOP/COEP headers in `vite.config.js` and `vercel.json`.
 
 ---
 
@@ -114,9 +193,10 @@ npm install
 This project is open source under the [MIT License](LICENSE).
 
 **Exception:** The "Heuristic BFS" solver module is based on [flow_solver](https://github.com/mzucker/flow_solver) by Matt Zucker and is licensed under **[CC BY-NC 2.0](https://creativecommons.org/licenses/by-nc/2.0/)**. This exception explicitly applies to:
-- `public/wasm/flow_solver_c.js`
+- `native/flow_solver.c`
+- `public/wasm/flow_solver_c.mjs`
 - `public/wasm/flow_solver_c.wasm`
-- The integration logic for `solveHeuristicBFS` in `src/solver/workers/solver.worker.ts` 
+- The integration logic in `src/solver/logic/heuristic-solver.ts`
 
 If you use this project for commercial purposes, you must exclude the Heuristic BFS solver module or obtain a separate license from the original author.
 
