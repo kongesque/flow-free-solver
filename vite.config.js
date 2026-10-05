@@ -16,6 +16,15 @@ export default defineConfig({
         },
     },
     plugins: [react(), tailwindcss()],
+    optimizeDeps: {
+        // Worker-only CommonJS imports must be discovered before the first
+        // solve; late discovery otherwise reloads the page and loses its result.
+        include: [
+            'z3-solver/build/low-level/wrapper.__GENERATED__',
+            'z3-solver/build/high-level',
+            'z3-solver/build/z3-built',
+        ],
+    },
     base: process.env.VITE_BASE_PATH || (process.env.GITHUB_ACTIONS ? '/flow-free-solver/' : '/'),
     build: {
         outDir: 'dist',
