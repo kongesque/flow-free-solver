@@ -114,8 +114,9 @@ typedef struct game_info_struct {
   pos_t init_pos[MAX_COLORS];
   pos_t goal_pos[MAX_COLORS];
 
-  // Length/width of game board
-  size_t size;
+  // Independent board dimensions
+  size_t width;
+  size_t height;
 
   // Number of colors present
   size_t num_colors;
@@ -318,7 +319,7 @@ void pos_get_coords(pos_t p, int *x, int *y) {
 
 int coords_valid(const game_info_t *info, int x, int y) {
 
-  return (x >= 0 && x < (int)info->size && y >= 0 && y < (int)info->size);
+  return (x >= 0 && x < (int)info->width && y >= 0 && y < (int)info->height);
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -354,7 +355,7 @@ int get_wall_dist(const game_info_t *info, int x, int y) {
 
   for (int i = 0; i < 2; ++i) {
     int d0 = p[i];
-    int d1 = info->size - 1 - p[i];
+    int d1 = (i == 0 ? info->width : info->height) - 1 - p[i];
     d[i] = d0 < d1 ? d0 : d1;
   }
 
@@ -448,7 +449,7 @@ int game_can_move(const game_info_t *info, const game_state_t *state, int color,
   int new_y = cur_y + DIR_DELTA[dir][1];
 
   // If outside bounds, not legal
-  if (new_x < 0 || new_x >= info->size || new_y < 0 || new_y >= info->size) {
+  if (new_x < 0 || new_x >= info->width || new_y < 0 || new_y >= info->height) {
     return 0;
   }
 
@@ -565,8 +566,8 @@ double game_make_move(const game_info_t *info, game_state_t *state, int color,
   int new_y = cur_y + DIR_DELTA[dir][1];
 
   // Make sure valid
-  assert(new_x >= 0 && new_x < (int)info->size && new_y >= 0 &&
-         new_y < (int)info->size);
+  assert(new_x >= 0 && new_x < (int)info->width && new_y >= 0 &&
+         new_y < (int)info->height);
 
   // Make position
   pos_t new_pos = pos_from_coords(new_x, new_y);
@@ -649,7 +650,7 @@ int game_read_buffer(const char *input_buffer, game_info_t *info,
   char buf[MAX_SIZE + 2];
 
   // We loop until we run out of lines or fill the board
-  while (*ptr && (info->size == 0 || y < info->size)) {
+  while (*ptr && *ptr != '\n' && *ptr != '\r' && y < MAX_SIZE) {
 
     // Read line from buffer
     int i = 0;
@@ -665,21 +666,21 @@ int game_read_buffer(const char *input_buffer, game_info_t *info,
 
     size_t l = strlen(buf);
 
-    // Auto-detect size from first line
-    if (info->size == 0) {
+    // Auto-detect width from first line
+    if (info->width == 0) {
       if (l < 2 || l > MAX_SIZE) {
         return 0; // too short
       }
-      info->size = l;
+      info->width = l;
     }
 
-    if (l != info->size) {
+    if (l != info->width) {
       // Mismatch length
       return 0;
     }
 
-    // Process line: x=0 to info->size
-    for (size_t x = 0; x < info->size; ++x) {
+    // Process every cell in this row
+    for (size_t x = 0; x < info->width; ++x) {
       uint8_t c = buf[x];
 
       if (c < 128 && get_color_id(c) >= 0) {
@@ -721,8 +722,10 @@ int game_read_buffer(const char *input_buffer, game_info_t *info,
   // Validation
   // Permit trailing line breaks, but never silently truncate extra board rows.
   while (*ptr == '\n' || *ptr == '\r') ++ptr;
-  if (!info->num_colors || y != info->size || *ptr)
+  if (!info->num_colors || y < 2 || *ptr)
     return 0;
+
+  info->height = y;
 
   for (size_t color = 0; color < info->num_colors; ++color) {
     if (info->goal_pos[color] == INVALID_POS)
@@ -739,6 +742,15 @@ int game_read_buffer(const char *input_buffer, game_info_t *info,
       state->cells[info->init_pos[color]] = cell_create(TYPE_INIT, color, 0);
       state->cells[info->goal_pos[color]] = cell_create(TYPE_GOAL, color, 0);
       state->pos[color] = info->init_pos[color];
+    }
+
+    // Adjacent endpoints already form a complete induced path. They cannot
+    // be extended without giving an endpoint two same-color neighbors.
+    int x0, y0, x1, y1;
+    pos_get_coords(info->init_pos[color], &x0, &y0);
+    pos_get_coords(info->goal_pos[color], &x1, &y1);
+    if (abs(x0 - x1) + abs(y0 - y1) == 1) {
+      state->completed |= (1 << color);
     }
   }
 
@@ -1010,8 +1022,8 @@ size_t game_build_regions(const game_info_t *info, const game_state_t *state,
   region_t regions[MAX_CELLS];
 
   // 1 pass to build regions
-  for (size_t y = 0; y < info->size; ++y) {
-    for (size_t x = 0; x < info->size; ++x) {
+  for (size_t y = 0; y < info->height; ++y) {
+    for (size_t x = 0; x < info->width; ++x) {
       pos_t pos = pos_from_coords(x, y);
       if (state->cells[pos]) {
         regions[pos] = region_create(INVALID_POS);
@@ -1040,8 +1052,8 @@ size_t game_build_regions(const game_info_t *info, const game_state_t *state,
   memset(rmap, 0xff, MAX_CELLS);
 
   // 2nd pass to order regions
-  for (size_t y = 0; y < info->size; ++y) {
-    for (size_t x = 0; x < info->size; ++x) {
+  for (size_t y = 0; y < info->height; ++y) {
+    for (size_t x = 0; x < info->width; ++x) {
       pos_t pos = pos_from_coords(x, y);
       pos_t root = region_find(regions, pos);
       if (root != INVALID_POS) {
@@ -1242,14 +1254,14 @@ void game_print_regions(const game_info_t *info, const game_state_t *state,
                         uint8_t rmap[MAX_CELLS]) {
 
   printf("%s", BLOCK_CHAR);
-  for (size_t x = 0; x < info->size; ++x) {
+  for (size_t x = 0; x < info->width; ++x) {
     printf("%s", BLOCK_CHAR);
   }
   printf("%s\n", BLOCK_CHAR);
 
-  for (size_t y = 0; y < info->size; ++y) {
+  for (size_t y = 0; y < info->height; ++y) {
     printf("%s", BLOCK_CHAR);
-    for (size_t x = 0; x < info->size; ++x) {
+    for (size_t x = 0; x < info->width; ++x) {
       pos_t pos = pos_from_coords(x, y);
       pos_t rid = rmap[pos];
       const color_lookup_t *l = &color_dict[rid % MAX_COLORS];
@@ -1266,7 +1278,7 @@ void game_print_regions(const game_info_t *info, const game_state_t *state,
   }
 
   printf("%s", BLOCK_CHAR);
-  for (size_t x = 0; x < info->size; ++x) {
+  for (size_t x = 0; x < info->width; ++x) {
     printf("%s", BLOCK_CHAR);
   }
   printf("%s\n", BLOCK_CHAR);
@@ -2170,9 +2182,9 @@ const char *solve_puzzle_wasm(const char *input_str) {
 
     char *ptr = result_json;
     ptr += sprintf(ptr, "[");
-    for (size_t y = 0; y < info.size; ++y) {
+    for (size_t y = 0; y < info.height; ++y) {
       ptr += sprintf(ptr, "[");
-      for (size_t x = 0; x < info.size; ++x) {
+      for (size_t x = 0; x < info.width; ++x) {
         pos_t pos = pos_from_coords(x, y);
         cell_t cell = final_state.cells[pos];
         int color = cell_get_color(cell);
@@ -2192,11 +2204,11 @@ const char *solve_puzzle_wasm(const char *input_str) {
         }
 
         ptr += sprintf(ptr, "%d", output_code);
-        if (x < info.size - 1)
+        if (x < info.width - 1)
           ptr += sprintf(ptr, ",");
       }
       ptr += sprintf(ptr, "]");
-      if (y < info.size - 1)
+      if (y < info.height - 1)
         ptr += sprintf(ptr, ",");
     }
     ptr += sprintf(ptr, "]");

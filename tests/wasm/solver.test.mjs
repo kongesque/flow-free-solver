@@ -31,8 +31,21 @@ test('accepts a board fully solved by initial forced moves', () => {
   assertSolution(input, JSON.parse(solve(input)));
 });
 
+for (const [width, height] of [[2, 15], [15, 2], [5, 8], [8, 5], [7, 10], [10, 7], [15, 14], [14, 15]]) {
+  test(`compiled C solver: rectangular ${width}x${height}`, () => {
+    const colors = 'RBYGOCMmPAWgTbcp';
+    const input = Array.from({ length: height }, (_, y) =>
+      `${colors[y]}${'.'.repeat(width - 2)}${colors[y]}`).join('\n') + '\n';
+    assertSolution(input, JSON.parse(solve(input)));
+    // Exercise CRLF input, then a square puzzle on the same instance.
+    assertSolution(input, JSON.parse(solve(input.replaceAll('\n', '\r\n'))));
+    const square = readFileSync(new URL('regular_5x5_01.txt', fixtures), 'utf8');
+    assertSolution(square, JSON.parse(solve(square)));
+  });
+}
+
 for (const [name, input] of Object.entries({
-  empty: '', missingRows: 'R.R\n...\n', extraRows: 'R.R\n...\n...\n...\n',
+  empty: '', missingRows: 'R.R\n', extraRows: 'R.R\n' + '...\n'.repeat(15),
   oversized: `${'R'.repeat(16)}\n`.repeat(16), unknownColor: 'Q.Q\n...\n...\n',
   missingEndpoint: 'R..\n...\n...\n', extraEndpoint: 'RRR\n...\n...\n',
   nonSquare: 'R.R\n..\n...\n', invalidCharacter: 'R.R\n.!.\n...\n',
