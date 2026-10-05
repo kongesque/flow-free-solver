@@ -118,17 +118,24 @@ const SolverControls = ({
                     Reset
                 </button>
             </div>
-            <div className="solver-about selectable-text">
-                <p>Three ways to solve Flow Free, all in your browser.</p>
-                <a href="https://www.kongesque.com/blog/flow-free-solver" target="_blank" rel="noreferrer"
-                    aria-label="Read more about this solver (opens in a new tab)">
-                    Read more
-                </a>
-            </div>
             <details className="board-options mobile-board-options">
                 <summary>Board options <ChevronDown aria-hidden="true" /></summary>
                 {boardSettings}
             </details>
+            <div className="solver-about selectable-text">
+                <p>Solve Flow Free and Numberlink in your browser.</p>
+                <p>Powered by Heuristic BFS (C/Wasm), SAT (Z3), and A* search.</p>
+                <div className="solver-about-links">
+                    <a href="https://www.kongesque.com/blog/flow-free-solver" target="_blank" rel="noreferrer"
+                        aria-label="Read more about this solver (opens in a new tab)">
+                        Read more
+                    </a>
+                    <a href="https://github.com/Kongesque/flow-free-solver" target="_blank" rel="noreferrer"
+                        aria-label="View source on GitHub (opens in a new tab)">
+                        GitHub
+                    </a>
+                </div>
+            </div>
         </div>
     );
 };

@@ -27,7 +27,11 @@ for (const viewport of [
         await expect(page.getByRole('combobox')).toHaveCount(viewport.width >= 960 ? 5 : 2);
         await expect(page.getByText('Size', { exact: true })).toBeVisible();
         await expect(page.getByText('Algorithm', { exact: true })).toBeVisible();
-        await expect(page.getByRole('link', { name: 'View source on GitHub' })).toHaveCount(0);
+        const source = page.getByRole('link', { name: /View source on GitHub/ });
+        await expect(source).toBeVisible();
+        await expect(source).toHaveAttribute('href', 'https://github.com/Kongesque/flow-free-solver');
+        await expect(source).toHaveAttribute('target', '_blank');
+        await expect(source.locator('svg')).toHaveCount(0);
         await expect(page.getByRole('link', { name: 'About this solver', exact: true })).toHaveCount(0);
         const readMore = page.getByRole('link', { name: /Read more about this solver/ });
         await expect(readMore).toBeVisible();
@@ -63,6 +67,8 @@ for (const viewport of [
             expect(actions.y).toBeGreaterThan(options.y + options.height);
             expect(controls!.y + controls!.height).toBeLessThanOrEqual(initialBoard!.y + initialBoard!.height);
         } else {
+            const options = await layoutBounds(page.locator('.mobile-board-options'));
+            expect(about.y).toBeGreaterThan(options.y + options.height);
             await expect(page.locator('.solver-header p')).toBeVisible();
             await expect(page.locator('.desktop-placement-tip')).toBeHidden();
             await expect(page.locator('.mobile-board-options')).not.toHaveAttribute('open', '');

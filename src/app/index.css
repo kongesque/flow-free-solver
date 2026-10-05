@@ -183,6 +183,8 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
 .control-hint { margin-top: 8px; font-size: 10px; color: var(--color-stoic-secondary); line-height: 1.6; }
 .solver-about { color: var(--color-stoic-secondary); font-size: 11px; line-height: 1.6; text-align: left; }
 .solver-about p { margin: 0; text-wrap: balance; }
+.solver-about p + p { margin-top: 6px; }
+.solver-about-links { display: flex; gap: 16px; }
 .solver-about a { display: inline-flex; align-items: center; min-height: 44px; margin-top: 4px; color: var(--color-stoic-accent); text-decoration: underline; text-underline-offset: 4px; }
 .solver-about a:hover { color: var(--color-stoic-primary); }
 
@@ -231,13 +233,14 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
   .solver-status { grid-column: 1; grid-row: 3; }
   .board-area { grid-column: 1; grid-row: 1 / span 2; align-self: start; }
   .game-controls { grid-column: 2; grid-row: 2; }
-  .control-actions { margin-top: 12px; }
+  .solver-controls { gap: 10px; }
+  .control-actions { margin-top: 8px; }
   .solver-about a { min-height: 28px; }
-  .board-options { margin-top: 12px; padding-top: 24px; border-top: 1px solid var(--color-stoic-line); }
+  .board-options { margin-top: 8px; padding-top: 20px; border-top: 1px solid var(--color-stoic-line); }
   .mobile-board-options { display: none; }
   .desktop-board-options { display: block; }
   .board-options-title { display: block; margin: 0; color: var(--color-stoic-secondary); font-size: 11px; font-weight: normal; }
-  .custom-settings { padding-top: 16px; }
+  .custom-settings { padding-top: 12px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
