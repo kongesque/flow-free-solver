@@ -13,6 +13,8 @@ for (const viewport of [
     { width: 430, height: 932 },
     { width: 568, height: 320 },
     { width: 768, height: 1024 },
+    { width: 959, height: 900 },
+    { width: 960, height: 900 },
     { width: 1024, height: 768 },
     { width: 1440, height: 900 },
     { width: 1440, height: 1200 },
@@ -22,21 +24,31 @@ for (const viewport of [
         await page.goto('./');
         await expect(page.locator('.control-actions button')).toHaveCount(3);
         await expect(page.getByRole('combobox')).toHaveCount(2);
-        await expect(page.getByText('Size', { exact: true })).toHaveCount(0);
-        await expect(page.getByText('Algorithm', { exact: true })).toHaveCount(0);
+        await expect(page.getByText('Size', { exact: true })).toBeVisible();
+        await expect(page.getByText('Algorithm', { exact: true })).toBeVisible();
+        await expect(page.getByRole('link', { name: 'View source on GitHub' })).toHaveCount(0);
         await expect(page.getByRole('link', { name: 'About this solver' })).toHaveCount(0);
         const initialBoard = await page.getByRole('article', { name: 'Puzzle Grid Board' }).boundingBox();
         const initialHeader = await layoutBounds(page.getByRole('heading', { name: /Flow Free Solver/i }));
         const status = await layoutBounds(page.getByRole('status'));
         const controls = await page.getByRole('region', { name: 'Game Controls' }).boundingBox();
-        expect(initialHeader.y).toBeLessThanOrEqual(28);
-        expect(status.y + status.height).toBeLessThanOrEqual(initialBoard!.y);
+        const desktop = viewport.width >= 960;
+        if (desktop) {
+            expect(initialHeader.x).toBeGreaterThan(initialBoard!.x + initialBoard!.width);
+            expect(controls!.x).toBeGreaterThan(initialBoard!.x + initialBoard!.width);
+            expect(status.x).toBeGreaterThan(initialBoard!.x + initialBoard!.width);
+            expect(initialHeader.y).toBeCloseTo(initialBoard!.y, 0);
+            expect(controls!.y + controls!.height).toBeLessThanOrEqual(initialBoard!.y + initialBoard!.height);
+        } else {
+            expect(initialHeader.y + initialHeader.height).toBeLessThan(status.y);
+            expect(status.y + status.height).toBeLessThanOrEqual(initialBoard!.y);
+            expect(controls!.y).toBeGreaterThanOrEqual(initialBoard!.y + initialBoard!.height);
+        }
         if (viewport.height >= 768) {
             expect(initialBoard!.y + initialBoard!.height / 2).toBeCloseTo(viewport.height / 2, 0);
         } else if (viewport.width <= 600 && viewport.height >= viewport.width) {
             expect(Math.abs(initialBoard!.y + initialBoard!.height / 2 - viewport.height / 2)).toBeLessThan(12);
         }
-        expect(controls!.y).toBeGreaterThanOrEqual(initialBoard!.y + initialBoard!.height);
         await page.locator('.board-options summary').click();
         await expect(page.getByRole('combobox', { name: 'Grid Width' })).toBeEnabled();
         const frame = await layoutBounds(page.getByRole('region', { name: 'Puzzle editor' }));
@@ -216,6 +228,12 @@ for (const viewport of [
         await page.getByRole('button', { name: 'Generate', exact: true }).click();
         await expect(page.getByRole('status')).toContainText('Generated');
         await expectStable();
+        if (viewport.width === 390 || viewport.width === 1440) {
+            await page.screenshot({
+                path: test.info().outputPath(viewport.width === 390 ? 'balanced-mobile.png' : 'balanced-desktop.png'),
+                fullPage: true,
+            });
+        }
         await expect(page.getByRole('button', { name: /Show solution|Hide solution|Edit puzzle/ })).toHaveCount(0);
         const generated = await readRows();
         await page.getByRole('button', { name: 'Solve', exact: true }).click();

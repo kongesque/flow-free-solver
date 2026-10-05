@@ -77,8 +77,8 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
   --shell-top: max(28px, env(safe-area-inset-top));
   --shell-left: max(16px, env(safe-area-inset-left));
   --shell-right: max(16px, env(safe-area-inset-right));
-  --shell-gap: 22px;
-  --workspace-gap: 14px;
+  --shell-gap: 16px;
+  --workspace-gap: 16px;
   --play-area-size: min(var(--board-space), calc(100vw - var(--shell-left) - var(--shell-right)));
   position: relative;
   width: min(100%, 600px);
@@ -94,6 +94,9 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
   text-align: center;
 }
 .solver-header {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
   padding-inline: 28px;
   flex: none;
   align-self: stretch;
@@ -110,8 +113,6 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
   line-height: 1.3;
 }
 .solver-header p { text-wrap: balance; margin-top: 8px; color: var(--color-stoic-secondary); font-size: 11px; }
-.source-link { position: fixed; top: max(12px, env(safe-area-inset-top)); right: max(12px, env(safe-area-inset-right)); display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; color: var(--color-stoic-secondary); }
-.source-link:hover { color: var(--color-stoic-primary); }
 .solver-workspace { width: min(100%, var(--board-space)); flex: none; display: flex; flex-direction: column; gap: var(--workspace-gap); }
 .board-area { min-width: 0; width: 100%; aspect-ratio: 1; display: grid; place-items: center; }
 .puzzle-grid {
@@ -186,13 +187,43 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
 }
 
 @media (max-width: 479px) {
-  .solver-shell { --shell-gap: 18px; }
   .solver-header { padding-inline: 24px; }
   .solver-header h1 { letter-spacing: .06em; }
 }
 
 @media (max-height: 700px) {
   .solver-shell { --shell-top: max(16px, env(safe-area-inset-top)); --shell-gap: 12px; --workspace-gap: 8px; }
+}
+
+@media (min-width: 960px) {
+  .solver-shell {
+    --board-space: clamp(320px, 72svh, 640px);
+    --play-area-size: min(var(--board-space), calc(100vw - 424px));
+    width: min(100%, calc(var(--board-space) + 424px));
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    grid-template-rows: 80px 32px auto;
+    gap: 24px 40px;
+    align-items: start;
+    align-content: start;
+    padding: max(32px, calc((100svh - var(--play-area-size)) / 2)) 32px 32px;
+    text-align: left;
+  }
+  .solver-workspace { display: contents; }
+  .solver-header {
+    grid-column: 2;
+    grid-row: 1;
+    display: block;
+    align-self: start;
+    height: auto;
+    padding: 0;
+  }
+  .solver-header h1 { font-size: 24px; letter-spacing: .06em; }
+  .solver-header p { line-height: 1.6; }
+  .solver-status { grid-column: 2; grid-row: 2; justify-content: flex-start; }
+  .board-area { grid-column: 1; grid-row: 1 / span 3; }
+  .game-controls { grid-column: 2; grid-row: 3; }
+  .board-options summary { justify-content: flex-start; }
 }
 
 @media (prefers-reduced-motion: reduce) {
