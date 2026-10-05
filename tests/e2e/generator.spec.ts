@@ -135,6 +135,7 @@ test('failed generator worker preserves the board and allows retry', async ({ pa
     await page.goto('./');
     await page.getByRole('button', { name: 'Cell 0,0 Empty', exact: true }).click();
     await page.route(/generator\.worker/, route => route.abort());
+    page.once('dialog', dialog => dialog.accept());
     await page.getByRole('button', { name: 'Generate', exact: true }).click();
     await expect(page.getByRole('status')).toContainText('Could not generate puzzle');
     await expect(page.getByRole('button', { name: 'Cell 0,0 Color 1', exact: true })).toBeVisible();
@@ -169,3 +170,47 @@ test('generation controls fit on a mobile viewport', async ({ page }) => {
     }
     await page.screenshot({ path: test.info().outputPath('generated-mobile.png') });
 });
+
+for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 }]) {
+    for (const source of ['manual', 'edited generated']) {
+        test(`Generate protects ${source} endpoints at ${viewport.width}px`, async ({ page }) => {
+            await page.setViewportSize(viewport);
+            let workers = 0;
+            page.on('worker', () => { workers++; });
+            await page.goto('./');
+            let missingCell = 'Cell 4,0 Empty';
+            if (source === 'manual') {
+                await page.getByRole('button', { name: 'Cell 0,0 Empty', exact: true }).click();
+            } else {
+                await generate(page, 5);
+                const endpoint = page.getByRole('button', { name: /Cell .* Color/ }).first();
+                missingCell = (await endpoint.getAttribute('aria-label'))!.replace(/Color \d+/, 'Empty');
+                await endpoint.click();
+            }
+            const endpoints = await readGrid(page, 5);
+            const previousWorkers = workers;
+            await expect(page.getByRole('status')).toContainText('End');
+            let message = '';
+            page.once('dialog', dialog => {
+                message = dialog.message();
+                return dialog.dismiss();
+            });
+            await page.getByRole('button', { name: 'Generate', exact: true }).click();
+            expect(message).toBe('Replace your endpoints with a generated puzzle?');
+            expect(await readGrid(page, 5)).toEqual(endpoints);
+            expect(workers).toBe(previousWorkers);
+            await expect(page.getByRole('status')).toContainText('End');
+            // Cancel also preserves the pending color, so the next tap completes its pair.
+            const pendingColor = endpoints.flat().find(color => color !== 0 && endpoints.flat().filter(c => c === color).length === 1)!;
+            await page.getByRole('button', { name: missingCell, exact: true }).click();
+            expect((await readGrid(page, 5)).flat().filter(color => color === pendingColor)).toHaveLength(2);
+            page.once('dialog', dialog => dialog.accept());
+            await page.getByRole('button', { name: 'Generate', exact: true }).click();
+            await expect(page.getByRole('status')).toContainText('Generated · 5 pairs');
+            expect(workers).toBe(previousWorkers + 1);
+            const generated = await readGrid(page, 5);
+            await page.getByRole('button', { name: 'Show solution' }).click();
+            validateSolution(generated, await readGrid(page, 5));
+        });
+    }
+}

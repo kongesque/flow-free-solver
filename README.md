@@ -50,7 +50,7 @@ Try it online: **[https://flow.kongesque.com](https://flow.kongesque.com)**
 ## 🎮 How to Use
 
 1.  **Select Dimensions**: Choose a square **Grid Size** preset, or open **Board options** to set **Width** and **Height** independently from 5 to 15. Rectangular boards automatically select **Heuristic BFS**, the C/Wasm solver. A* and Z3 remain available for Standard square boards.
-2.  **Generate a Puzzle**: Click **Generate** for a new solvable puzzle. **Show solution** reveals its full-board paths; **Hide solution** returns to the endpoints. The puzzle and its generated solution are saved locally across reloads.
+2.  **Generate a Puzzle**: Click **Generate** for a new solvable puzzle. If you have placed or edited endpoints, confirm before replacing them; Cancel keeps your board and current color. **Show solution** reveals its full-board paths; **Hide solution** returns to the endpoints. The puzzle and its generated solution are saved locally across reloads.
 3.  **Paint the Board**: Alternatively, click an empty cell to place an endpoint, or click a filled cell to remove it. Editing a generated puzzle discards its saved solution.
     - With a keyboard, Tab enters the board, arrow keys move between cells, and Enter or Space places or removes a dot. Home and End move to the edges of a row.
     - *Tip*: You need exactly two dots of the same color to form a pair.

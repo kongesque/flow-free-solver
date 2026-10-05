@@ -199,6 +199,8 @@ const FlowSolver = () => {
 
     const generateBoard = () => {
         if (isSolving || isGenerating || !isLoaded || !isStandard) return;
+        if (!generatedSolution && board.some(column => column.some(color => color !== 0)) &&
+            !window.confirm('Replace your endpoints with a generated puzzle?')) return;
         setError(null);
         setIsGenerating(true);
         const worker = new Worker(
