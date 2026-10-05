@@ -25,7 +25,7 @@ jobs:
           "$RUNNER_TEMP/emsdk/emsdk" install "$(cat .emscripten-version)"
           "$RUNNER_TEMP/emsdk/emsdk" activate "$(cat .emscripten-version)"
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      - run: npx playwright install --with-deps chromium webkit
       - name: Compile C and verify production web app
         run: |
           source "$RUNNER_TEMP/emsdk/emsdk_env.sh"

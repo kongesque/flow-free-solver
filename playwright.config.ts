@@ -12,7 +12,14 @@ export default defineConfig({
     baseURL: `http://127.0.0.1:4173${basePath}`,
     trace: 'retain-on-failure',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    {
+      name: 'mobile-webkit',
+      testMatch: 'mobile-layout.spec.ts',
+      use: { ...devices['iPhone 13'] },
+    },
+  ],
   webServer: {
     command: `npm run ${mode} -- --host 127.0.0.1 --port 4173 --strictPort`,
     url: `http://127.0.0.1:4173${basePath}`,
