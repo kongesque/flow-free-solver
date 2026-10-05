@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { COLORS } from './constants';
 
 interface PuzzleGridProps {
@@ -23,14 +24,14 @@ const PuzzleGrid = ({
 }: PuzzleGridProps) => (
     <article
         aria-label="Puzzle Grid Board"
-        className="grid bg-stoic-line border-2 border-stoic-line mx-auto shrink-0"
+        className="puzzle-grid"
         style={{
-            gap: '2px',
-            gridTemplateColumns: `repeat(${width}, 1fr)`,
-            gridTemplateRows: `repeat(${height}, 1fr)`,
-            width: `min(90vw, ${55 * width / height}vh)`,
-            height: `min(${90 * height / width}vw, 55vh)`,
-        }}
+            gridTemplateColumns: `repeat(${width}, minmax(0, 1fr))`,
+            gridTemplateRows: `repeat(${height}, minmax(0, 1fr))`,
+            '--board-ratio': width / height,
+            '--mobile-board-height': height > width ? 'min(60svh, 520px)' : 'clamp(240px, 38svh, 400px)',
+            aspectRatio: `${width} / ${height}`,
+        } as CSSProperties}
     >
         {Array.from({ length: height }).map((_, y) =>
             Array.from({ length: width }).map((_, x) => {
@@ -44,7 +45,7 @@ const PuzzleGrid = ({
                         disabled={isSolving}
                         className={`
                             group
-                            w-full h-full
+                            w-full h-full min-w-0 min-h-0
                             bg-stoic-block-bg
                             p-0 m-0 appearance-none cursor-pointer 
                             flex items-center justify-center 
@@ -58,12 +59,12 @@ const PuzzleGrid = ({
                     >
                         {hasColor ? (
                             <span
-                                className="rounded-full w-[70%] h-[70%]"
+                                className="endpoint-dot rounded-full w-[66%] h-[66%]"
                                 style={{ backgroundColor: COLORS[cellValue] || '#888' }}
                             />
                         ) : !solvedBoard && !isResetting && (
                             <span
-                                className="rounded-full w-[70%] h-[70%] opacity-0 group-hover:opacity-50 transition-opacity duration-75"
+                                className="rounded-full w-[66%] h-[66%] opacity-0 group-hover:opacity-40 transition-opacity duration-75"
                                 style={{ backgroundColor: COLORS[activeColor] || '#888' }}
                             />
                         )}

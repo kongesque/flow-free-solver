@@ -1,9 +1,9 @@
 const SolverFooter = () => (
-    <footer className="max-w-[min(90vw,32rem)] text-center text-stoic-secondary text-xs leading-relaxed selectable-text shrink-0">
+    <footer className="solver-footer selectable-text">
         <p>
-            Solve any Flow Free or Numberlink puzzle instantly.
+            Made for Flow Free &amp; Numberlink.
             <br className="hidden sm:block" />
-            Powered by C++ Heuristic BFS, SAT (Z3) &amp; A* search.{' '}
+            Solved locally in your browser.{' '}
             <a
                 href="https://www.kongesque.com/blog/flow-free-solver"
                 target="_blank"

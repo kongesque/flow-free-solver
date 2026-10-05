@@ -24,25 +24,25 @@ const StatusIndicator = ({
     activeColor,
     isPlacingSecond,
 }: StatusIndicatorProps) => (
-    <div role="status" className='flex items-center gap-3 min-h-[28px] selectable-text max-w-[90vw]'>
+    <div role="status" className="solver-status selectable-text" aria-live="polite" aria-atomic="true">
         {unavailableMode ? (
             <span className="text-stoic-secondary text-xs">
                 {unavailableMode} is coming soon. Switch to Standard to edit or solve.
             </span>
         ) : isSolving || isGenerating ? (
-            <span className='text-stoic-accent text-sm uppercase tracking-widest font-semibold flex items-center gap-2'>
+            <span className='text-stoic-accent text-sm  font-semibold flex items-center gap-2'>
                 <Loader2 className="animate-spin h-4 w-4" aria-hidden="true" />
                 {isGenerating ? 'Generating…' : 'Solving…'}
             </span>
         ) : error ? (
             <span
-                className='text-sm uppercase tracking-widest font-semibold animate-pulse flex items-center gap-2'
+                className='text-sm  font-semibold flex items-center gap-2'
                 style={{ color: '#FF3B30' }}
             >
                 <X className="h-4 w-4" /> {error}
             </span>
         ) : solvedBoard ? (
-            <span className='text-stoic-accent text-sm uppercase tracking-widest font-semibold flex items-center gap-2'>
+            <span className='text-stoic-accent text-sm  font-semibold flex items-center gap-2'>
                 <Check className="h-4 w-4" /> Solved
                 {solveTime !== null && (
                     <span className="text-stoic-secondary text-xs opacity-75">

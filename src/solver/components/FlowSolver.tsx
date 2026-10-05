@@ -315,9 +315,15 @@ const FlowSolver = () => {
     const currentBoard = solvedBoard || board;
 
     return (
-        <main className='relative flex flex-col justify-center items-center min-h-[100dvh] py-6 w-full bg-stoic-bg safe-area-inset touch-manipulation  gap-3'>
+        <main className="solver-shell touch-manipulation">
             <SolverHeader />
 
+            <div className="solver-workspace">
+            <section className="board-area" aria-label="Puzzle editor">
+                <div className="board-heading selectable-text">
+                    <span className="section-label">Your puzzle</span>
+                    <span>{width} × {height}</span>
+                </div>
             <PuzzleGrid
                 width={width}
                 height={height}
@@ -329,7 +335,9 @@ const FlowSolver = () => {
                 onCellClick={handleCellClick}
             />
 
-            <section aria-label="Game Controls" className="flex flex-col items-center gap-3 shrink-0 z-10">
+                <p className="board-instructions selectable-text">Tap an empty cell to place a dot. Tap a dot to remove it.</p>
+            </section>
+            <section aria-label="Game Controls" className="controls-panel">
                 <StatusIndicator
                     isSolving={isSolving}
                     isGenerating={isGenerating}
@@ -364,6 +372,7 @@ const FlowSolver = () => {
                 />
             </section>
 
+            </div>
             <SolverFooter />
         </main>
     );

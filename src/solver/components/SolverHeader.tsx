@@ -1,29 +1,16 @@
 import GitHubIcon from './GitHubIcon';
 
 const SolverHeader = () => (
-    <>
-        <a
-            href="https://github.com/Kongesque/flow-free-solver"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="absolute top-4 right-4 sm:top-6 sm:right-6 text-stoic-secondary hover:text-stoic-primary transition-colors z-50"
-            aria-label="View source on GitHub"
-        >
-            <GitHubIcon className="size-6 sm:size-8" />
+    <header className="solver-header selectable-text">
+        <div>
+            <h1>Flow Free Solver</h1>
+            <p>Connect the dots. Find your flow.</p>
+        </div>
+        <a href="https://github.com/Kongesque/flow-free-solver" target="_blank" rel="noopener noreferrer"
+            className="source-link" aria-label="View source on GitHub">
+            <GitHubIcon className="size-5" />
         </a>
-
-        <header className='text-center flex flex-col items-center gap-1 selectable-text shrink-0 mb-2 max-w-[90vw]'>
-            <h1
-                className='text-stoic-primary text-xl sm:text-2xl md:text-3xl lg:text-4xl uppercase tracking-[0.1em]'
-                style={{ fontFamily: 'Geist Pixel Circle' }}
-            >
-                Flow Free Solver
-            </h1>
-            <p className="text-stoic-secondary text-xs mt-1">
-                Generate a solvable puzzle, or click cells to place your own endpoints.
-            </p>
-        </header>
-    </>
+    </header>
 );
 
 export default SolverHeader;
