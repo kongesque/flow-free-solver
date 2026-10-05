@@ -28,10 +28,10 @@ for (const viewport of [
         const frame = await layoutBounds(page.getByRole('region', { name: 'Puzzle editor' }));
         const stableControls = await layoutBounds(page.getByRole('region', { name: 'Game Controls' }));
         const heading = await layoutBounds(page.getByRole('heading', { name: /Flow Free Solver/i }));
-        const edgeToEdge = viewport.width <= 600 && viewport.height >= viewport.width;
-        if (edgeToEdge) {
-            expect(frame.x).toBeCloseTo(0, 1);
-            expect(frame.width).toBeCloseTo(viewport.width, 1);
+        const phonePortrait = viewport.width <= 600 && viewport.height >= viewport.width;
+        if (phonePortrait) {
+            expect(frame.x).toBeCloseTo(2, 1);
+            expect(frame.width).toBeCloseTo(viewport.width - 4, 1);
             expect(stableControls.x).toBeGreaterThanOrEqual(16);
             expect(stableControls.x + stableControls.width).toBeLessThanOrEqual(viewport.width - 16);
         }
@@ -44,9 +44,9 @@ for (const viewport of [
             expect(bounds!.x).toBeGreaterThanOrEqual(0);
             expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(viewport.width);
             expect(bounds!.width / bounds!.height).toBeCloseTo(width / height, 1);
-            if (edgeToEdge && width >= height) {
-                expect(bounds.x).toBeCloseTo(0, 1);
-                expect(bounds.width).toBeCloseTo(viewport.width, 1);
+            if (phonePortrait && width >= height) {
+                expect(bounds.x).toBeCloseTo(2, 1);
+                expect(bounds.width).toBeCloseTo(viewport.width - 4, 1);
             }
             expect(bounds!.width).toBeLessThanOrEqual(frame!.width + 1);
             expect(bounds!.height).toBeLessThanOrEqual(frame!.height + 1);
@@ -131,11 +131,14 @@ test.describe('touch input', () => {
         const bounds = await first.boundingBox();
         // Tap the one-pixel line between the first two cells.
         await page.touchscreen.tap(bounds!.x + bounds!.width + 0.5, bounds!.y + bounds!.height / 2);
-        await expect(page.getByRole('button', { name: 'Cell 1,0 Color 1', exact: true })).toBeVisible();
+        // Touch coordinates round to whole pixels, so either adjacent cell can be nearest.
+        const placedEndpoint = page.getByRole('button', { name: /^Cell [01],0 Color 1$/ });
+        await expect(placedEndpoint).toHaveCount(1);
+        const placedName = await placedEndpoint.getAttribute('aria-label');
         await expect(grid.getByRole('button', { name: /Color/ })).toHaveCount(1);
         await page.getByRole('button', { name: 'Cell 4,14 Empty', exact: true }).tap();
         await expect(page.getByRole('button', { name: 'Cell 4,14 Color 1', exact: true })).toBeVisible();
-        await page.getByRole('button', { name: 'Cell 1,0 Color 1', exact: true }).tap();
+        await page.getByRole('button', { name: placedName!, exact: true }).tap();
         await expect(page.getByRole('status')).toContainText('End');
         await expect(grid.getByRole('button', { name: /Color/ })).toHaveCount(1);
     });

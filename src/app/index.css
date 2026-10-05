@@ -172,7 +172,7 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
 .solver-footer a:hover { color: var(--color-stoic-primary); }
 
 @media (max-width: 600px) and (orientation: portrait) {
-  .board-area { width: 100vw; margin-inline: calc((100% - 100vw) / 2); }
+  .board-area { width: calc(100vw - 4px); margin-inline: calc((100% - 100vw + 4px) / 2); }
   .puzzle-grid { border-radius: 0; }
 }
 
