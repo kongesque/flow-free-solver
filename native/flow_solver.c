@@ -8,15 +8,6 @@
 #include <string.h>
 #include <time.h>
 
-// Headers optimized for WASM
-#include <assert.h>
-#include <ctype.h>
-#include <math.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
 // Emscripten/WASM specific exports
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
@@ -651,6 +642,8 @@ int game_read_buffer(const char *input_buffer, game_info_t *info,
   memset(info->init_pos, 0xff, sizeof(info->init_pos));
   memset(info->goal_pos, 0xff, sizeof(info->goal_pos));
 
+  if (!input_buffer) return 0;
+
   size_t y = 0;
   const char *ptr = input_buffer;
   char buf[MAX_SIZE + 2];
@@ -674,7 +667,7 @@ int game_read_buffer(const char *input_buffer, game_info_t *info,
 
     // Auto-detect size from first line
     if (info->size == 0) {
-      if (l < 2) {
+      if (l < 2 || l > MAX_SIZE) {
         return 0; // too short
       }
       info->size = l;
@@ -689,7 +682,7 @@ int game_read_buffer(const char *input_buffer, game_info_t *info,
     for (size_t x = 0; x < info->size; ++x) {
       uint8_t c = buf[x];
 
-      if (isalpha(c)) {
+      if (c < 128 && get_color_id(c) >= 0) {
         pos_t pos = pos_from_coords(x, y);
         int color = info->color_tbl[c];
 
@@ -699,8 +692,6 @@ int game_read_buffer(const char *input_buffer, game_info_t *info,
             return 0;
 
           int id = get_color_id(c);
-          if (id < 0)
-            id = 0; // Fallback
 
           info->color_ids[info->num_colors] = id;
           color = info->num_colors;
@@ -718,15 +709,19 @@ int game_read_buffer(const char *input_buffer, game_info_t *info,
           info->goal_pos[color] = pos;
           state->cells[pos] = cell_create(TYPE_GOAL, color, 0);
         }
-      } else {
+      } else if (c == '.') {
         ++state->num_free;
+      } else {
+        return 0;
       }
     }
     y++;
   }
 
   // Validation
-  if (!info->num_colors)
+  // Permit trailing line breaks, but never silently truncate extra board rows.
+  while (*ptr == '\n' || *ptr == '\r') ++ptr;
+  if (!info->num_colors || y != info->size || *ptr)
     return 0;
 
   for (size_t color = 0; color < info->num_colors; ++color) {
@@ -860,7 +855,9 @@ int color_features_compare(const void *vptr_a, const void *vptr_b) {
     return g;
   }
 
-  return -cmp(a->min_dist, b->min_dist);
+  int distance = -cmp(a->min_dist, b->min_dist);
+  // Preserve original color order on ties, as the former stable sort did.
+  return distance ? distance : cmp(a->index, b->index);
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -897,7 +894,8 @@ void game_order_colors(game_info_t *info, game_state_t *state,
         int x[2], y[2];
 
         for (int i = 0; i < 2; ++i) {
-          pos_get_coords(state->pos[color], x + i, y + i);
+          pos_t endpoint = i == 0 ? info->init_pos[color] : info->goal_pos[color];
+          pos_get_coords(endpoint, x + i, y + i);
           cf[color].wall_dist[i] = get_wall_dist(info, x[i], y[i]);
         }
 
@@ -927,7 +925,7 @@ void game_order_colors(game_info_t *info, game_state_t *state,
       info->user_order = 1;
     }
 
-    mergesort(cf, info->num_colors, sizeof(color_features_t),
+    qsort(cf, info->num_colors, sizeof(color_features_t),
               color_features_compare);
 
     for (size_t i = 0; i < info->num_colors; ++i) {
@@ -2109,7 +2107,8 @@ const char *solve_puzzle_wasm(const char *input_str) {
   static char result_json[1024 * 64]; // Static buffer for result
   result_json[0] = '\0';
 
-  // Setup options
+  // Reset options for each call; the module may solve multiple puzzles.
+  memset(&g_options, 0, sizeof(g_options));
   g_options.display_quiet = 1;
   g_options.display_diagnostics = 0;
   g_options.display_animate = 0;
@@ -2138,7 +2137,6 @@ const char *solve_puzzle_wasm(const char *input_str) {
 
   game_info_t info;
   game_state_t state;
-  pos_t hint[MAX_CELLS]; // unused but kept for compatibility
 
   if (!game_read_buffer(input_str, &info, &state)) {
     sprintf(result_json, "Error: Invalid board");
@@ -2193,16 +2191,6 @@ const char *solve_puzzle_wasm(const char *input_str) {
     sprintf(result_json, "Error: No solution found (result code %d)", result);
   }
 
-  // Cleanup
-  // queue_destroy not fully implemented in original file?
-  // It uses global storage which we might want to reset or free if we call this
-  // multiple times But for now, we leave it as the OS/WASM environment handles
-  // memory usually. Actually, queue_setup allocates globals! We should probably
-  // free them or reuse. queue_destroy(&q); // q is local in main in original,
-  // but here? The original code had q in main. We need to check where `q` comes
-  // from. Wait, `queue_setup` sets up function pointers. `game_search` creates
-  // the queue locally! So we are good on queue memory. what about
-  // `node_storage`? `game_search` handles it.
-
+  // game_search releases its search nodes and queue before returning.
   return result_json;
 }
