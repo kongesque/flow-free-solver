@@ -42,8 +42,8 @@ for (const viewport of [
             expect(controls!.x).toBeGreaterThan(initialBoard!.x + initialBoard!.width);
             expect(status.x + status.width / 2).toBeCloseTo(initialBoard!.x + initialBoard!.width / 2, 0);
             expect(status.y).toBeGreaterThan(initialBoard!.y + initialBoard!.height);
+            expect(initialHeader.y).toBeCloseTo(initialBoard!.y, 0);
             expect(initialHeader.y + initialHeader.height).toBeLessThan(controls!.y);
-            expect(controls!.y).toBeCloseTo(initialBoard!.y, 0);
             await expect(page.locator('.desktop-placement-tip')).toBeVisible();
             await expect(page.locator('.mobile-placement-tip')).toBeHidden();
             const tip = await layoutBounds(page.locator('.solver-header p'));
