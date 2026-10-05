@@ -89,6 +89,21 @@ An optimized solver (based on [Matt Zucker's flow_solver](https://mzucker.github
 - Emscripten for editing and compiling C. CI uses the version in `.emscripten-version`.
 - Chromium for browser tests: `npx playwright install chromium`.
 
+### Select Node.js 24 on macOS
+
+If you already use Homebrew, no additional version manager is required:
+
+```bash
+brew install node@24
+export PATH="$(brew --prefix node@24)/bin:$PATH"
+node --version # Should print v24.x.x
+```
+
+The `export` selects Node 24 for the current terminal. Run it in new terminals as
+needed. `.nvmrc` records the project's preferred version for tools that read it;
+it does not install `nvm` or change your shell automatically. Homebrew installs
+[`node@24`](https://formulae.brew.sh/formula/node%4024) alongside other Node versions.
+
 ### Web development
 
 ```bash
@@ -123,8 +138,9 @@ npm run dev
 The build script generates **both** `public/wasm/flow_solver_c.mjs` and
 `public/wasm/flow_solver_c.wasm`. Commit both files with C changes. Never edit the
 generated JavaScript by hand. Set `EMCC=/path/to/emcc` if the compiler is outside
-`PATH`. Compilation failures return a nonzero exit code and retain the previous
-artifacts. See [native/README.md](native/README.md) for flags and the C API.
+`PATH`. The build uses the active Node executable for Emscripten as well; set
+`EM_NODE_JS` only if you need a different compiler runtime. Compilation failures
+return a nonzero exit code and retain the previous artifacts. See [native/README.md](native/README.md) for flags and the C API.
 
 For automatic compilation, run `npm run watch:wasm` in one terminal and
 `npm run dev` in another. Refresh the page after a rebuild to load the new module;

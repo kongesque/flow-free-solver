@@ -23,6 +23,8 @@ React, TypeScript, Vite, and Tailwind's Vite plugin. Do not restore CRA configur
 
 Read `README.md` before changing the Wasm build. CI pins Emscripten to the version
 in `.emscripten-version`. The `EMCC` environment variable can select a compiler.
+The build defaults `EM_NODE_JS` to the active Node executable and respects an
+explicit override; keep Emscripten aligned with the selected project runtime.
 Compile C edits with `npm run build:wasm`; use `npm run watch:wasm` during native
 development. Never hand-edit generated `flow_solver_c.mjs` or `.wasm` files.
 Commit both generated C artifacts with native changes so web-only installs work

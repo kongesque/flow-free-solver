@@ -21,7 +21,13 @@ function build() {
       '-sALLOW_MEMORY_GROWTH=1', '-sMAXIMUM_MEMORY=536870912',
       '-sFILESYSTEM=0',
       '-o', join(temporary, 'flow_solver_c.mjs'),
-    ], { cwd: root, stdio: 'inherit' });
+    ], {
+      cwd: root,
+      stdio: 'inherit',
+      // Homebrew's emcc may point at a different Node installation. Use the
+      // same runtime as this build script, while respecting explicit overrides.
+      env: { ...process.env, EM_NODE_JS: process.env.EM_NODE_JS || process.execPath },
+    });
     if (result.error?.code === 'ENOENT') {
       throw new Error('Emscripten was not found. Install/activate emsdk (see README.md), or set EMCC to the compiler path.');
     }
