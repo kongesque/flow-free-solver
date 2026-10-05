@@ -55,6 +55,11 @@ for (const viewport of [
         await expect(readMore).toBeVisible();
         await expect(readMore).toHaveAttribute('href', 'https://www.kongesque.com/blog/flow-free-solver');
         await expect(readMore).toHaveAttribute('target', '_blank');
+        await expect(page.locator('.solver-about > p')).toHaveText('Solve any Flow Free or Numberlink puzzle instantly. Powered by C/Wasm Heuristic BFS, SAT (Z3) & A* search. Read more');
+        await expect(page.locator('.solver-methods')).toHaveText('Powered by C/Wasm Heuristic BFS, SAT (Z3) & A* search. Read more');
+        expect(await readMore.evaluate(element => getComputedStyle(element).color)).toBe('rgb(138, 142, 140)');
+        expect(await page.locator('.solver-about').evaluate(element => getComputedStyle(element).textAlign))
+            .toBe(viewport.width >= 960 ? 'left' : 'center');
         const about = await layoutBounds(page.locator('.solver-about'));
         const actionButtons = await layoutBounds(page.locator('.control-actions'));
         expect(about.y).toBeGreaterThan(actionButtons.y + actionButtons.height);
@@ -103,7 +108,7 @@ for (const viewport of [
             expect(actions.y).toBeGreaterThan(options.y + options.height);
             expect(controls!.y + controls!.height).toBeLessThanOrEqual(initialBoard!.y + initialBoard!.height);
         } else {
-            await expect(page.locator('.solver-methods')).toBeHidden();
+            await expect(page.locator('.solver-methods')).toBeVisible();
             const options = await layoutBounds(page.locator('.mobile-board-options'));
             expect(about.y).toBeGreaterThan(options.y + options.height);
             await expect(page.locator('.solver-header p')).toBeVisible();
@@ -140,7 +145,7 @@ for (const viewport of [
         if (phonePortrait) {
             expect(frame.x).toBeGreaterThanOrEqual(2);
             expect(frame.width).toBeLessThanOrEqual(viewport.width - 4);
-            if (viewport.height >= 780) {
+            if (viewport.height >= 844) {
                 expect(frame.x).toBeCloseTo(2, 1);
                 expect(frame.width).toBeCloseTo(viewport.width - 4, 1);
             }
@@ -156,7 +161,7 @@ for (const viewport of [
             expect(bounds!.x).toBeGreaterThanOrEqual(0);
             expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(viewport.width);
             expect(bounds!.width / bounds!.height).toBeCloseTo(width / height, 1);
-            if (phonePortrait && viewport.height >= 780 && width >= height) {
+            if (phonePortrait && viewport.height >= 844 && width >= height) {
                 expect(bounds.x).toBeCloseTo(2, 1);
                 expect(bounds.width).toBeCloseTo(viewport.width - 4, 1);
             }

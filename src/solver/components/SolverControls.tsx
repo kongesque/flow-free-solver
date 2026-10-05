@@ -123,14 +123,16 @@ const SolverControls = ({
                 {boardSettings}
             </details>
             <div className="solver-about selectable-text">
-                <p>Solve Flow Free and Numberlink in your browser.</p>
-                <p className="solver-methods">Powered by Heuristic BFS (C/Wasm), SAT (Z3), and A* search.</p>
-                <div className="solver-about-links">
-                    <a href="https://www.kongesque.com/blog/flow-free-solver" target="_blank" rel="noreferrer"
-                        aria-label="Read more about this solver (opens in a new tab)">
-                        Read more
-                    </a>
-                </div>
+                <p>
+                    Solve any Flow Free or Numberlink puzzle instantly.{' '}
+                    <span className="solver-methods">
+                        Powered by C/Wasm Heuristic BFS, SAT (Z3) &amp; A* search.{' '}
+                        <a href="https://www.kongesque.com/blog/flow-free-solver" target="_blank" rel="noreferrer"
+                            aria-label="Read more about this solver (opens in a new tab)">
+                            Read more
+                        </a>
+                    </span>
+                </p>
             </div>
         </div>
     );

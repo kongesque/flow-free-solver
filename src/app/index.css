@@ -81,7 +81,7 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
   --shell-gap: 12px;
   --workspace-gap: 12px;
   --mobile-header-space: calc(clamp(19px, 4.5vw, 30px) * 1.3 + 26px);
-  --mobile-controls-space: 200px;
+  --mobile-controls-space: 264px;
   --available-board-space: calc(100svh - var(--shell-top) - var(--shell-bottom) - var(--mobile-header-space) - var(--shell-gap) - 32px - 2 * var(--workspace-gap) - var(--mobile-controls-space));
   --play-area-size: min(var(--board-space), calc(100vw - var(--shell-left) - var(--shell-right)), max(120px, var(--available-board-space)));
   position: relative;
@@ -190,12 +190,10 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
 .custom-settings { border: 0; padding: 12px 0 0; margin: 0; min-width: 0; }
 .mode-field { grid-column: 1 / -1; }
 .control-hint { margin-top: 8px; font-size: 10px; color: var(--color-stoic-secondary); line-height: 1.6; }
-.solver-about { color: var(--color-stoic-secondary); font-size: 11px; line-height: 1.6; text-align: left; }
-.solver-about p { margin: 0; text-wrap: balance; }
-.solver-about p + p { margin-top: 6px; }
-.solver-methods { display: none; }
-.solver-about-links { display: flex; gap: 16px; }
-.solver-about a { display: inline-flex; align-items: center; min-height: 44px; margin-top: 4px; color: var(--color-stoic-accent); text-decoration: underline; text-underline-offset: 4px; }
+.solver-about { color: var(--color-stoic-secondary); font-size: 11px; line-height: 1.6; text-align: center; }
+.solver-about p { margin: 0; }
+.solver-about a { position: relative; color: inherit; text-decoration: underline; text-underline-offset: 4px; }
+.solver-about a::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 44px; }
 .solver-about a:hover { color: var(--color-stoic-primary); }
 
 @media (max-width: 600px) and (orientation: portrait) {
@@ -209,10 +207,7 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
   .primary-settings .control-field > span:first-child { position: absolute; top: 4px; left: 12px; z-index: 1; line-height: 12px; pointer-events: none; }
   .primary-settings select { padding-top: 19px; padding-bottom: 5px; }
   .primary-settings .select-wrap svg { top: calc(65% - 6px); }
-  .solver-about { display: flex; align-items: center; gap: 12px; min-height: 44px; }
-  .solver-about > p:first-child { flex: 1; min-width: 0; }
-  .solver-about-links { flex: none; }
-  .solver-about a { margin-top: 0; }
+  .solver-about { min-height: 108px; }
 }
 
 @media (max-width: 479px) {
@@ -244,6 +239,8 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
   .solver-status { grid-column: 1; grid-row: 3; }
   .game-controls { grid-column: 2; grid-row: 1 / span 3; padding-top: 48px; }
   .primary-settings { grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); }
+  .solver-controls { gap: 4px; }
+  .solver-about { min-height: 56px; font-size: 9px; line-height: 1.4; }
 }
 
 @media (min-width: 960px) {
@@ -275,9 +272,8 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
   .board-area { grid-column: 1; grid-row: 1 / span 2; align-self: start; width: 100%; margin-inline: 0; }
   .game-controls { grid-column: 2; grid-row: 2; }
   .solver-controls { gap: 10px; }
+  .solver-about { text-align: left; }
   .control-actions { margin-top: 8px; }
-  .solver-about a { min-height: 28px; }
-  .solver-methods { display: block; }
   .board-options { margin-top: 8px; padding-top: 20px; border-top: 1px solid var(--color-stoic-line); }
   .mobile-board-options { display: none; }
   .desktop-board-options { display: block; }
