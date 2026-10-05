@@ -29,6 +29,7 @@ const SolverControls = ({
                 value={size}
                 onChange={onSizeChange}
                 aria-label="Grid Size"
+                disabled={isSolving}
             >
                 {SIZE_OPTIONS.map(option => (
                     <option key={option} value={option}>{option}×{option}</option>
@@ -44,7 +45,7 @@ const SolverControls = ({
                 value={solverType}
                 onChange={onSolverTypeChange}
                 aria-label="Solver Algorithm"
-                disabled={RESTRICT_Z3_TO_LARGE_GRIDS && size !== 15}
+                disabled={isSolving || (RESTRICT_Z3_TO_LARGE_GRIDS && size !== 15)}
             >
                 <option value="astar">A*</option>
                 <option value="z3">SAT (Z3)</option>

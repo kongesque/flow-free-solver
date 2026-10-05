@@ -75,6 +75,9 @@ const FlowSolver = () => {
     // ── Handlers ──────────────────────────────────────────────────────────────
 
     const resetBoard = useCallback((newSize: number = size) => {
+        workerRef.current?.terminate();
+        workerRef.current = null;
+        setIsSolving(false);
         // Prevent hover preview flash by setting isResetting before state changes
         setIsResetting(true);
         setBoard(initializeBoard(newSize));
@@ -114,7 +117,7 @@ const FlowSolver = () => {
     // 3. Predictable: Same action = same result
     // 4. Forgiving: Easy to undo mistakes
     const handleCellClick = useCallback((x: number, y: number) => {
-        if (solvedBoard) return;
+        if (solvedBoard || isSolving) return;
 
         const cellValue = board[x][y];
         const newBoard = board.map(row => [...row]);
@@ -165,7 +168,7 @@ const FlowSolver = () => {
         }
 
         setBoard(newBoard);
-    }, [board, solvedBoard, activeColor]);
+    }, [board, solvedBoard, isSolving, activeColor]);
 
     const solveBoard = async () => {
         setError(null);
@@ -203,6 +206,7 @@ const FlowSolver = () => {
         worker.postMessage({ board, type: solverType });
 
         worker.onmessage = (event) => {
+            if (workerRef.current !== worker) return;
             const result = event.data;
             setIsSolving(false);
             workerRef.current = null;
@@ -224,6 +228,7 @@ const FlowSolver = () => {
         };
 
         worker.onerror = (err) => {
+            if (workerRef.current !== worker) return;
             console.error('Worker error:', err);
             setIsSolving(false);
             setError('Solver error. Please try again.');
@@ -245,6 +250,7 @@ const FlowSolver = () => {
                 size={size}
                 currentBoard={currentBoard}
                 solvedBoard={solvedBoard}
+                isSolving={isSolving}
                 activeColor={activeColor}
                 isResetting={isResetting}
                 onCellClick={handleCellClick}

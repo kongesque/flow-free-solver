@@ -5,10 +5,14 @@
 
 # testing
 /coverage
+/test-results
+/playwright-report
 
 # production
 /dist
 /build
+/.emsdk
+/.emscripten-cache
 
 # misc
 .DS_Store
@@ -25,4 +29,3 @@ yarn-error.log*
 # agents
 .agent/
 .agents/
-
