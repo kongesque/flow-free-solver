@@ -15,18 +15,32 @@ for (const viewport of [
     { width: 768, height: 1024 },
     { width: 1024, height: 768 },
     { width: 1440, height: 900 },
+    { width: 1440, height: 1200 },
 ]) {
     test(`editor fits ${viewport.width}×${viewport.height} with square and rectangular boards`, async ({ page }) => {
         await page.setViewportSize(viewport);
         await page.goto('./');
         await expect(page.locator('.control-actions button')).toHaveCount(3);
         await expect(page.getByRole('combobox')).toHaveCount(2);
+        await expect(page.getByText('Size', { exact: true })).toHaveCount(0);
+        await expect(page.getByText('Algorithm', { exact: true })).toHaveCount(0);
+        await expect(page.getByRole('link', { name: 'About this solver' })).toHaveCount(0);
         const initialBoard = await page.getByRole('article', { name: 'Puzzle Grid Board' }).boundingBox();
+        const initialHeader = await layoutBounds(page.getByRole('heading', { name: /Flow Free Solver/i }));
+        const status = await layoutBounds(page.getByRole('status'));
         const controls = await page.getByRole('region', { name: 'Game Controls' }).boundingBox();
+        expect(initialHeader.y).toBeLessThanOrEqual(28);
+        expect(status.y + status.height).toBeLessThanOrEqual(initialBoard!.y);
+        if (viewport.height >= 768) {
+            expect(initialBoard!.y + initialBoard!.height / 2).toBeCloseTo(viewport.height / 2, 0);
+        } else if (viewport.width <= 600 && viewport.height >= viewport.width) {
+            expect(Math.abs(initialBoard!.y + initialBoard!.height / 2 - viewport.height / 2)).toBeLessThan(12);
+        }
         expect(controls!.y).toBeGreaterThanOrEqual(initialBoard!.y + initialBoard!.height);
         await page.locator('.board-options summary').click();
         await expect(page.getByRole('combobox', { name: 'Grid Width' })).toBeEnabled();
         const frame = await layoutBounds(page.getByRole('region', { name: 'Puzzle editor' }));
+        expect(frame.y).toBeCloseTo(initialBoard!.y, 0);
         const stableControls = await layoutBounds(page.getByRole('region', { name: 'Game Controls' }));
         const heading = await layoutBounds(page.getByRole('heading', { name: /Flow Free Solver/i }));
         const phonePortrait = viewport.width <= 600 && viewport.height >= viewport.width;
@@ -162,7 +176,6 @@ for (const viewport of [
             page.getByRole('region', { name: 'Game Controls' }),
             page.locator('.control-actions button').first(),
             page.locator('.board-options summary'),
-            page.locator('.solver-footer'),
         ];
         const initialBounds = await Promise.all(landmarks.map(layoutBounds));
         const expectStable = async () => {

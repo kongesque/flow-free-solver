@@ -6,7 +6,6 @@ import SolverHeader from './SolverHeader';
 import PuzzleGrid from './PuzzleGrid';
 import StatusIndicator from './StatusIndicator';
 import SolverControls from './SolverControls';
-import SolverFooter from './SolverFooter';
 import { GAME_MODES, type GameMode } from '../logic/game-modes';
 import type { GeneratedPuzzle } from '../logic/puzzle-generator';
 
@@ -311,6 +310,17 @@ const FlowSolver = () => {
             <SolverHeader />
 
             <div className="solver-workspace">
+                <StatusIndicator
+                    isSolving={isSolving}
+                    isGenerating={isGenerating}
+                    generatedPairCount={generatedSolution ? new Set(generatedSolution.flat()).size : null}
+                    unavailableMode={isStandard ? null : GAME_MODES[mode].label}
+                    error={error}
+                    solvedBoard={solvedBoard}
+                    solveTime={solveTime}
+                    activeColor={activeColor}
+                    isPlacingSecond={isPlacingSecond}
+                />
                 <section className="board-area" aria-label="Puzzle editor">
                     <PuzzleGrid
                         width={width}
@@ -326,18 +336,6 @@ const FlowSolver = () => {
                     <p id="board-instructions" className="sr-only">Tap an empty cell to place a dot. Tap a dot to remove it.</p>
                 </section>
                 <section aria-label="Game Controls" className="game-controls">
-                    <StatusIndicator
-                        isSolving={isSolving}
-                        isGenerating={isGenerating}
-                        generatedPairCount={generatedSolution ? new Set(generatedSolution.flat()).size : null}
-                        unavailableMode={isStandard ? null : GAME_MODES[mode].label}
-                        error={error}
-                        solvedBoard={solvedBoard}
-                        solveTime={solveTime}
-                        activeColor={activeColor}
-                        isPlacingSecond={isPlacingSecond}
-                    />
-
                     <SolverControls
                         onEdit={() => { setSolvedBoard(null); setSolveTime(null); setError(null); }}
                         width={width}
@@ -359,7 +357,6 @@ const FlowSolver = () => {
                     />
                 </section>
             </div>
-            <SolverFooter />
         </main>
     );
 };

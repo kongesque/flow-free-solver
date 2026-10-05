@@ -49,7 +49,6 @@ const SolverControls = ({
         <div className="solver-controls">
             <div className="primary-settings">
                 <label className="control-field">
-                    <span>Size</span>
                     <span className="select-wrap">
                         <select value={width === height ? width : 'custom'} onChange={onSizeChange}
                             aria-label="Grid Size" disabled={isBusy || unavailable}>
@@ -60,7 +59,6 @@ const SolverControls = ({
                     </span>
                 </label>
                 <label className="control-field">
-                    <span>Algorithm</span>
                     <span className="select-wrap">
                         <select value={solverType} onChange={onSolverTypeChange} aria-label="Solver Algorithm"
                             disabled={isBusy || wasmOnly || (RESTRICT_Z3_TO_LARGE_GRIDS && (width !== 15 || height !== 15))}>
