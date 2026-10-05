@@ -96,7 +96,7 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
   letter-spacing: .08em;
   line-height: 1.3;
 }
-.solver-header p { margin-top: 8px; color: var(--color-stoic-secondary); font-size: 11px; }
+.solver-header p { text-wrap: balance; margin-top: 8px; color: var(--color-stoic-secondary); font-size: 11px; }
 .source-link { position: fixed; top: max(12px, env(safe-area-inset-top)); right: max(12px, env(safe-area-inset-right)); display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; color: var(--color-stoic-secondary); }
 .source-link:hover { color: var(--color-stoic-primary); }
 .solver-workspace { width: min(100%, var(--board-space)); display: flex; flex-direction: column; gap: 14px; }
