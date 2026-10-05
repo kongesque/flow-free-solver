@@ -113,6 +113,7 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
   line-height: 1.3;
 }
 .solver-header p { text-wrap: balance; margin-top: 8px; color: var(--color-stoic-secondary); font-size: 11px; }
+.desktop-placement-tip { display: none; }
 .solver-workspace { width: min(100%, var(--board-space)); flex: none; display: flex; flex-direction: column; gap: var(--workspace-gap); }
 .board-area { min-width: 0; width: 100%; aspect-ratio: 1; display: grid; place-items: center; }
 .puzzle-grid {
@@ -203,11 +204,11 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
     width: min(100%, calc(var(--board-space) + 424px));
     display: grid;
     grid-template-columns: minmax(0, 1fr) 320px;
-    grid-template-rows: 80px 32px auto;
-    gap: 24px 40px;
+    grid-template-rows: 60px auto 32px;
+    gap: 16px 40px;
     align-items: start;
     align-content: start;
-    padding: max(32px, calc((100svh - var(--play-area-size)) / 2)) 32px 32px;
+    padding: max(24px, calc((100svh - var(--play-area-size)) / 2 - 76px)) 32px 32px;
     text-align: left;
   }
   .solver-workspace { display: contents; }
@@ -220,10 +221,13 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
     padding: 0;
   }
   .solver-header h1 { font-size: 24px; letter-spacing: .06em; }
-  .solver-header p { line-height: 1.6; }
-  .solver-status { grid-column: 2; grid-row: 2; justify-content: flex-start; }
-  .board-area { grid-column: 1; grid-row: 1 / span 3; }
-  .game-controls { grid-column: 2; grid-row: 3; }
+  .solver-header p { line-height: 1.6; white-space: nowrap; }
+  .mobile-placement-tip { display: none; }
+  .desktop-placement-tip { display: inline; }
+  .solver-status { grid-column: 1; grid-row: 3; }
+  .board-area { grid-column: 1; grid-row: 2; align-self: start; }
+  .game-controls { grid-column: 2; grid-row: 2; }
+  .control-actions { margin-top: 12px; }
   .board-options { margin-top: 12px; padding-top: 24px; border-top: 1px solid var(--color-stoic-line); }
   .mobile-board-options { display: none; }
   .desktop-board-options { display: block; }

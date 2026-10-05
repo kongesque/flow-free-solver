@@ -103,6 +103,10 @@ const SolverControls = ({
                     </span>
                 </label>
             </div>
+            <section className="board-options desktop-board-options" aria-label="Board options">
+                <h2 className="board-options-title">Board options</h2>
+                {boardSettings}
+            </section>
             <div className="control-actions" aria-label="Puzzle actions">
                 <button className="control-button primary-action" onClick={showingSolution ? onEdit : onSolve} disabled={isBusy || unavailable}>
                     {showingSolution ? 'Edit' : 'Solve'}
@@ -114,10 +118,6 @@ const SolverControls = ({
                     Reset
                 </button>
             </div>
-            <section className="board-options desktop-board-options" aria-label="Board options">
-                <h2 className="board-options-title">Board options</h2>
-                {boardSettings}
-            </section>
             <details className="board-options mobile-board-options">
                 <summary>Board options <ChevronDown aria-hidden="true" /></summary>
                 {boardSettings}

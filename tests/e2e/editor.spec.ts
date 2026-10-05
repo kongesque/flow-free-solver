@@ -40,10 +40,24 @@ for (const viewport of [
             await expect(page.getByRole('heading', { name: 'Board options', exact: true })).toBeVisible();
             expect(initialHeader.x).toBeGreaterThan(initialBoard!.x + initialBoard!.width);
             expect(controls!.x).toBeGreaterThan(initialBoard!.x + initialBoard!.width);
-            expect(status.x).toBeGreaterThan(initialBoard!.x + initialBoard!.width);
-            expect(initialHeader.y).toBeCloseTo(initialBoard!.y, 0);
+            expect(status.x + status.width / 2).toBeCloseTo(initialBoard!.x + initialBoard!.width / 2, 0);
+            expect(status.y).toBeGreaterThan(initialBoard!.y + initialBoard!.height);
+            expect(initialHeader.y + initialHeader.height).toBeLessThan(controls!.y);
+            expect(controls!.y).toBeCloseTo(initialBoard!.y, 0);
+            await expect(page.locator('.desktop-placement-tip')).toBeVisible();
+            await expect(page.locator('.mobile-placement-tip')).toBeHidden();
+            const tip = await layoutBounds(page.locator('.solver-header p'));
+            expect(tip.x).toBeCloseTo(initialHeader.x, 0);
+            expect(tip.y).toBeGreaterThan(initialHeader.y + initialHeader.height);
+            expect(tip.y + tip.height).toBeLessThan(controls!.y);
+            expect(tip.height).toBeLessThan(19);
+            const options = await layoutBounds(page.locator('.desktop-board-options'));
+            const actions = await layoutBounds(page.locator('.control-actions'));
+            expect(actions.y).toBeGreaterThan(options.y + options.height);
             expect(controls!.y + controls!.height).toBeLessThanOrEqual(initialBoard!.y + initialBoard!.height);
         } else {
+            await expect(page.locator('.solver-header p')).toBeVisible();
+            await expect(page.locator('.desktop-placement-tip')).toBeHidden();
             await expect(page.locator('.mobile-board-options')).not.toHaveAttribute('open', '');
             await expect(page.locator('.board-options summary')).toBeVisible();
             expect(initialHeader.y + initialHeader.height).toBeLessThan(status.y);
@@ -212,6 +226,7 @@ for (const viewport of [
         await expect(grid.getByRole('button').first()).toBeEnabled();
         const landmarks = [
             page.getByRole('heading', { name: /Flow Free Solver/i }),
+            page.getByRole('status'),
             grid,
             page.getByRole('region', { name: 'Game Controls' }),
             page.locator('.control-actions button').first(),
