@@ -3,6 +3,8 @@ import { COLORS } from './constants';
 
 interface StatusIndicatorProps {
     isSolving: boolean;
+    isGenerating: boolean;
+    generatedPairCount: number | null;
     error: string | null;
     solvedBoard: number[][] | null;
     solveTime: number | null;
@@ -12,6 +14,8 @@ interface StatusIndicatorProps {
 
 const StatusIndicator = ({
     isSolving,
+    isGenerating,
+    generatedPairCount,
     error,
     solvedBoard,
     solveTime,
@@ -19,10 +23,10 @@ const StatusIndicator = ({
     isPlacingSecond,
 }: StatusIndicatorProps) => (
     <div role="status" className='flex items-center gap-3 min-h-[28px] selectable-text max-w-[90vw]'>
-        {isSolving ? (
+        {isSolving || isGenerating ? (
             <span className='text-stoic-accent text-sm uppercase tracking-widest font-semibold flex items-center gap-2'>
                 <Loader2 className="animate-spin h-4 w-4" aria-hidden="true" />
-                Solving…
+                {isGenerating ? 'Generating…' : 'Solving…'}
             </span>
         ) : error ? (
             <span
@@ -39,6 +43,10 @@ const StatusIndicator = ({
                         ({solveTime < 1000 ? `${Math.round(solveTime)}ms` : `${(solveTime / 1000).toFixed(2)}s`})
                     </span>
                 )}
+            </span>
+        ) : generatedPairCount !== null ? (
+            <span className="text-stoic-accent text-xs sm:text-sm">
+                Generated solvable puzzle · {generatedPairCount} pairs
             </span>
         ) : (
             <div className='flex items-center gap-3'>

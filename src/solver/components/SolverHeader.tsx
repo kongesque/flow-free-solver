@@ -20,7 +20,7 @@ const SolverHeader = () => (
                 Flow Free Solver
             </h1>
             <p className="text-stoic-secondary text-xs mt-1">
-                <strong className="text-stoic-primary">Tips:</strong> Click to place endpoints, click again to remove.
+                Generate a solvable puzzle, or click cells to place your own endpoints.
             </p>
         </header>
     </>

@@ -42,6 +42,7 @@ Try it online: **[https://flow.kongesque.com](https://flow.kongesque.com)**
 
 - **Instant AI Solutions**: Solves complex Number Link puzzles in milliseconds using the Z3 SMT Solver (compiled to Wasm).
 - **Interactive Editor**: Draw your own puzzles or test specific configurations on grids up to 15x15.
+- **Puzzle Generator**: Create random solvable puzzles from 5×5 to 15×15, with one color pair per grid row. Reveal or hide the complete solution, or independently solve the generated endpoints with any solver.
 - **Multiple Algorithms**: Compare the performance of heuristic search (A*), constraint satisfaction (SAT), and optimized C BFS.
 
 ---
@@ -49,9 +50,18 @@ Try it online: **[https://flow.kongesque.com](https://flow.kongesque.com)**
 ## 🎮 How to Use
 
 1.  **Select Grid Size**: Choose a size from 5x5 to 15x15.
-2.  **Paint the Board**: Click an empty cell to place a color. Click again to visualize the path.
+2.  **Generate a Puzzle**: Click **Generate** for a new solvable puzzle. **Show solution** reveals its full-board paths; **Hide solution** returns to the endpoints. The puzzle and its generated solution are saved locally across reloads.
+3.  **Paint the Board**: Alternatively, click an empty cell to place an endpoint, or click a filled cell to remove it. Editing a generated puzzle discards its saved solution.
     - *Tip*: You need exactly two dots of the same color to form a pair.
-3.  **Click Solve**: The AI will instantly calculate the non-overlapping paths.
+4.  **Click Solve**: The selected solver calculates non-overlapping paths. **Reset** clears the board and cancels active solving or generation.
+
+Generation runs in a dedicated Web Worker. It starts with a complete path cover
+and randomly transfers cells between path endpoints while preserving full-board
+coverage, connectivity, and path degree. Each color retains at least three cells.
+The remaining endpoints therefore always have a valid solution. Puzzles may have
+multiple solutions; the generator does not certify uniqueness or difficulty.
+Some large puzzles can exceed an independent solver's search budget. **Show
+solution** always reveals the solution retained during construction.
 
 ---
 
@@ -194,6 +204,11 @@ validation, and verify IndexedDB persistence. C tests cover every fixture, 15×1
 and repeated calls. CI runs these checks for production, development, and subpath
 hosting. Z3 uses shared memory and requires cross-origin isolation; preserve the
 COOP/COEP headers in `vite.config.js` and `vercel.json`.
+
+Generator tests independently validate 330 seeded boards across all supported
+sizes. Browser tests generate, independently solve, and reveal every size through real workers, solve
+generated puzzles with all three algorithms, and check reload, editing,
+cancellation, worker failure recovery, and mobile controls.
 
 ---
 

@@ -14,6 +14,7 @@ export interface PuzzleState {
     solverType: 'astar' | 'z3' | 'heuristic_bfs';
     activeColor: number;
     isPlacingSecond: boolean;
+    generatedSolution?: number[][] | null;
     savedAt: number;
 }
 

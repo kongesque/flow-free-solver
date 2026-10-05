@@ -1,0 +1,171 @@
+import { test, expect, type Page } from '@playwright/test';
+import { assertSolution } from '../fixtures/assert-solution.mjs';
+
+const colors = ' RBYGOCMmPAWgTbcp';
+
+async function readGrid(page: Page, size: number) {
+    const labels = await page.getByRole('article', { name: 'Puzzle Grid Board' }).getByRole('button')
+        .evaluateAll(cells => cells.map(cell => cell.getAttribute('aria-label')!));
+    return Array.from({ length: size }, (_, y) => Array.from({ length: size }, (_, x) =>
+        Number(labels[y * size + x].split('Color ')[1]) || 0));
+}
+
+function puzzleText(rows: number[][]) {
+    return rows.map(row => row.map(color => color ? colors[color] : '.').join('')).join('\n');
+}
+
+function validateSolution(input: number[][], solution: number[][]) {
+    assertSolution(puzzleText(input), solution.map(row => row.map(color => colors.charCodeAt(color))));
+}
+
+async function generate(page: Page, size: number) {
+    await page.getByRole('combobox', { name: 'Grid Size' }).selectOption(String(size));
+    await page.getByRole('button', { name: 'Generate', exact: true }).click();
+    await expect(page.getByRole('status')).toContainText(`Generated solvable puzzle · ${size} pairs`);
+    const board = await readGrid(page, size);
+    expect(board.flat().filter(Boolean)).toHaveLength(size * 2);
+    for (let color = 1; color <= size; color++) {
+        expect(board.flat().filter(c => c === color)).toHaveLength(2);
+    }
+    return board;
+}
+
+test('generates, independently solves, and reveals every supported grid size in real workers', async ({ page }) => {
+    // Reproduce a known corpus seed; random layouts can exceed C's search budget.
+    // Other browser cases use real randomness, and unit cases cover 330 layouts.
+    await page.addInitScript(() => {
+        Object.defineProperty(crypto, 'getRandomValues', {
+            value: (array: Uint32Array) => { array[0] = 42; return array; },
+        });
+    });
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    let workers = 0;
+    page.on('worker', () => { workers++; });
+    await page.goto('./');
+    for (let size = 5; size <= 15; size++) {
+        const input = await generate(page, size);
+        await page.getByRole('button', { name: 'Solve', exact: true }).click();
+        await expect(page.getByRole('status')).toContainText('Solved');
+        validateSolution(input, await readGrid(page, size));
+        await page.getByRole('button', { name: 'Hide solution' }).click();
+        await page.getByRole('button', { name: 'Show solution' }).click();
+        await expect(page.getByRole('status')).toContainText('Solved');
+        validateSolution(input, await readGrid(page, size));
+        await page.getByRole('button', { name: 'Hide solution' }).click();
+        expect(await readGrid(page, size)).toEqual(input);
+    }
+    expect(workers).toBe(22);
+    expect(errors).toEqual([]);
+});
+
+for (const algorithm of ['heuristic_bfs', 'astar', 'z3']) {
+    test(`generated puzzle can be independently solved by ${algorithm} in a real worker`, async ({ page }) => {
+        await page.goto('./');
+        const input = await generate(page, 5);
+        await page.getByRole('combobox', { name: 'Solver Algorithm' }).selectOption(algorithm);
+        await page.getByRole('button', { name: 'Solve', exact: true }).click();
+        await expect(page.getByRole('status')).toContainText('Solved', { timeout: 45_000 });
+        validateSolution(input, await readGrid(page, 5));
+        // Generate again from the solved view without requiring a manual reset.
+        await page.getByRole('button', { name: 'Generate', exact: true }).click();
+        await expect(page.getByRole('status')).toContainText('Generated solvable puzzle');
+        await expect(page.getByRole('button', { name: 'Show solution' })).toBeVisible();
+        expect((await readGrid(page, 5)).flat().filter(Boolean)).toHaveLength(10);
+    });
+}
+
+test('generated endpoints and solution survive reload; editing invalidates the saved solution', async ({ page }) => {
+    await page.goto('./');
+    const input = await generate(page, 8);
+    await expect.poll(() => page.evaluate(async () => {
+        const db = await new Promise<IDBDatabase>(resolve => {
+            const request = indexedDB.open('flow-solver-db');
+            request.onsuccess = () => resolve(request.result);
+        });
+        const state = await new Promise<{ generatedSolution?: number[][] }>(resolve => {
+            const request = db.transaction('puzzle-state').objectStore('puzzle-state').get('current');
+            request.onsuccess = () => resolve(request.result);
+        });
+        db.close();
+        return state?.generatedSolution?.length;
+    })).toBe(8);
+    await page.reload();
+    await expect(page.getByRole('button', { name: 'Show solution' })).toBeVisible();
+    expect(await readGrid(page, 8)).toEqual(input);
+    await page.getByRole('button', { name: 'Show solution' }).click();
+    validateSolution(input, await readGrid(page, 8));
+    await page.getByRole('button', { name: 'Hide solution' }).click();
+    await page.getByRole('button', { name: /Cell .* Color/ }).first().click();
+    await expect(page.getByRole('button', { name: 'Show solution' })).toHaveCount(0);
+    await expect(page.getByRole('status')).toContainText('End');
+    await page.getByRole('button', { name: 'Reset', exact: true }).click();
+    await expect(page.getByRole('button', { name: /Cell .* Empty/ })).toHaveCount(64);
+});
+
+test('Reset cancels generation and a fresh generation succeeds', async ({ page }) => {
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    await page.route(/generator\.worker/, async route => {
+        await gate;
+        await route.continue().catch(() => {});
+    });
+    try {
+        await page.goto('./');
+        const request = page.waitForRequest(/generator\.worker/);
+        await page.getByRole('button', { name: 'Generate', exact: true }).click();
+        await request;
+        await expect(page.getByRole('status')).toContainText('Generating');
+        await expect(page.getByRole('button', { name: 'Solve', exact: true })).toBeDisabled();
+        await expect(page.getByRole('combobox', { name: 'Grid Size' })).toBeDisabled();
+        await expect(page.getByRole('button', { name: 'Cell 0,0 Empty', exact: true })).toBeDisabled();
+        await page.getByRole('button', { name: 'Reset', exact: true }).click();
+        release();
+        await expect(page.getByRole('button', { name: 'Generate', exact: true })).toBeEnabled();
+        await expect(page.getByRole('button', { name: /Cell .* Empty/ })).toHaveCount(25);
+        const input = await generate(page, 5);
+        await page.getByRole('button', { name: 'Show solution' }).click();
+        validateSolution(input, await readGrid(page, 5));
+    } finally {
+        release();
+    }
+});
+
+test('failed generator worker preserves the board and allows retry', async ({ page }) => {
+    await page.goto('./');
+    await page.getByRole('button', { name: 'Cell 0,0 Empty', exact: true }).click();
+    await page.route(/generator\.worker/, route => route.abort());
+    await page.getByRole('button', { name: 'Generate', exact: true }).click();
+    await expect(page.getByRole('status')).toContainText('Could not generate puzzle');
+    await expect(page.getByRole('button', { name: 'Cell 0,0 Color 1', exact: true })).toBeVisible();
+    await page.unroute(/generator\.worker/);
+    await generate(page, 5);
+});
+
+test('retains a valid generated solution when independent search reaches its limit', async ({ page }) => {
+    await page.addInitScript(() => {
+        Object.defineProperty(crypto, 'getRandomValues', {
+            value: (array: Uint32Array) => { array[0] = 25; return array; },
+        });
+    });
+    await page.goto('./');
+    const input = await generate(page, 13);
+    await page.getByRole('button', { name: 'Solve', exact: true }).click();
+    await expect(page.getByRole('status')).toContainText('Search limit reached. Use Show solution.');
+    expect(await readGrid(page, 13)).toEqual(input);
+    await page.getByRole('button', { name: 'Show solution' }).click();
+    await expect(page.getByRole('status')).toContainText('Solved');
+    validateSolution(input, await readGrid(page, 13));
+});
+
+test('generation controls fit on a mobile viewport', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('./');
+    const input = await generate(page, 15);
+    await page.getByRole('button', { name: 'Show solution' }).click();
+    validateSolution(input, await readGrid(page, 15));
+    for (const name of ['Generate', 'Hide solution', 'Solve', 'Reset']) {
+        await expect(page.getByRole('button', { name, exact: true })).toBeInViewport();
+    }
+    await page.screenshot({ path: test.info().outputPath('generated-mobile.png') });
+});
