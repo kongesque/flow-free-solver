@@ -1,5 +1,7 @@
 export interface GeneratedPuzzle {
     /** Boards use the editor's column-major [x][y] coordinates. */
+    width: number;
+    height: number;
     board: number[][];
     solution: number[][];
     seed: number;
@@ -11,8 +13,8 @@ export interface GeneratedPuzzle {
  * The degree check prevents paths from touching themselves or branching.
  * Solvability is guaranteed by construction; uniqueness is not guaranteed.
  */
-export function generatePuzzle(size: number, seed = Math.floor(Math.random() * 2 ** 32)): GeneratedPuzzle {
-    if (!Number.isInteger(size) || size < 5 || size > 15) {
+export function generateRectangularPuzzle(width: number, height: number, seed = Math.floor(Math.random() * 2 ** 32)): GeneratedPuzzle {
+    if ([width, height].some(dimension => !Number.isInteger(dimension) || dimension < 5 || dimension > 15)) {
         throw new Error('Grid size must be an integer from 5 to 15');
     }
     if (!Number.isInteger(seed) || seed < 0 || seed > 0xffffffff) {
@@ -26,21 +28,22 @@ export function generatePuzzle(size: number, seed = Math.floor(Math.random() * 2
         value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
         return Math.floor(((value ^ (value >>> 14)) >>> 0) / 2 ** 32 * limit);
     };
-    const neighbors = Array.from({ length: size * size }, (_, cell) => {
-        const x = cell % size;
-        const y = Math.floor(cell / size);
-        return [x > 0 ? cell - 1 : -1, x < size - 1 ? cell + 1 : -1,
-            y > 0 ? cell - size : -1, y < size - 1 ? cell + size : -1].filter(n => n >= 0);
+    const neighbors = Array.from({ length: width * height }, (_, cell) => {
+        const x = cell % width;
+        const y = Math.floor(cell / width);
+        return [x > 0 ? cell - 1 : -1, x < width - 1 ? cell + 1 : -1,
+            y > 0 ? cell - width : -1, y < height - 1 ? cell + width : -1].filter(n => n >= 0);
     });
     const vertical = random(2) === 1;
-    const paths = Array.from({ length: size }, (_, line) =>
-        Array.from({ length: size }, (_, offset) => vertical ? offset * size + line : line * size + offset));
-    const owner = new Int16Array(size * size);
+    const pairCount = vertical ? width : height;
+    const paths = Array.from({ length: pairCount }, (_, line) =>
+        Array.from({ length: vertical ? height : width }, (_, offset) => vertical ? offset * width + line : line * width + offset));
+    const owner = new Int16Array(width * height);
     paths.forEach((path, color) => path.forEach(cell => { owner[cell] = color; }));
 
     // Bounded work: even a 15x15 board takes only 90,000 local move attempts.
-    for (let attempt = 0; attempt < size * size * 400; attempt++) {
-        const color = random(size);
+    for (let attempt = 0; attempt < width * height * 400; attempt++) {
+        const color = random(pairCount);
         const path = paths[color];
         const front = random(2) === 0;
         const end = front ? path[0] : path[path.length - 1];
@@ -62,17 +65,22 @@ export function generatePuzzle(size: number, seed = Math.floor(Math.random() * 2
         owner[cell] = color;
     }
 
-    const colors = Array.from({ length: size }, (_, i) => i + 1);
+    const colors = Array.from({ length: pairCount }, (_, i) => i + 1);
     for (let i = colors.length - 1; i > 0; i--) {
         const j = random(i + 1);
         [colors[i], colors[j]] = [colors[j], colors[i]];
     }
-    const board = Array.from({ length: size }, () => Array<number>(size).fill(0));
-    const solution = Array.from({ length: size }, () => Array<number>(size).fill(0));
+    const board = Array.from({ length: width }, () => Array<number>(height).fill(0));
+    const solution = Array.from({ length: width }, () => Array<number>(height).fill(0));
     paths.forEach((path, index) => {
         const color = colors[index];
-        for (const cell of path) solution[cell % size][Math.floor(cell / size)] = color;
-        for (const cell of [path[0], path[path.length - 1]]) board[cell % size][Math.floor(cell / size)] = color;
+        for (const cell of path) solution[cell % width][Math.floor(cell / width)] = color;
+        for (const cell of [path[0], path[path.length - 1]]) board[cell % width][Math.floor(cell / width)] = color;
     });
-    return { board, solution, seed, pairCount: size };
+    return { width, height, board, solution, seed, pairCount };
+}
+
+/** Square-board convenience API retained for existing callers. */
+export function generatePuzzle(size: number, seed?: number): GeneratedPuzzle {
+    return generateRectangularPuzzle(size, size, seed);
 }

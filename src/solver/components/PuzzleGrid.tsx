@@ -1,7 +1,8 @@
 import { COLORS } from './constants';
 
 interface PuzzleGridProps {
-    size: number;
+    width: number;
+    height: number;
     currentBoard: number[][];
     solvedBoard: number[][] | null;
     isSolving: boolean;
@@ -11,7 +12,8 @@ interface PuzzleGridProps {
 }
 
 const PuzzleGrid = ({
-    size,
+    width,
+    height,
     currentBoard,
     solvedBoard,
     isSolving,
@@ -24,14 +26,14 @@ const PuzzleGrid = ({
         className="grid bg-stoic-line border-2 border-stoic-line mx-auto shrink-0"
         style={{
             gap: '2px',
-            gridTemplateColumns: `repeat(${size}, 1fr)`,
-            gridTemplateRows: `repeat(${size}, 1fr)`,
-            width: 'min(90vw, 55vh)',
-            height: 'min(90vw, 55vh)',
+            gridTemplateColumns: `repeat(${width}, 1fr)`,
+            gridTemplateRows: `repeat(${height}, 1fr)`,
+            width: `min(90vw, ${55 * width / height}vh)`,
+            height: `min(${90 * height / width}vw, 55vh)`,
         }}
     >
-        {Array.from({ length: size }).map((_, y) =>
-            Array.from({ length: size }).map((_, x) => {
+        {Array.from({ length: height }).map((_, y) =>
+            Array.from({ length: width }).map((_, x) => {
                 const cellValue = currentBoard[x]?.[y] ?? 0;
                 const hasColor = cellValue !== 0;
 

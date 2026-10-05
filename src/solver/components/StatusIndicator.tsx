@@ -5,6 +5,7 @@ interface StatusIndicatorProps {
     isSolving: boolean;
     isGenerating: boolean;
     generatedPairCount: number | null;
+    unavailableMode: string | null;
     error: string | null;
     solvedBoard: number[][] | null;
     solveTime: number | null;
@@ -16,6 +17,7 @@ const StatusIndicator = ({
     isSolving,
     isGenerating,
     generatedPairCount,
+    unavailableMode,
     error,
     solvedBoard,
     solveTime,
@@ -23,7 +25,11 @@ const StatusIndicator = ({
     isPlacingSecond,
 }: StatusIndicatorProps) => (
     <div role="status" className='flex items-center gap-3 min-h-[28px] selectable-text max-w-[90vw]'>
-        {isSolving || isGenerating ? (
+        {unavailableMode ? (
+            <span className="text-stoic-secondary text-xs">
+                {unavailableMode} is coming soon. Switch to Standard to edit or solve.
+            </span>
+        ) : isSolving || isGenerating ? (
             <span className='text-stoic-accent text-sm uppercase tracking-widest font-semibold flex items-center gap-2'>
                 <Loader2 className="animate-spin h-4 w-4" aria-hidden="true" />
                 {isGenerating ? 'Generating…' : 'Solving…'}

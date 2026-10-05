@@ -5,8 +5,9 @@ import { solveZ3 } from '../logic/z3-solver.js';
 
 
 import { solveHeuristicBFS } from '../logic/heuristic-solver';
+import { requireStandardMode, type GameMode } from '../logic/game-modes';
 
-self.onmessage = async (event: MessageEvent<{ board: number[][], type: 'astar' | 'z3' | 'heuristic_bfs' }>) => {
+self.onmessage = async (event: MessageEvent<{ board: number[][], type: 'astar' | 'z3' | 'heuristic_bfs'; mode?: GameMode }>) => {
     const { board, type } = event.data;
 
     if (!Array.isArray(board) || board.length === 0 || !Array.isArray(board[0])) {
@@ -16,6 +17,10 @@ self.onmessage = async (event: MessageEvent<{ board: number[][], type: 'astar' |
 
 
     try {
+        requireStandardMode(event.data.mode);
+        if (board.length !== board[0].length && type !== 'heuristic_bfs') {
+            throw new Error('Rectangular boards require the C/Wasm solver');
+        }
         if (type === 'z3') {
             const result = await solveZ3(board);
             if (result) {

@@ -1,8 +1,32 @@
-import { generatePuzzle } from './puzzle-generator';
+import { generatePuzzle, generateRectangularPuzzle } from './puzzle-generator';
 import { serializeBoard } from './heuristic-solver';
 import { assertSolution } from '../../../tests/fixtures/assert-solution.mjs';
 
 const codes = ' RBYGOCMmPAWgTbcp';
+
+for (let width = 5; width <= 15; width++) {
+    test(`rectangular width ${width}: validates all other heights for three seeds`, () => {
+        for (let height = 5; height <= 15; height++) {
+            if (width === height) continue;
+            for (let seed = 0; seed < 3; seed++) {
+                const puzzle = generateRectangularPuzzle(width, height, seed);
+                expect(puzzle.board).toHaveLength(width);
+                expect(puzzle.board.every(column => column.length === height)).toBe(true);
+                expect(puzzle.board.flat().filter(Boolean)).toHaveLength(puzzle.pairCount * 2);
+                const solution = Array.from({ length: height }, (_, y) =>
+                    Array.from({ length: width }, (_, x) => codes.charCodeAt(puzzle.solution[x][y])));
+                assertSolution(serializeBoard(puzzle.board), solution);
+            }
+        }
+    });
+}
+
+test('rejects invalid rectangular dimensions independently', () => {
+    for (const dimension of [0, 4, 16, 5.5, NaN, Infinity]) {
+        expect(() => generateRectangularPuzzle(dimension, 5, 1)).toThrow();
+        expect(() => generateRectangularPuzzle(5, dimension, 1)).toThrow();
+    }
+});
 
 for (let size = 5; size <= 15; size++) {
     test(`generates valid full-board ${size}x${size} path covers for 30 seeds`, () => {
