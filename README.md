@@ -50,11 +50,11 @@ Try it online: **[https://flow.kongesque.com](https://flow.kongesque.com)**
 ## 🎮 How to Use
 
 1.  **Select Dimensions**: Choose a square **Grid Size** preset, or open **Board options** to set **Width** and **Height** independently from 5 to 15. Rectangular boards automatically select **Heuristic BFS**, the C/Wasm solver. A* and Z3 remain available for Standard square boards.
-2.  **Generate a Puzzle**: Click **Generate** for a new solvable puzzle. If you have placed or edited endpoints, confirm before replacing them; Cancel keeps your board and current color. **Show solution** reveals its full-board paths; **Hide solution** returns to the endpoints. The puzzle and its generated solution are saved locally across reloads.
+2.  **Generate a Puzzle**: Click **Generate** for a new solvable puzzle. If you have placed or edited endpoints, confirm before replacing them; Cancel keeps your board and current color. The puzzle and its generated solution are saved locally across reloads.
 3.  **Paint the Board**: Alternatively, click an empty cell to place an endpoint, or click a filled cell to remove it. Editing a generated puzzle discards its saved solution.
     - With a keyboard, Tab enters the board, arrow keys move between cells, and Enter or Space places or removes a dot. Home and End move to the edges of a row.
     - *Tip*: You need exactly two dots of the same color to form a pair.
-4.  **Click Solve**: The selected solver calculates non-overlapping paths. **Edit puzzle** returns a solved custom board to its original endpoints. **Reset** clears the board and cancels active solving or generation.
+4.  **Click Solve**: The selected solver calculates non-overlapping paths. **Solve** becomes **Edit** after solving; click it to return to the original endpoints. Generated puzzles use their saved solution if the selected solver reaches its search limit. **Reset** clears the board and cancels active solving or generation.
 
 Generation runs in a dedicated Web Worker. It starts with a complete path cover
 and randomly transfers cells between path endpoints while preserving full-board

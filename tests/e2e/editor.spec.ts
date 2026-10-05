@@ -1,4 +1,5 @@
 import { test, expect, type Locator } from '@playwright/test';
+import { assertSolution } from '../fixtures/assert-solution.mjs';
 
 // Compare document positions even when selecting an offscreen control scrolls the page.
 const layoutBounds = (locator: Locator) => locator.evaluate(element => {
@@ -143,3 +144,80 @@ test.describe('touch input', () => {
         await expect(grid.getByRole('button', { name: /Color/ })).toHaveCount(1);
     });
 });
+
+for (const viewport of [
+    { width: 320, height: 568 },
+    { width: 390, height: 844 },
+    { width: 568, height: 320 },
+    { width: 1440, height: 900 },
+]) {
+    test(`solution actions keep the page stable at ${viewport.width}×${viewport.height}`, async ({ page }) => {
+        await page.setViewportSize(viewport);
+        await page.goto('./');
+        const grid = page.getByRole('article', { name: 'Puzzle Grid Board' });
+        await expect(grid.getByRole('button').first()).toBeEnabled();
+        const landmarks = [
+            page.getByRole('heading', { name: /Flow Free Solver/i }),
+            grid,
+            page.getByRole('region', { name: 'Game Controls' }),
+            page.locator('.control-actions button').first(),
+            page.locator('.board-options summary'),
+            page.locator('.solver-footer'),
+        ];
+        const initialBounds = await Promise.all(landmarks.map(layoutBounds));
+        const expectStable = async () => {
+            for (let index = 0; index < landmarks.length; index++) {
+                const bounds = await layoutBounds(landmarks[index]);
+                for (const property of ['x', 'y', 'width', 'height'] as const) {
+                    expect(Math.abs(bounds[property] - initialBounds[index][property])).toBeLessThan(1);
+                }
+            }
+        };
+        const readRows = async () => {
+            const values = await grid.getByRole('button').evaluateAll(cells =>
+                cells.map(cell => Number(cell.getAttribute('aria-label')!.split('Color ')[1]) || 0));
+            return Array.from({ length: 5 }, (_, y) => values.slice(y * 5, y * 5 + 5));
+        };
+        const validate = async (input: number[][]) => {
+            const colors = ' RBYGOCMmPAWgTbcp';
+            assertSolution(
+                input.map(row => row.map(color => color ? colors[color] : '.').join('')).join('\n'),
+                (await readRows()).map(row => row.map(color => colors.charCodeAt(color))),
+            );
+        };
+        // Solve becomes Edit only after the real solver completes.
+        for (let y = 0; y < 5; y++) {
+            await page.getByRole('button', { name: `Cell 0,${y} Empty`, exact: true }).click();
+            await page.getByRole('button', { name: `Cell 4,${y} Empty`, exact: true }).click();
+        }
+        const manual = await readRows();
+        await expectStable();
+        await page.getByRole('button', { name: 'Solve', exact: true }).click();
+        await expect(page.getByRole('button', { name: 'Edit', exact: true })).toBeEnabled();
+        await validate(manual);
+        await expectStable();
+        await page.getByRole('button', { name: 'Edit', exact: true }).click();
+        await expect(page.getByRole('button', { name: 'Edit', exact: true })).toHaveCount(0);
+        await expectStable();
+        await page.getByRole('button', { name: 'Reset', exact: true }).click();
+        await page.getByRole('button', { name: 'Generate', exact: true }).click();
+        await expect(page.getByRole('status')).toContainText('Generated');
+        await expectStable();
+        await expect(page.getByRole('button', { name: /Show solution|Hide solution|Edit puzzle/ })).toHaveCount(0);
+        const generated = await readRows();
+        await page.getByRole('button', { name: 'Solve', exact: true }).click();
+        await expect(page.getByRole('button', { name: 'Edit', exact: true })).toBeEnabled();
+        await validate(generated);
+        await expectStable();
+        if (viewport.width === 390) {
+            await page.screenshot({ path: test.info().outputPath('stable-solve-edit.png'), fullPage: true });
+        }
+        await page.getByRole('button', { name: 'Edit', exact: true }).click();
+        await expectStable();
+        await grid.getByRole('button', { name: /Color/ }).first().click();
+        await expect(page.getByRole('button', { name: 'Edit', exact: true })).toHaveCount(0);
+        await expectStable();
+        await page.getByRole('button', { name: 'Reset', exact: true }).click();
+        await expectStable();
+    });
+}

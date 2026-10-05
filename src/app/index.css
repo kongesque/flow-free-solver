@@ -157,8 +157,6 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
 .primary-action { background: var(--color-stoic-accent); color: #081c1e; border-color: var(--color-stoic-accent); font-weight: 600; }
 .primary-action:hover:not(:disabled) { background: #45adb7; border-color: #45adb7; }
 .reset-action { border-color: transparent; color: var(--color-stoic-secondary); }
-.text-action { min-height: 44px; margin-block: -6px; font-size: 11px; color: var(--color-stoic-accent); cursor: pointer; }
-.text-action:hover:not(:disabled) { text-decoration: underline; }
 .board-options summary { min-height: 44px; display: flex; gap: 8px; align-items: center; justify-content: center; list-style: none; color: var(--color-stoic-secondary); font-size: 11px; cursor: pointer; }
 .board-options summary::-webkit-details-marker { display: none; }
 .board-options summary:hover { color: var(--color-stoic-primary); }

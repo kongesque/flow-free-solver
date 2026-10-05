@@ -60,9 +60,10 @@ for (const [width, height] of [[5, 8], [8, 5], [7, 10], [10, 7]]) {
         await page.getByRole('button', { name: 'Generate', exact: true }).click();
         await expect(page.getByRole('status')).toContainText('Generated');
         const input = await rows(page, width, height);
-        await page.getByRole('button', { name: 'Show solution' }).click();
+        await page.getByRole('button', { name: 'Solve', exact: true }).click();
+        await expect(page.getByRole('status')).toContainText('Solved');
         validate(input, await rows(page, width, height));
-        await page.getByRole('button', { name: 'Hide solution' }).click();
+        await page.getByRole('button', { name: 'Edit', exact: true }).click();
         await page.getByRole('button', { name: 'Solve', exact: true }).click();
         await expect(page.getByRole('status')).toContainText('Solved');
         validate(input, await rows(page, width, height));
@@ -103,7 +104,8 @@ test('rectangular dimensions and generated solution survive reload; square prese
     await page.locator('.board-options summary').click();
     await expect(page.getByRole('combobox', { name: 'Grid Height' })).toHaveValue('8');
     expect(await rows(page, 5, 8)).toEqual(input);
-    await page.getByRole('button', { name: 'Show solution' }).click();
+    await page.getByRole('button', { name: 'Solve', exact: true }).click();
+    await expect(page.getByRole('status')).toContainText('Solved');
     validate(input, await rows(page, 5, 8));
     await page.getByRole('combobox', { name: 'Grid Size' }).selectOption('8');
     await expect(page.getByRole('combobox', { name: 'Grid Width' })).toHaveValue('8');

@@ -235,13 +235,6 @@ const FlowSolver = () => {
         worker.postMessage({ width, height, mode, seed: crypto.getRandomValues(new Uint32Array(1))[0] });
     };
 
-    const toggleGeneratedSolution = () => {
-        if (!generatedSolution || isSolving || isGenerating || !isStandard) return;
-        setSolvedBoard(solvedBoard ? null : generatedSolution);
-        setSolveTime(null);
-        setError(null);
-    };
-
     const solveBoard = async () => {
         if (isSolving || isGenerating || !isLoaded || !isStandard) return;
         setError(null);
@@ -286,12 +279,14 @@ const FlowSolver = () => {
             if (result.board) {
                 setSolveTime(performance.now() - startTime);
                 setSolvedBoard(result.board);
+            } else if (generatedSolution && (result.timedOut || /result code 2/.test(result.error ?? ''))) {
+                // Generated puzzles already have a valid solution if search reaches its budget.
+                setSolvedBoard(generatedSolution);
+                setSolveTime(null);
             } else if (result.timedOut) {
-                setError(generatedSolution ? 'Timed out. Use Show solution.' :
-                    solverType === 'astar' ? 'Timed out. Try Heuristic BFS.' : 'Timed out (15s limit)');
+                setError(solverType === 'astar' ? 'Timed out. Try Heuristic BFS.' : 'Timed out (15s limit)');
             } else if (result.error) {
-                setError(generatedSolution && /result code 2/.test(result.error) ?
-                    'Search limit reached. Use Show solution.' : 'Solver error: ' + result.error);
+                setError('Solver error: ' + result.error);
             } else {
                 setError(solverType === 'heuristic_bfs' && width === 15 && height === 15 ? 'No solution. Try Z3.' : 'No solution found');
             }
@@ -351,7 +346,6 @@ const FlowSolver = () => {
                         isSolving={isSolving}
                         isGenerating={isGenerating}
                         isLoaded={isLoaded}
-                        hasGeneratedSolution={generatedSolution !== null}
                         showingSolution={solvedBoard !== null}
                         mode={mode}
                         onModeChange={handleModeChange}
@@ -362,7 +356,6 @@ const FlowSolver = () => {
                         onSolve={solveBoard}
                         onReset={() => resetBoard()}
                         onGenerate={generateBoard}
-                        onToggleSolution={toggleGeneratedSolution}
                     />
                 </section>
             </div>

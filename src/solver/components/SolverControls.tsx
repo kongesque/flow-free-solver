@@ -15,14 +15,12 @@ interface SolverControlsProps {
     isSolving: boolean;
     isGenerating: boolean;
     isLoaded: boolean;
-    hasGeneratedSolution: boolean;
     showingSolution: boolean;
     onSizeChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
     onSolverTypeChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
     onSolve: () => void;
     onReset: () => void;
     onGenerate: () => void;
-    onToggleSolution: () => void;
 }
 
 const SolverControls = ({
@@ -37,14 +35,12 @@ const SolverControls = ({
     isSolving,
     isGenerating,
     isLoaded,
-    hasGeneratedSolution,
     showingSolution,
     onSizeChange,
     onSolverTypeChange,
     onSolve,
     onReset,
     onGenerate,
-    onToggleSolution,
 }: SolverControlsProps) => {
     const isBusy = isSolving || isGenerating || !isLoaded;
     const unavailable = !GAME_MODES[mode].available;
@@ -77,8 +73,8 @@ const SolverControls = ({
                 </label>
             </div>
             <div className="control-actions" aria-label="Puzzle actions">
-                <button className="control-button primary-action" onClick={onSolve} disabled={isBusy || unavailable}>
-                    Solve
+                <button className="control-button primary-action" onClick={showingSolution ? onEdit : onSolve} disabled={isBusy || unavailable}>
+                    {showingSolution ? 'Edit' : 'Solve'}
                 </button>
                 <button className="control-button" onClick={onGenerate} disabled={isBusy || unavailable}>
                     Generate
@@ -87,13 +83,6 @@ const SolverControls = ({
                     Reset
                 </button>
             </div>
-            {(hasGeneratedSolution || showingSolution) && (
-                <button className="text-action" disabled={isBusy || unavailable}
-                    onClick={hasGeneratedSolution ? onToggleSolution : onEdit}
-                    aria-pressed={hasGeneratedSolution ? showingSolution : undefined}>
-                    {hasGeneratedSolution ? showingSolution ? 'Hide solution' : 'Show solution' : 'Edit puzzle'}
-                </button>
-            )}
             <details className="board-options">
                 <summary>Board options <ChevronDown aria-hidden="true" /></summary>
                 <fieldset disabled={isBusy} className="custom-settings">
