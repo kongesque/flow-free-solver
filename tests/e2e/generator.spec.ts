@@ -21,7 +21,7 @@ function validateSolution(input: number[][], solution: number[][]) {
 async function generate(page: Page, size: number) {
     await page.getByRole('combobox', { name: 'Grid Size' }).selectOption(String(size));
     await page.getByRole('button', { name: 'Generate', exact: true }).click();
-    await expect(page.getByRole('status')).toContainText(`Generated solvable puzzle · ${size} pairs`);
+    await expect(page.getByRole('status')).toContainText(`Generated · ${size} pairs`);
     const board = await readGrid(page, size);
     expect(board.flat().filter(Boolean)).toHaveLength(size * 2);
     for (let color = 1; color <= size; color++) {
@@ -69,7 +69,7 @@ for (const algorithm of ['heuristic_bfs', 'astar', 'z3']) {
         validateSolution(input, await readGrid(page, 5));
         // Generate again from the solved view without requiring a manual reset.
         await page.getByRole('button', { name: 'Generate', exact: true }).click();
-        await expect(page.getByRole('status')).toContainText('Generated solvable puzzle');
+        await expect(page.getByRole('status')).toContainText('Generated');
         await expect(page.getByRole('button', { name: 'Show solution' })).toBeVisible();
         expect((await readGrid(page, 5)).flat().filter(Boolean)).toHaveLength(10);
     });

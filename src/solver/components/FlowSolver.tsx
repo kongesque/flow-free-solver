@@ -1,4 +1,3 @@
-import { Maximize2, Minimize2 } from 'lucide-react';
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { savePuzzleState, loadPuzzleState, clearPuzzleState } from '@/hooks/useStorage';
 
@@ -18,13 +17,6 @@ const initializeBoard = (width: number, height = width) =>
 const countColor = (board: number[][], color: number) =>
     board.flat().filter(c => c === color).length;
 
-interface EditorSnapshot {
-    board: number[][];
-    activeColor: number;
-    isPlacingSecond: boolean;
-    generatedSolution: number[][] | null;
-}
-
 const FlowSolver = () => {
     const [width, setWidth] = useState(DEFAULT_SIZE);
     const [height, setHeight] = useState(DEFAULT_SIZE);
@@ -35,8 +27,6 @@ const FlowSolver = () => {
     const [solvedBoard, setSolvedBoard] = useState<number[][] | null>(null);
     const [generatedSolution, setGeneratedSolution] = useState<number[][] | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
-    const [history, setHistory] = useState<EditorSnapshot[]>([]);
-    const [boardEnlarged, setBoardEnlarged] = useState(false);
 
     // UX: Track current color being placed and whether we're placing first or second endpoint
     const [activeColor, setActiveColor] = useState(1);
@@ -105,8 +95,6 @@ const FlowSolver = () => {
         // Prevent hover preview flash by setting isResetting before state changes
         setIsResetting(true);
         setBoard(initializeBoard(newWidth, newHeight));
-        setHistory([]);
-        setBoardEnlarged(false);
         setSolvedBoard(null);
         setGeneratedSolution(null);
         setActiveColor(1);
@@ -146,26 +134,6 @@ const FlowSolver = () => {
         setError(null);
     };
 
-    const selectColor = (color: number) => {
-        if (solvedBoard || isSolving || isGenerating || !isLoaded || !isStandard || countColor(board, color) >= 2) return;
-        setActiveColor(color);
-        setIsPlacingSecond(countColor(board, color) === 1);
-        setError(null);
-    };
-
-    const undoEdit = () => {
-        if (solvedBoard || isSolving || isGenerating || !isLoaded || !isStandard) return;
-        const previous = history.at(-1);
-        if (!previous) return;
-        setBoard(previous.board);
-        setActiveColor(previous.activeColor);
-        setIsPlacingSecond(previous.isPlacingSecond);
-        setGeneratedSolution(previous.generatedSolution);
-        setHistory(history.slice(0, -1));
-        setError(null);
-        setSolveTime(null);
-    };
-
     // UX Best Practices:
     // 1. Simple mental model: Click empty = place, Click filled = remove
     // 2. Clear feedback: Show which color is being placed
@@ -195,26 +163,39 @@ const FlowSolver = () => {
                 setIsPlacingSecond(countColor(newBoard, lowestIncomplete) === 1);
             }
         } else {
-            // Use the selected incomplete color, then advance to the lowest incomplete pair.
-            if (activeColor > 16 || countColor(board, activeColor) >= 2) return;
-            newBoard[x][y] = activeColor;
-            if (countColor(newBoard, activeColor) === 2) {
-                let nextColor = 1;
-                while (nextColor <= 16 && countColor(newBoard, nextColor) >= 2) nextColor++;
+            // PLACE: Clicking empty cell places the active color
+            // BUG FIX: Check if this color already has 2 endpoints
+            if (activeColor > 16) return;
+            const currentCount = countColor(board, activeColor);
+            if (currentCount >= 2) {
+                // Color is complete - find next available
+                let nextColor = activeColor;
+                while (countColor(board, nextColor) >= 2 && nextColor <= 16) nextColor++;
+                if (nextColor > 16) return;
                 setActiveColor(nextColor);
-                setIsPlacingSecond(countColor(newBoard, nextColor) === 1);
+                setIsPlacingSecond(countColor(board, nextColor) === 1);
+                return;
+            }
+
+            newBoard[x][y] = activeColor;
+
+            if (currentCount === 1) {
+                // This was the 2nd endpoint - advance to next color
+                let nextColor = activeColor + 1;
+                while (countColor(newBoard, nextColor) >= 2 && nextColor <= 16) nextColor++;
+                setActiveColor(nextColor);
+                setIsPlacingSecond(false);
             } else {
+                // This was the 1st endpoint
                 setIsPlacingSecond(true);
             }
         }
-
-        setHistory(previous => [...previous.slice(-99), { board, activeColor, isPlacingSecond, generatedSolution }]);
 
         setBoard(newBoard);
         setGeneratedSolution(null);
         setError(null);
         setSolveTime(null);
-    }, [board, solvedBoard, isSolving, isGenerating, isLoaded, isStandard, activeColor, isPlacingSecond, generatedSolution]);
+    }, [board, solvedBoard, isSolving, isGenerating, isLoaded, isStandard, activeColor]);
 
     const generateBoard = () => {
         if (isSolving || isGenerating || !isLoaded || !isStandard) return;
@@ -235,7 +216,6 @@ const FlowSolver = () => {
                 setError(generationError || 'Could not generate puzzle. Please try again.');
                 return;
             }
-            setHistory([]);
             setBoard(puzzle.board);
             setGeneratedSolution(puzzle.solution);
             setSolvedBoard(null);
@@ -335,42 +315,20 @@ const FlowSolver = () => {
 
             <div className="solver-workspace">
                 <section className="board-area" aria-label="Puzzle editor">
-                    <div className="board-heading selectable-text">
-                        <span className="section-label">Your puzzle</span>
-                        <div className="board-view-controls">
-                            <span>{width} × {height}</span>
-                            {Math.max(width, height) >= 9 && (
-                                <button className="board-view-toggle" aria-pressed={boardEnlarged}
-                                    aria-label={boardEnlarged ? 'Fit board' : 'Enlarge board'}
-                                    onClick={() => setBoardEnlarged(!boardEnlarged)}>
-                                    {boardEnlarged ? <Minimize2 aria-hidden="true" /> : <Maximize2 aria-hidden="true" />}
-                                    {boardEnlarged ? 'Fit' : 'Enlarge'}
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                    <div className="board-viewport" data-enlarged={boardEnlarged}>
-                        <PuzzleGrid
-                            enlarged={boardEnlarged}
-                            width={width}
-                            height={height}
-                            currentBoard={currentBoard}
-                            solvedBoard={solvedBoard}
-                            isSolving={isSolving || isGenerating || !isLoaded || !isStandard}
-                            activeColor={activeColor}
-                            isResetting={isResetting}
-                            onCellClick={handleCellClick}
-                        />
-                    </div>
-
+                    <PuzzleGrid
+                        width={width}
+                        height={height}
+                        activeColor={activeColor}
+                        currentBoard={currentBoard}
+                        solvedBoard={solvedBoard}
+                        isSolving={isSolving || isGenerating || !isLoaded || !isStandard}
+                        isResetting={isResetting}
+                        onCellClick={handleCellClick}
+                    />
                     <p className="sr-only" id="board-keyboard-help">Use arrow keys to move between cells. Press Enter or Space to place or remove a dot.</p>
-                    <p id="board-instructions" className="board-instructions selectable-text">
-                        {solvedBoard ? 'Every cell connected. Return to your endpoints to keep editing.' :
-                            boardEnlarged ? 'Scroll to move around the board. Tap a cell to edit.' :
-                            'Tap an empty cell to place a dot. Tap a dot to remove it.'}
-                    </p>
+                    <p id="board-instructions" className="sr-only">Tap an empty cell to place a dot. Tap a dot to remove it.</p>
                 </section>
-                <section aria-label="Game Controls" className="controls-panel">
+                <section aria-label="Game Controls" className="game-controls">
                     <StatusIndicator
                         isSolving={isSolving}
                         isGenerating={isGenerating}
@@ -384,11 +342,6 @@ const FlowSolver = () => {
                     />
 
                     <SolverControls
-                        board={board}
-                        activeColor={activeColor}
-                        canUndo={history.length > 0}
-                        onColorSelect={selectColor}
-                        onUndo={undoEdit}
                         onEdit={() => { setSolvedBoard(null); setSolveTime(null); setError(null); }}
                         width={width}
                         height={height}

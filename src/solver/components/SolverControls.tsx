@@ -1,15 +1,9 @@
 import React from 'react';
-import { Loader2, ChevronDown, Play, Shuffle, RotateCcw, Undo2, Pencil } from 'lucide-react';
-import EndpointPicker from './EndpointPicker';
+import { ChevronDown } from 'lucide-react';
 import { GAME_MODES, type GameMode } from '../logic/game-modes';
 import { SIZE_OPTIONS, RESTRICT_Z3_TO_LARGE_GRIDS, SolverType } from './constants';
 
 interface SolverControlsProps {
-    board: number[][];
-    activeColor: number;
-    canUndo: boolean;
-    onColorSelect: (color: number) => void;
-    onUndo: () => void;
     onEdit: () => void;
     width: number;
     height: number;
@@ -32,7 +26,7 @@ interface SolverControlsProps {
 }
 
 const SolverControls = ({
-    board, activeColor, canUndo, onColorSelect, onUndo, onEdit,
+    onEdit,
     width,
     height,
     mode,
@@ -57,93 +51,81 @@ const SolverControls = ({
     const wasmOnly = width !== height || unavailable;
     return (
         <div className="solver-controls">
+            <div className="primary-settings">
+                <label className="control-field">
+                    <span>Size</span>
+                    <span className="select-wrap">
+                        <select value={width === height ? width : 'custom'} onChange={onSizeChange}
+                            aria-label="Grid Size" disabled={isBusy || unavailable}>
+                            {width !== height && <option value="custom">{width} × {height}</option>}
+                            {SIZE_OPTIONS.map(option => <option key={option} value={option}>{option} × {option}</option>)}
+                        </select>
+                        <ChevronDown aria-hidden="true" />
+                    </span>
+                </label>
+                <label className="control-field">
+                    <span>Algorithm</span>
+                    <span className="select-wrap">
+                        <select value={solverType} onChange={onSolverTypeChange} aria-label="Solver Algorithm"
+                            disabled={isBusy || wasmOnly || (RESTRICT_Z3_TO_LARGE_GRIDS && (width !== 15 || height !== 15))}>
+                            <option value="heuristic_bfs">Heuristic BFS</option>
+                            <option value="astar" disabled={wasmOnly}>A*</option>
+                            <option value="z3" disabled={wasmOnly}>SAT (Z3)</option>
+                        </select>
+                        <ChevronDown aria-hidden="true" />
+                    </span>
+                </label>
+            </div>
             <div className="control-actions" aria-label="Puzzle actions">
                 <button className="control-button primary-action" onClick={onSolve} disabled={isBusy || unavailable}>
-                    {isSolving ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Play aria-hidden="true" />}
-                    {isSolving ? 'Solving' : 'Solve'}
+                    Solve
                 </button>
                 <button className="control-button" onClick={onGenerate} disabled={isBusy || unavailable}>
-                    {isGenerating ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Shuffle aria-hidden="true" />}
-                    {isGenerating ? 'Generating' : 'Generate'}
-                </button>
-                <button className="control-button" onClick={onUndo} disabled={isBusy || unavailable || !canUndo || showingSolution}>
-                    <Undo2 aria-hidden="true" /> Undo
+                    Generate
                 </button>
                 <button className="control-button reset-action" onClick={onReset} disabled={!isLoaded || unavailable}>
-                    <RotateCcw aria-hidden="true" /> Reset
+                    Reset
                 </button>
-                {hasGeneratedSolution && (
-                    <button className="control-button solution-action" onClick={onToggleSolution}
-                        disabled={isBusy || unavailable} aria-pressed={showingSolution}>
-                        {showingSolution ? 'Hide solution' : 'Show solution'}
-                    </button>
-                )}
-                {showingSolution && !hasGeneratedSolution && (
-                    <button className="control-button solution-action" onClick={onEdit} disabled={isBusy || unavailable}>
-                        <Pencil aria-hidden="true" /> Edit puzzle
-                    </button>
-                )}
             </div>
-
-            <EndpointPicker board={board} activeColor={activeColor} onSelect={onColorSelect}
-                disabled={isBusy || unavailable || showingSolution} />
-
-            <fieldset className="board-settings" disabled={isBusy}>
-                <legend className="section-label">Board settings</legend>
-                <div className="settings-grid">
-                    <label className="control-field">
-                        <span>Mode</span>
-                        <span className="select-wrap">
-                            <select aria-label="Game Mode" value={mode} onChange={onModeChange}>
-                                {Object.entries(GAME_MODES).map(([value, config]) => (
-                                    <option key={value} value={value}>{config.label}{config.available ? '' : ' (coming soon)'}</option>
-                                ))}
-                            </select>
-                            <ChevronDown aria-hidden="true" />
-                        </span>
-                    </label>
-                    <label className="control-field">
-                        <span>Square preset</span>
-                        <span className="select-wrap">
-                            <select value={width === height ? width : 'custom'} onChange={onSizeChange}
-                                aria-label="Grid Size" disabled={unavailable}>
-                                {width !== height && <option value="custom">Custom {width}×{height}</option>}
-                                {SIZE_OPTIONS.map(option => <option key={option} value={option}>{option} × {option}</option>)}
-                            </select>
-                            <ChevronDown aria-hidden="true" />
-                        </span>
-                    </label>
-                    {(['Width', 'Height'] as const).map(label => (
-                        <label key={label} className="control-field">
-                            <span>{label}</span>
+            {(hasGeneratedSolution || showingSolution) && (
+                <button className="text-action" disabled={isBusy || unavailable}
+                    onClick={hasGeneratedSolution ? onToggleSolution : onEdit}
+                    aria-pressed={hasGeneratedSolution ? showingSolution : undefined}>
+                    {hasGeneratedSolution ? showingSolution ? 'Hide solution' : 'Show solution' : 'Edit puzzle'}
+                </button>
+            )}
+            <details className="board-options">
+                <summary>Board options <ChevronDown aria-hidden="true" /></summary>
+                <fieldset disabled={isBusy} className="custom-settings">
+                    <legend className="sr-only">Board options</legend>
+                    <div className="settings-grid">
+                        {(['Width', 'Height'] as const).map(label => (
+                            <label key={label} className="control-field">
+                                <span>{label}</span>
+                                <span className="select-wrap">
+                                    <select aria-label={`Grid ${label}`} value={label === 'Width' ? width : height}
+                                        onChange={label === 'Width' ? onWidthChange : onHeightChange} disabled={unavailable}>
+                                        {SIZE_OPTIONS.map(dimension => <option key={dimension} value={dimension}>{dimension}</option>)}
+                                    </select>
+                                    <ChevronDown aria-hidden="true" />
+                                </span>
+                            </label>
+                        ))}
+                        <label className="control-field mode-field">
+                            <span>Mode</span>
                             <span className="select-wrap">
-                                <select aria-label={`Grid ${label}`} value={label === 'Width' ? width : height}
-                                    onChange={label === 'Width' ? onWidthChange : onHeightChange} disabled={unavailable}>
-                                    {SIZE_OPTIONS.map(dimension => <option key={dimension} value={dimension}>{dimension}</option>)}
+                                <select aria-label="Game Mode" value={mode} onChange={onModeChange}>
+                                    {Object.entries(GAME_MODES).map(([value, config]) => (
+                                        <option key={value} value={value}>{config.label}{config.available ? '' : ' (coming soon)'}</option>
+                                    ))}
                                 </select>
                                 <ChevronDown aria-hidden="true" />
                             </span>
                         </label>
-                    ))}
-                    <label className="control-field algorithm-field">
-                        <span>Solver algorithm</span>
-                        <span className="select-wrap">
-                            <select value={solverType} onChange={onSolverTypeChange} aria-label="Solver Algorithm"
-                                aria-describedby="algorithm-hint"
-                                disabled={wasmOnly || (RESTRICT_Z3_TO_LARGE_GRIDS && (width !== 15 || height !== 15))}>
-                                <option value="heuristic_bfs">Heuristic BFS</option>
-                                <option value="astar" disabled={wasmOnly}>A* Search</option>
-                                <option value="z3" disabled={wasmOnly}>SAT (Z3)</option>
-                            </select>
-                            <ChevronDown aria-hidden="true" />
-                        </span>
-                    </label>
-                </div>
-                <p id="algorithm-hint" className="control-hint">
-                    {unavailable ? 'Switch to Standard to edit or solve.' : wasmOnly ? 'Rectangular boards use Heuristic BFS.' : 'Heuristic BFS is a good place to start.'}
-                </p>
-                <p className="control-hint">Changing dimensions clears the board.</p>
-            </fieldset>
+                    </div>
+                    <p className="control-hint">Changing dimensions clears the board.</p>
+                </fieldset>
+            </details>
         </div>
     );
 };

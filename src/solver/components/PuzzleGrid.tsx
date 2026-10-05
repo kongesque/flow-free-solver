@@ -2,7 +2,6 @@ import { useRef, useState, type CSSProperties, type KeyboardEvent } from 'react'
 import { COLORS } from './constants';
 
 interface PuzzleGridProps {
-    enlarged: boolean;
     width: number;
     height: number;
     currentBoard: number[][];
@@ -14,7 +13,6 @@ interface PuzzleGridProps {
 }
 
 const PuzzleGrid = ({
-    enlarged,
     width,
     height,
     currentBoard,
@@ -53,8 +51,6 @@ const PuzzleGrid = ({
             gridTemplateColumns: `repeat(${width}, minmax(0, 1fr))`,
             gridTemplateRows: `repeat(${height}, minmax(0, 1fr))`,
             '--board-ratio': width / height,
-            '--mobile-board-height': height > width ? 'min(60svh, 520px)' : 'clamp(240px, 38svh, 400px)',
-            width: enlarged ? `${width * 46 + 2}px` : undefined,
             aspectRatio: `${width} / ${height}`,
         } as CSSProperties}
     >

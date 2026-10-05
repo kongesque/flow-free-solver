@@ -49,12 +49,9 @@ Try it online: **[https://flow.kongesque.com](https://flow.kongesque.com)**
 
 ## 🎮 How to Use
 
-1.  **Select Dimensions**: Set **Width** and **Height** independently from 5 to 15, or use a square **Grid Size** preset. Rectangular boards automatically select **Heuristic BFS**, the C/Wasm solver. A* and Z3 remain available for Standard square boards.
+1.  **Select Dimensions**: Choose a square **Grid Size** preset, or open **Board options** to set **Width** and **Height** independently from 5 to 15. Rectangular boards automatically select **Heuristic BFS**, the C/Wasm solver. A* and Z3 remain available for Standard square boards.
 2.  **Generate a Puzzle**: Click **Generate** for a new solvable puzzle. **Show solution** reveals its full-board paths; **Hide solution** returns to the endpoints. The puzzle and its generated solution are saved locally across reloads.
 3.  **Paint the Board**: Alternatively, click an empty cell to place an endpoint, or click a filled cell to remove it. Editing a generated puzzle discards its saved solution.
-    - Use **Endpoint color** to choose any incomplete color pair. After placing two dots, the editor selects the next incomplete pair.
-    - **Undo** reverses endpoint placements and removals, including restoring a generated puzzle's saved solution. Resetting, generating, or changing dimensions starts a fresh editing history.
-    - On larger boards, **Enlarge** gives every cell a 44px touch target. Scroll within the board to reach cells and use **Fit** to see the whole puzzle again.
     - With a keyboard, Tab enters the board, arrow keys move between cells, and Enter or Space places or removes a dot. Home and End move to the edges of a row.
     - *Tip*: You need exactly two dots of the same color to form a pair.
 4.  **Click Solve**: The selected solver calculates non-overlapping paths. **Edit puzzle** returns a solved custom board to its original endpoints. **Reset** clears the board and cancels active solving or generation.
