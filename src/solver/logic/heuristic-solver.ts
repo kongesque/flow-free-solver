@@ -9,9 +9,10 @@ interface FlowModule {
 let modulePromise: Promise<FlowModule> | undefined;
 
 export function serializeBoard(board: Board): string {
-  const size = board.length;
-  if (size < 2 || size > 15 || board.some(column => column.length !== size)) {
-    throw new Error('The C solver requires a square board between 2 and 15 cells wide.');
+  const width = board.length;
+  const height = board[0]?.length ?? 0;
+  if ([width, height].some(dimension => dimension < 2 || dimension > 15) || board.some(column => column.length !== height)) {
+    throw new Error('The C solver requires a rectangular board with each dimension between 2 and 15.');
   }
   const counts = new Map<number, number>();
   for (const value of board.flat()) {
@@ -23,20 +24,20 @@ export function serializeBoard(board: Board): string {
   if (!counts.size || [...counts.values()].some(count => count !== 2)) {
     throw new Error('Each color must have exactly two endpoints.');
   }
-  return Array.from({ length: size }, (_, y) =>
-    Array.from({ length: size }, (_, x) => COLOR_CHARS[board[x][y]] || '.').join('')
+  return Array.from({ length: height }, (_, y) =>
+    Array.from({ length: width }, (_, x) => COLOR_CHARS[board[x][y]] || '.').join('')
   ).join('\n') + '\n';
 }
 
-export function parseSolution(result: string, size: number): Board | null {
+export function parseSolution(result: string, width: number, height = width): Board | null {
   if (result.startsWith('Error: No solution found (result code 1)')) return null;
   if (result.startsWith('Error')) throw new Error(result);
   const rows: unknown = JSON.parse(result);
-  if (!Array.isArray(rows) || rows.length !== size || rows.some(row => !Array.isArray(row) || row.length !== size)) {
+  if (!Array.isArray(rows) || rows.length !== height || rows.some(row => !Array.isArray(row) || row.length !== width)) {
     throw new Error('Invalid C solver response.');
   }
-  return Array.from({ length: size }, (_, x) =>
-    Array.from({ length: size }, (_, y) => {
+  return Array.from({ length: width }, (_, x) =>
+    Array.from({ length: height }, (_, y) => {
       const color = COLOR_CHARS.indexOf(String.fromCharCode(rows[y][x]));
       if (color < 1) throw new Error('Invalid color in C solver response.');
       return color;
@@ -57,5 +58,5 @@ export async function solveHeuristicBFS(board: Board): Promise<Board | null> {
       .catch(error => { modulePromise = undefined; throw error; });
   }
   const module = await modulePromise;
-  return parseSolution(module.cwrap('solve_puzzle_wasm', 'string', ['string'])(input), board.length);
+  return parseSolution(module.cwrap('solve_puzzle_wasm', 'string', ['string'])(input), board.length, board[0].length);
 }

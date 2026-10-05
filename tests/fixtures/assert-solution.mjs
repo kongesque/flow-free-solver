@@ -3,12 +3,14 @@ import assert from 'node:assert/strict';
 // Check the puzzle's rules independently of any solver's search implementation.
 export function assertSolution(input, solution) {
   const rows = input.trim().split(/\r?\n/);
-  const size = rows.length;
-  assert.equal(solution.length, size);
+  const height = rows.length;
+  const width = rows[0].length;
+  assert.ok(rows.every(row => row.length === width), 'Ragged puzzle');
+  assert.equal(solution.length, height);
   const endpoints = new Map();
-  for (let y = 0; y < size; y++) {
-    assert.equal(solution[y].length, size);
-    for (let x = 0; x < size; x++) {
+  for (let y = 0; y < height; y++) {
+    assert.equal(solution[y].length, width);
+    for (let x = 0; x < width; x++) {
       const color = String.fromCharCode(solution[y][x]);
       assert.notEqual(color, '\0', `Empty cell at ${x},${y}`);
       if (rows[y][x] !== '.') {
@@ -19,8 +21,8 @@ export function assertSolution(input, solution) {
       }
     }
   }
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
       const code = solution[y][x];
       assert.ok(endpoints.has(String.fromCharCode(code)), 'Unknown color');
       const neighbors = [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]]

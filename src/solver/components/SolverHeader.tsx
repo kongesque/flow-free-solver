@@ -1,29 +1,22 @@
-import GitHubIcon from './GitHubIcon';
+import { COLORS } from './constants';
 
 const SolverHeader = () => (
-    <>
-        <a
-            href="https://github.com/Kongesque/flow-free-solver"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="absolute top-4 right-4 sm:top-6 sm:right-6 text-stoic-secondary hover:text-stoic-primary transition-colors z-50"
-            aria-label="View source on GitHub"
-        >
-            <GitHubIcon className="size-6 sm:size-8" />
-        </a>
-
-        <header className='text-center flex flex-col items-center gap-1 selectable-text shrink-0 mb-2 max-w-[90vw]'>
-            <h1
-                className='text-stoic-primary text-xl sm:text-2xl md:text-3xl lg:text-4xl uppercase tracking-[0.1em]'
-                style={{ fontFamily: 'Geist Pixel Circle' }}
-            >
-                Flow Free Solver
+    <header className="solver-header selectable-text">
+        <div>
+            <h1 aria-label="Flow Free Solver">
+                <span aria-hidden="true">
+                    <span className="title-name">Flow Free</span>{' '}
+                    {Array.from('Solver').map((letter, index) => (
+                        <span key={index} className="title-letter"
+                            style={{ color: `color-mix(in srgb, ${COLORS[index + 1]} 65%, white)` }}>
+                            {letter}
+                        </span>
+                    ))}
+                </span>
             </h1>
-            <p className="text-stoic-secondary text-xs mt-1">
-                <strong className="text-stoic-primary">Tips:</strong> Click to place endpoints, click again to remove.
-            </p>
-        </header>
-    </>
+            <p><strong>Tips:</strong> Click to place. Click again to remove.</p>
+        </div>
+    </header>
 );
 
 export default SolverHeader;

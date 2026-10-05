@@ -6,19 +6,26 @@ import SolverHeader from './SolverHeader';
 import PuzzleGrid from './PuzzleGrid';
 import StatusIndicator from './StatusIndicator';
 import SolverControls from './SolverControls';
-import SolverFooter from './SolverFooter';
+import { GAME_MODES, type GameMode } from '../logic/game-modes';
+import type { GeneratedPuzzle } from '../logic/puzzle-generator';
 
-const initializeBoard = (boardSize: number) =>
-    Array(boardSize).fill(null).map(() => Array(boardSize).fill(0));
+const initializeBoard = (width: number, height = width) =>
+    Array(width).fill(null).map(() => Array(height).fill(0));
 
 /** Count occurrences of a color on the board */
 const countColor = (board: number[][], color: number) =>
     board.flat().filter(c => c === color).length;
 
 const FlowSolver = () => {
-    const [size, setSize] = useState(DEFAULT_SIZE);
+    const [width, setWidth] = useState(DEFAULT_SIZE);
+    const [height, setHeight] = useState(DEFAULT_SIZE);
+    const [mode, setMode] = useState<GameMode>('standard');
+    const isStandard = mode === 'standard';
+    const wasmOnly = width !== height || !isStandard;
     const [board, setBoard] = useState<number[][]>(() => initializeBoard(DEFAULT_SIZE));
     const [solvedBoard, setSolvedBoard] = useState<number[][] | null>(null);
+    const [generatedSolution, setGeneratedSolution] = useState<number[][] | null>(null);
+    const [isGenerating, setIsGenerating] = useState(false);
 
     // UX: Track current color being placed and whether we're placing first or second endpoint
     const [activeColor, setActiveColor] = useState(1);
@@ -40,11 +47,16 @@ const FlowSolver = () => {
     useEffect(() => {
         loadPuzzleState().then((saved) => {
             if (saved) {
-                setSize(saved.size);
+                const savedWidth = saved.width ?? saved.size ?? DEFAULT_SIZE;
+                const savedHeight = saved.height ?? saved.size ?? DEFAULT_SIZE;
+                setWidth(savedWidth);
+                setHeight(savedHeight);
+                setMode(saved.mode ?? 'standard');
                 setBoard(saved.board);
-                setSolverType(saved.solverType);
+                setSolverType(savedWidth !== savedHeight || (saved.mode && saved.mode !== 'standard') ? 'heuristic_bfs' : saved.solverType);
                 setActiveColor(saved.activeColor);
                 setIsPlacingSecond(saved.isPlacingSecond);
+                setGeneratedSolution(saved.generatedSolution ?? null);
             }
             setIsLoaded(true);
         });
@@ -57,13 +69,13 @@ const FlowSolver = () => {
         if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
 
         saveTimeoutRef.current = window.setTimeout(() => {
-            savePuzzleState({ size, board, solverType, activeColor, isPlacingSecond });
+            savePuzzleState({ width, height, mode, board, solverType, activeColor, isPlacingSecond, generatedSolution });
         }, 500);
 
         return () => {
             if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
         };
-    }, [size, board, solverType, activeColor, isPlacingSecond, isLoaded]);
+    }, [width, height, mode, board, solverType, activeColor, isPlacingSecond, generatedSolution, isLoaded]);
 
     // Cleanup worker on unmount
     useEffect(() => {
@@ -74,14 +86,16 @@ const FlowSolver = () => {
 
     // ── Handlers ──────────────────────────────────────────────────────────────
 
-    const resetBoard = useCallback((newSize: number = size) => {
+    const resetBoard = useCallback((newWidth = width, newHeight = height) => {
         workerRef.current?.terminate();
         workerRef.current = null;
         setIsSolving(false);
+        setIsGenerating(false);
         // Prevent hover preview flash by setting isResetting before state changes
         setIsResetting(true);
-        setBoard(initializeBoard(newSize));
+        setBoard(initializeBoard(newWidth, newHeight));
         setSolvedBoard(null);
+        setGeneratedSolution(null);
         setActiveColor(1);
         setIsPlacingSecond(false);
         setError(null);
@@ -89,26 +103,34 @@ const FlowSolver = () => {
         clearPuzzleState();
         // Re-enable hover preview after React has completed the render cycle
         requestAnimationFrame(() => setIsResetting(false));
-    }, [size]);
+    }, [width, height]);
 
-    const handleSizeChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-        const newSize = parseInt(event.target.value);
-        setSize(newSize);
-        if (RESTRICT_Z3_TO_LARGE_GRIDS && newSize !== 15 && solverType === 'z3') {
+    const changeDimensions = (newWidth: number, newHeight: number) => {
+        setWidth(newWidth);
+        setHeight(newHeight);
+        if (newWidth !== newHeight || (RESTRICT_Z3_TO_LARGE_GRIDS && newWidth !== 15)) {
             setSolverType('heuristic_bfs');
         }
-        resetBoard(newSize);
+        resetBoard(newWidth, newHeight);
+    };
+
+    const handleModeChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+        const newMode = event.target.value as GameMode;
+        setMode(newMode);
+        setError(null);
+        if (newMode !== 'standard') setSolverType('heuristic_bfs');
     };
 
     const handleSolverTypeChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
         const newType = event.target.value as SolverType;
-        if (RESTRICT_Z3_TO_LARGE_GRIDS && newType === 'z3' && size !== 15) {
+        if (wasmOnly && newType !== 'heuristic_bfs') return;
+        if (RESTRICT_Z3_TO_LARGE_GRIDS && newType === 'z3' && (width !== 15 || height !== 15)) {
             setError('Z3 is for 15x15 only');
-            setTimeout(() => setError(null), 2000);
             setSolverType('heuristic_bfs');
             return;
         }
         setSolverType(newType);
+        setError(null);
     };
 
     // UX Best Practices:
@@ -117,7 +139,7 @@ const FlowSolver = () => {
     // 3. Predictable: Same action = same result
     // 4. Forgiving: Easy to undo mistakes
     const handleCellClick = useCallback((x: number, y: number) => {
-        if (solvedBoard || isSolving) return;
+        if (solvedBoard || isSolving || isGenerating || !isLoaded || !isStandard) return;
 
         const cellValue = board[x][y];
         const newBoard = board.map(row => [...row]);
@@ -142,6 +164,7 @@ const FlowSolver = () => {
         } else {
             // PLACE: Clicking empty cell places the active color
             // BUG FIX: Check if this color already has 2 endpoints
+            if (activeColor > 16) return;
             const currentCount = countColor(board, activeColor);
             if (currentCount >= 2) {
                 // Color is complete - find next available
@@ -168,9 +191,51 @@ const FlowSolver = () => {
         }
 
         setBoard(newBoard);
-    }, [board, solvedBoard, isSolving, activeColor]);
+        setGeneratedSolution(null);
+        setError(null);
+        setSolveTime(null);
+    }, [board, solvedBoard, isSolving, isGenerating, isLoaded, isStandard, activeColor]);
+
+    const generateBoard = () => {
+        if (isSolving || isGenerating || !isLoaded || !isStandard) return;
+        if (!generatedSolution && board.some(column => column.some(color => color !== 0)) &&
+            !window.confirm('Replace your endpoints with a generated puzzle?')) return;
+        setError(null);
+        setIsGenerating(true);
+        const worker = new Worker(
+            new URL('../workers/generator.worker.ts', import.meta.url),
+            { type: 'module' }
+        );
+        workerRef.current = worker;
+        worker.onmessage = (event: MessageEvent<{ puzzle?: GeneratedPuzzle; error?: string }>) => {
+            if (workerRef.current !== worker) return;
+            workerRef.current = null;
+            worker.terminate();
+            setIsGenerating(false);
+            const { puzzle, error: generationError } = event.data;
+            if (!puzzle) {
+                setError(generationError || 'Could not generate puzzle. Please try again.');
+                return;
+            }
+            setBoard(puzzle.board);
+            setGeneratedSolution(puzzle.solution);
+            setSolvedBoard(null);
+            setSolveTime(null);
+            setActiveColor(puzzle.pairCount + 1);
+            setIsPlacingSecond(false);
+        };
+        worker.onerror = () => {
+            if (workerRef.current !== worker) return;
+            workerRef.current = null;
+            worker.terminate();
+            setIsGenerating(false);
+            setError('Could not generate puzzle. Please try again.');
+        };
+        worker.postMessage({ width, height, mode, seed: crypto.getRandomValues(new Uint32Array(1))[0] });
+    };
 
     const solveBoard = async () => {
+        if (isSolving || isGenerating || !isLoaded || !isStandard) return;
         setError(null);
 
         // ── Validation ──────────────────────────────────────────────────────────
@@ -178,7 +243,6 @@ const FlowSolver = () => {
 
         if (placedColors.length === 0) {
             setError('Please place some endpoints');
-            setTimeout(() => setError(null), 3000);
             return;
         }
 
@@ -186,7 +250,6 @@ const FlowSolver = () => {
             const count = countColor(board, color);
             if (count === 1) {
                 setError(`Color ${color} is missing an endpoint`);
-                setTimeout(() => setError(null), 3000);
                 return;
             }
         }
@@ -203,7 +266,7 @@ const FlowSolver = () => {
         workerRef.current = worker;
 
         const startTime = performance.now();
-        worker.postMessage({ board, type: solverType });
+        worker.postMessage({ board, type: solverType, mode });
 
         worker.onmessage = (event) => {
             if (workerRef.current !== worker) return;
@@ -215,15 +278,16 @@ const FlowSolver = () => {
             if (result.board) {
                 setSolveTime(performance.now() - startTime);
                 setSolvedBoard(result.board);
+            } else if (generatedSolution && (result.timedOut || /result code 2/.test(result.error ?? ''))) {
+                // Generated puzzles already have a valid solution if search reaches its budget.
+                setSolvedBoard(generatedSolution);
+                setSolveTime(null);
             } else if (result.timedOut) {
                 setError(solverType === 'astar' ? 'Timed out. Try Heuristic BFS.' : 'Timed out (15s limit)');
-                setTimeout(() => setError(null), 4000);
             } else if (result.error) {
                 setError('Solver error: ' + result.error);
-                setTimeout(() => setError(null), 3000);
             } else {
-                setError(solverType === 'heuristic_bfs' && size === 15 ? 'No solution. Try Z3.' : 'No solution found');
-                setTimeout(() => setError(null), 3000);
+                setError(solverType === 'heuristic_bfs' && width === 15 && height === 15 ? 'No solution. Try Z3.' : 'No solution found');
             }
         };
 
@@ -232,7 +296,6 @@ const FlowSolver = () => {
             console.error('Worker error:', err);
             setIsSolving(false);
             setError('Solver error. Please try again.');
-            setTimeout(() => setError(null), 3000);
             workerRef.current = null;
             worker.terminate();
         };
@@ -243,41 +306,57 @@ const FlowSolver = () => {
     const currentBoard = solvedBoard || board;
 
     return (
-        <main className='relative flex flex-col justify-center items-center h-[100dvh] w-full bg-stoic-bg safe-area-inset touch-manipulation overflow-hidden gap-3'>
+        <main className="solver-shell touch-manipulation">
             <SolverHeader />
 
-            <PuzzleGrid
-                size={size}
-                currentBoard={currentBoard}
-                solvedBoard={solvedBoard}
-                isSolving={isSolving}
-                activeColor={activeColor}
-                isResetting={isResetting}
-                onCellClick={handleCellClick}
-            />
-
-            <section aria-label="Game Controls" className="flex flex-col items-center gap-3 shrink-0 z-10">
+            <div className="solver-workspace">
                 <StatusIndicator
                     isSolving={isSolving}
+                    isGenerating={isGenerating}
+                    generatedPairCount={generatedSolution ? new Set(generatedSolution.flat()).size : null}
+                    unavailableMode={isStandard ? null : GAME_MODES[mode].label}
                     error={error}
                     solvedBoard={solvedBoard}
                     solveTime={solveTime}
                     activeColor={activeColor}
                     isPlacingSecond={isPlacingSecond}
                 />
-
-                <SolverControls
-                    size={size}
-                    solverType={solverType}
-                    isSolving={isSolving}
-                    onSizeChange={handleSizeChange}
-                    onSolverTypeChange={handleSolverTypeChange}
-                    onSolve={solveBoard}
-                    onReset={() => resetBoard()}
-                />
-            </section>
-
-            <SolverFooter />
+                <section className="board-area" aria-label="Puzzle editor">
+                    <PuzzleGrid
+                        width={width}
+                        height={height}
+                        activeColor={activeColor}
+                        currentBoard={currentBoard}
+                        solvedBoard={solvedBoard}
+                        isSolving={isSolving || isGenerating || !isLoaded || !isStandard}
+                        isResetting={isResetting}
+                        onCellClick={handleCellClick}
+                    />
+                    <p className="sr-only" id="board-keyboard-help">Use arrow keys to move between cells. Press Enter or Space to place or remove a dot.</p>
+                    <p id="board-instructions" className="sr-only">Tap an empty cell to place a dot. Tap a dot to remove it.</p>
+                </section>
+                <section aria-label="Game Controls" className="game-controls">
+                    <SolverControls
+                        onEdit={() => { setSolvedBoard(null); setSolveTime(null); setError(null); }}
+                        width={width}
+                        height={height}
+                        solverType={solverType}
+                        isSolving={isSolving}
+                        isGenerating={isGenerating}
+                        isLoaded={isLoaded}
+                        showingSolution={solvedBoard !== null}
+                        mode={mode}
+                        onModeChange={handleModeChange}
+                        onSizeChange={(event) => changeDimensions(Number(event.target.value), Number(event.target.value))}
+                        onWidthChange={(event) => changeDimensions(Number(event.target.value), height)}
+                        onHeightChange={(event) => changeDimensions(width, Number(event.target.value))}
+                        onSolverTypeChange={handleSolverTypeChange}
+                        onSolve={solveBoard}
+                        onReset={() => resetBoard()}
+                        onGenerate={generateBoard}
+                    />
+                </section>
+            </div>
         </main>
     );
 };

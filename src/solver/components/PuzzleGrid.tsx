@@ -1,7 +1,9 @@
+import { useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent } from 'react';
 import { COLORS } from './constants';
 
 interface PuzzleGridProps {
-    size: number;
+    width: number;
+    height: number;
     currentBoard: number[][];
     solvedBoard: number[][] | null;
     isSolving: boolean;
@@ -11,27 +13,58 @@ interface PuzzleGridProps {
 }
 
 const PuzzleGrid = ({
-    size,
+    width,
+    height,
     currentBoard,
     solvedBoard,
     isSolving,
     activeColor,
     isResetting,
     onCellClick,
-}: PuzzleGridProps) => (
+}: PuzzleGridProps) => {
+    const gridRef = useRef<HTMLElement>(null);
+    const [focusedCell, setFocusedCell] = useState(0);
+    // Grid lines belong to the nearest cell, so small touch targets have no dead gaps.
+    const handleGridClick = (event: MouseEvent<HTMLElement>) => {
+        if (event.target !== event.currentTarget || isSolving || solvedBoard) return;
+        const bounds = event.currentTarget.getBoundingClientRect();
+        const x = Math.min(width - 1, Math.floor((event.clientX - bounds.left) / bounds.width * width));
+        const y = Math.min(height - 1, Math.floor((event.clientY - bounds.top) / bounds.height * height));
+        onCellClick(Math.max(0, x), Math.max(0, y));
+    };
+    const moveFocus = (event: KeyboardEvent<HTMLButtonElement>, x: number, y: number) => {
+        let nextX = x;
+        let nextY = y;
+        switch (event.key) {
+            case 'ArrowLeft': nextX = Math.max(0, x - 1); break;
+            case 'ArrowRight': nextX = Math.min(width - 1, x + 1); break;
+            case 'ArrowUp': nextY = Math.max(0, y - 1); break;
+            case 'ArrowDown': nextY = Math.min(height - 1, y + 1); break;
+            case 'Home': nextX = 0; break;
+            case 'End': nextX = width - 1; break;
+            default: return;
+        }
+        event.preventDefault();
+        const index = nextY * width + nextX;
+        setFocusedCell(index);
+        gridRef.current?.querySelectorAll('button')[index]?.focus();
+    };
+    return (
     <article
+        ref={gridRef}
         aria-label="Puzzle Grid Board"
-        className="grid bg-stoic-line border-2 border-stoic-line mx-auto shrink-0"
+        aria-describedby="board-instructions board-keyboard-help"
+        className="puzzle-grid"
+        onClick={handleGridClick}
         style={{
-            gap: '2px',
-            gridTemplateColumns: `repeat(${size}, 1fr)`,
-            gridTemplateRows: `repeat(${size}, 1fr)`,
-            width: 'min(90vw, 55vh)',
-            height: 'min(90vw, 55vh)',
-        }}
+            gridTemplateColumns: `repeat(${width}, minmax(0, 1fr))`,
+            gridTemplateRows: `repeat(${height}, minmax(0, 1fr))`,
+            '--grid-width': `${100 * width / Math.max(width, height)}%`,
+            aspectRatio: `${width} / ${height}`,
+        } as CSSProperties}
     >
-        {Array.from({ length: size }).map((_, y) =>
-            Array.from({ length: size }).map((_, x) => {
+        {Array.from({ length: height }).map((_, y) =>
+            Array.from({ length: width }).map((_, x) => {
                 const cellValue = currentBoard[x]?.[y] ?? 0;
                 const hasColor = cellValue !== 0;
 
@@ -39,29 +72,32 @@ const PuzzleGrid = ({
                     <button
                         key={`${x}-${y}`}
                         type="button"
-                        disabled={isSolving}
+                        disabled={isSolving || solvedBoard !== null}
+                        tabIndex={y * width + x === Math.min(focusedCell, width * height - 1) ? 0 : -1}
+                        onFocus={() => setFocusedCell(y * width + x)}
+                        onKeyDown={event => moveFocus(event, x, y)}
                         className={`
                             group
-                            w-full h-full
+                            w-full h-full min-w-0 min-h-0
                             bg-stoic-block-bg
                             p-0 m-0 appearance-none cursor-pointer 
                             flex items-center justify-center 
                             transition-all duration-150
                             touch-manipulation
                             select-none
-                            ${solvedBoard ? 'cursor-default' : 'hover:bg-stoic-block-hover active:scale-95 active:bg-stoic-block-hover'}
+                            ${solvedBoard ? 'cursor-default' : 'hover:bg-stoic-block-hover active:bg-stoic-block-hover'}
                         `}
                         onClick={() => !solvedBoard && onCellClick(x, y)}
                         aria-label={`Cell ${x},${y} ${hasColor ? `Color ${cellValue}` : 'Empty'}`}
                     >
                         {hasColor ? (
                             <span
-                                className="rounded-full w-[70%] h-[70%]"
+                                className="endpoint-dot rounded-full w-[70%] h-[70%]"
                                 style={{ backgroundColor: COLORS[cellValue] || '#888' }}
                             />
                         ) : !solvedBoard && !isResetting && (
                             <span
-                                className="rounded-full w-[70%] h-[70%] opacity-0 group-hover:opacity-50 transition-opacity duration-75"
+                                className="endpoint-preview rounded-full w-[70%] h-[70%] transition-opacity duration-75"
                                 style={{ backgroundColor: COLORS[activeColor] || '#888' }}
                             />
                         )}
@@ -71,5 +107,6 @@ const PuzzleGrid = ({
         )}
     </article>
 );
+};
 
 export default PuzzleGrid;

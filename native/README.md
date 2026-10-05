@@ -12,7 +12,8 @@ Run `npm run build:wasm` from the repository root. The compiler command lives in
 tests, with memory growth capped at 512 MiB and search storage capped at 128 MiB.
 The filesystem is disabled; puzzle input and result output stay in memory.
 
-The API accepts square text boards between 2×2 and 15×15. Each color must appear
+The API accepts rectangular text boards with each dimension between 2 and 15.
+The first row determines width; the number of equally sized rows determines height. Each color must appear
 twice; empty cells are `.`. Valid colors are `RBYGOCMmPAWgTbcp`. Results are JSON
 rows containing ASCII color codes. Invalid input and failed searches return an
 `Error:` string. The result string is a static buffer overwritten by the next

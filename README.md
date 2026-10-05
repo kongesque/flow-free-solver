@@ -1,6 +1,6 @@
 # Flow Free Solver
 
-**Flow Free Solver** (also known as a **Number Link Solver**) is a high-performance web tool that **solves complex logic puzzles in milliseconds** locally in your browser. Built with **React** and **WebAssembly**, it uses advanced constraint solving algorithms (*Z3 Theorem Prover* and *A\**) to find solutions for grids ranging from 5x5 to 15x15 without sending data to a server.
+**Flow Free Solver** (also known as a **Number Link Solver**) is a high-performance web tool that **solves complex logic puzzles in milliseconds** locally in your browser. Built with **React** and **WebAssembly**, it uses advanced constraint solving algorithms (*Z3 Theorem Prover* and *A\**) to find solutions for square and rectangular grids with widths and heights from 5 to 15 without sending data to a server.
 
 <p align="center">
   <img src="./assets/5x5_demo.gif" width="49%" alt="5x5 Demo" />
@@ -42,18 +42,42 @@ Try it online: **[https://flow.kongesque.com](https://flow.kongesque.com)**
 
 - **Instant AI Solutions**: Solves complex Number Link puzzles in milliseconds using the Z3 SMT Solver (compiled to Wasm).
 - **Interactive Editor**: Draw your own puzzles or test specific configurations on grids up to 15x15.
+- **Puzzle Generator**: Create random solvable puzzles from 5×5 to 15×15, with one color pair per initial row or column. Reveal or hide the complete solution, or independently solve the generated endpoints with any solver.
 - **Multiple Algorithms**: Compare the performance of heuristic search (A*), constraint satisfaction (SAT), and optimized C BFS.
 
 ---
 
 ## 🎮 How to Use
 
-1.  **Select Grid Size**: Choose a size from 5x5 to 15x15.
-2.  **Paint the Board**: Click an empty cell to place a color. Click again to visualize the path.
+1.  **Select Dimensions**: Choose a square **Grid Size** preset, or open **Board options** to set **Width** and **Height** independently from 5 to 15. Rectangular boards automatically select **Heuristic BFS**, the C/Wasm solver. A* and Z3 remain available for Standard square boards.
+2.  **Generate a Puzzle**: Click **Generate** for a new solvable puzzle. If you have placed or edited endpoints, confirm before replacing them; Cancel keeps your board and current color. The puzzle and its generated solution are saved locally across reloads.
+3.  **Paint the Board**: Alternatively, click an empty cell to place an endpoint, or click a filled cell to remove it. Editing a generated puzzle discards its saved solution.
+    - With a keyboard, Tab enters the board, arrow keys move between cells, and Enter or Space places or removes a dot. Home and End move to the edges of a row.
     - *Tip*: You need exactly two dots of the same color to form a pair.
-3.  **Click Solve**: The AI will instantly calculate the non-overlapping paths.
+4.  **Click Solve**: The selected solver calculates non-overlapping paths. **Solve** becomes **Edit** after solving; click it to return to the original endpoints. Generated puzzles use their saved solution if the selected solver reaches its search limit. **Reset** clears the board and cancels active solving or generation.
+
+Generation runs in a dedicated Web Worker. It starts with a complete path cover
+and randomly transfers cells between path endpoints while preserving full-board
+coverage, connectivity, and path degree. Each color retains at least three cells.
+The remaining endpoints therefore always have a valid solution. Puzzles may have
+multiple solutions; the generator does not certify uniqueness or difficulty.
+Some large puzzles can exceed an independent solver's search budget. **Show
+solution** always reveals the solution retained during construction.
 
 ---
+
+## Board modes
+
+**Standard** supports square and rectangular boards. **Bridges**, **Hexes**, and
+**Warps** are selectable placeholders marked **coming soon**. Puzzle actions are
+disabled in these modes; switching back to Standard preserves the current puzzle.
+Mode, dimensions, endpoints, and the generated solution are saved locally. Legacy
+square saves with a single size continue to load.
+
+Rectangular and future variant solving use the C/Wasm backend only. The generator
+remains TypeScript in a dedicated worker; it constructs solutions without search.
+Worker requests carry the mode and reject unavailable variants, so future bridge,
+hex, and warp rules cannot silently run as a Standard puzzle. See [issue #2](https://github.com/kongesque/flow-free-solver/issues/2).
 
 ## 🧠 Technical Architecture
 
@@ -194,6 +218,12 @@ validation, and verify IndexedDB persistence. C tests cover every fixture, 15×1
 and repeated calls. CI runs these checks for production, development, and subpath
 hosting. Z3 uses shared memory and requires cross-origin isolation; preserve the
 COOP/COEP headers in `vite.config.js` and `vercel.json`.
+
+Generator tests independently validate 330 square and 330 rectangular seeded boards
+across every supported dimension combination. Browser tests generate, independently solve, and reveal every size through real workers, solve
+generated puzzles with all three algorithms, and check reload, editing,
+cancellation, worker failure recovery, mobile controls, rectangular C/Wasm solving,
+legacy saves, and safe future-mode switching.
 
 ---
 

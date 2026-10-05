@@ -1,3 +1,5 @@
+import type { GameMode } from '../solver/logic/game-modes';
+
 /**
  * IndexedDB Storage Hook for Flow Free Solver
  * Persists puzzle state to prevent data loss on refresh/crashes
@@ -9,11 +11,16 @@ const STORE_NAME = 'puzzle-state';
 const STATE_KEY = 'current';
 
 export interface PuzzleState {
-    size: number;
+    /** Legacy square saves use size; new saves store independent dimensions. */
+    size?: number;
+    width?: number;
+    height?: number;
+    mode?: GameMode;
     board: number[][];
     solverType: 'astar' | 'z3' | 'heuristic_bfs';
     activeColor: number;
     isPlacingSecond: boolean;
+    generatedSolution?: number[][] | null;
     savedAt: number;
 }
 
