@@ -45,6 +45,37 @@ const SolverControls = ({
     const isBusy = isSolving || isGenerating || !isLoaded;
     const unavailable = !GAME_MODES[mode].available;
     const wasmOnly = width !== height || unavailable;
+    const boardSettings = (
+        <fieldset disabled={isBusy} className="custom-settings">
+            <legend className="sr-only">Board options</legend>
+            <div className="settings-grid">
+                {(['Width', 'Height'] as const).map(label => (
+                    <label key={label} className="control-field">
+                        <span>{label}</span>
+                        <span className="select-wrap">
+                            <select aria-label={`Grid ${label}`} value={label === 'Width' ? width : height}
+                                onChange={label === 'Width' ? onWidthChange : onHeightChange} disabled={unavailable}>
+                                {SIZE_OPTIONS.map(dimension => <option key={dimension} value={dimension}>{dimension}</option>)}
+                            </select>
+                            <ChevronDown aria-hidden="true" />
+                        </span>
+                    </label>
+                ))}
+                <label className="control-field mode-field">
+                    <span>Mode</span>
+                    <span className="select-wrap">
+                        <select aria-label="Game Mode" value={mode} onChange={onModeChange}>
+                            {Object.entries(GAME_MODES).map(([value, config]) => (
+                                <option key={value} value={value}>{config.label}{config.available ? '' : ' (coming soon)'}</option>
+                            ))}
+                        </select>
+                        <ChevronDown aria-hidden="true" />
+                    </span>
+                </label>
+            </div>
+            <p className="control-hint">Changing dimensions clears the board.</p>
+        </fieldset>
+    );
     return (
         <div className="solver-controls">
             <div className="primary-settings">
@@ -83,37 +114,13 @@ const SolverControls = ({
                     Reset
                 </button>
             </div>
-            <details className="board-options">
+            <section className="board-options desktop-board-options" aria-label="Board options">
+                <h2 className="board-options-title">Board options</h2>
+                {boardSettings}
+            </section>
+            <details className="board-options mobile-board-options">
                 <summary>Board options <ChevronDown aria-hidden="true" /></summary>
-                <fieldset disabled={isBusy} className="custom-settings">
-                    <legend className="sr-only">Board options</legend>
-                    <div className="settings-grid">
-                        {(['Width', 'Height'] as const).map(label => (
-                            <label key={label} className="control-field">
-                                <span>{label}</span>
-                                <span className="select-wrap">
-                                    <select aria-label={`Grid ${label}`} value={label === 'Width' ? width : height}
-                                        onChange={label === 'Width' ? onWidthChange : onHeightChange} disabled={unavailable}>
-                                        {SIZE_OPTIONS.map(dimension => <option key={dimension} value={dimension}>{dimension}</option>)}
-                                    </select>
-                                    <ChevronDown aria-hidden="true" />
-                                </span>
-                            </label>
-                        ))}
-                        <label className="control-field mode-field">
-                            <span>Mode</span>
-                            <span className="select-wrap">
-                                <select aria-label="Game Mode" value={mode} onChange={onModeChange}>
-                                    {Object.entries(GAME_MODES).map(([value, config]) => (
-                                        <option key={value} value={value}>{config.label}{config.available ? '' : ' (coming soon)'}</option>
-                                    ))}
-                                </select>
-                                <ChevronDown aria-hidden="true" />
-                            </span>
-                        </label>
-                    </div>
-                    <p className="control-hint">Changing dimensions clears the board.</p>
-                </fieldset>
+                {boardSettings}
             </details>
         </div>
     );

@@ -1,5 +1,6 @@
 import { test, expect, type Locator } from '@playwright/test';
 import { assertSolution } from '../fixtures/assert-solution.mjs';
+import { openBoardOptions } from './board-options';
 
 // Compare document positions even when selecting an offscreen control scrolls the page.
 const layoutBounds = (locator: Locator) => locator.evaluate(element => {
@@ -23,7 +24,7 @@ for (const viewport of [
         await page.setViewportSize(viewport);
         await page.goto('./');
         await expect(page.locator('.control-actions button')).toHaveCount(3);
-        await expect(page.getByRole('combobox')).toHaveCount(2);
+        await expect(page.getByRole('combobox')).toHaveCount(viewport.width >= 960 ? 5 : 2);
         await expect(page.getByText('Size', { exact: true })).toBeVisible();
         await expect(page.getByText('Algorithm', { exact: true })).toBeVisible();
         await expect(page.getByRole('link', { name: 'View source on GitHub' })).toHaveCount(0);
@@ -34,12 +35,17 @@ for (const viewport of [
         const controls = await page.getByRole('region', { name: 'Game Controls' }).boundingBox();
         const desktop = viewport.width >= 960;
         if (desktop) {
+            await expect(page.locator('.desktop-board-options')).toBeVisible();
+            await expect(page.locator('.board-options summary')).toBeHidden();
+            await expect(page.getByRole('heading', { name: 'Board options', exact: true })).toBeVisible();
             expect(initialHeader.x).toBeGreaterThan(initialBoard!.x + initialBoard!.width);
             expect(controls!.x).toBeGreaterThan(initialBoard!.x + initialBoard!.width);
             expect(status.x).toBeGreaterThan(initialBoard!.x + initialBoard!.width);
             expect(initialHeader.y).toBeCloseTo(initialBoard!.y, 0);
             expect(controls!.y + controls!.height).toBeLessThanOrEqual(initialBoard!.y + initialBoard!.height);
         } else {
+            await expect(page.locator('.mobile-board-options')).not.toHaveAttribute('open', '');
+            await expect(page.locator('.board-options summary')).toBeVisible();
             expect(initialHeader.y + initialHeader.height).toBeLessThan(status.y);
             expect(status.y + status.height).toBeLessThanOrEqual(initialBoard!.y);
             expect(controls!.y).toBeGreaterThanOrEqual(initialBoard!.y + initialBoard!.height);
@@ -49,7 +55,7 @@ for (const viewport of [
         } else if (viewport.width <= 600 && viewport.height >= viewport.width) {
             expect(Math.abs(initialBoard!.y + initialBoard!.height / 2 - viewport.height / 2)).toBeLessThan(12);
         }
-        await page.locator('.board-options summary').click();
+        await openBoardOptions(page);
         await expect(page.getByRole('combobox', { name: 'Grid Width' })).toBeEnabled();
         const frame = await layoutBounds(page.getByRole('region', { name: 'Puzzle editor' }));
         expect(frame.y).toBeCloseTo(initialBoard!.y, 0);
@@ -99,9 +105,31 @@ for (const viewport of [
     });
 }
 
+test('board options adapt between mobile and desktop while preserving endpoints', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('./');
+    await page.getByRole('button', { name: 'Cell 0,0 Empty', exact: true }).click();
+    await openBoardOptions(page);
+    await expect(page.getByRole('combobox', { name: 'Grid Width' })).toBeVisible();
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await expect(page.locator('.board-options summary')).toBeHidden();
+    await expect(page.getByRole('combobox', { name: 'Grid Width' })).toBeVisible();
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(page.getByRole('combobox', { name: 'Grid Width' })).toBeVisible();
+    await page.locator('.board-options summary').click();
+    await expect(page.getByRole('combobox', { name: 'Grid Width' })).toBeHidden();
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await expect(page.getByRole('combobox', { name: 'Grid Width' })).toBeVisible();
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(page.getByRole('combobox', { name: 'Grid Width' })).toBeHidden();
+    await expect(page.getByRole('button', { name: 'Cell 0,0 Color 1', exact: true })).toBeVisible();
+    await openBoardOptions(page);
+    await expect(page.getByRole('combobox', { name: 'Grid Width' })).toBeVisible();
+});
+
 test('keyboard editing uses a single grid tab stop and respects rectangular boundaries', async ({ page }) => {
     await page.goto('./');
-    await page.locator('.board-options summary').click();
+    await openBoardOptions(page);
     await page.getByRole('combobox', { name: 'Grid Height' }).selectOption('8');
     const first = page.getByRole('button', { name: 'Cell 0,0 Empty', exact: true });
     await first.focus();
@@ -123,7 +151,7 @@ test('keyboard editing uses a single grid tab stop and respects rectangular boun
 
 test('keeps the familiar automatic endpoint sequence and repairs removed pairs', async ({ page }) => {
     await page.goto('./');
-    await expect(page.locator('.board-options')).not.toHaveAttribute('open', '');
+    await expect(page.locator('.desktop-board-options')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Choose endpoint color' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Undo', exact: true })).toHaveCount(0);
     const cell = (x: number, y: number, color = 'Empty') => page.getByRole('button', { name: `Cell ${x},${y} ${color}`, exact: true });
@@ -151,7 +179,7 @@ test.describe('touch input', () => {
     test('grid lines and final cells respond to taps on a dense rectangular board', async ({ page }) => {
         await page.setViewportSize({ width: 390, height: 844 });
         await page.goto('./');
-        await page.locator('.board-options summary').click();
+        await openBoardOptions(page);
         await page.getByRole('combobox', { name: 'Grid Height' }).selectOption('15');
         const grid = page.getByRole('article', { name: 'Puzzle Grid Board' });
         const first = page.getByRole('button', { name: 'Cell 0,0 Empty', exact: true });
@@ -187,7 +215,7 @@ for (const viewport of [
             grid,
             page.getByRole('region', { name: 'Game Controls' }),
             page.locator('.control-actions button').first(),
-            page.locator('.board-options summary'),
+            page.locator('.board-options:visible'),
         ];
         const initialBounds = await Promise.all(landmarks.map(layoutBounds));
         const expectStable = async () => {

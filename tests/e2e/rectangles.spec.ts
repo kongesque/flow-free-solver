@@ -1,11 +1,12 @@
 import { test, expect, type Page } from '@playwright/test';
 import { assertSolution } from '../fixtures/assert-solution.mjs';
+import { openBoardOptions } from './board-options';
 
 const colors = '.RBYGOCMmPAWgTbcp';
 
 async function dimensions(page: Page, width: number, height: number) {
     if (!(await page.getByRole('combobox', { name: 'Grid Width' }).isVisible())) {
-        await page.locator('.board-options summary').click();
+        await openBoardOptions(page);
     }
     await page.getByRole('combobox', { name: 'Grid Width' }).selectOption(String(width));
     await page.getByRole('combobox', { name: 'Grid Height' }).selectOption(String(height));
@@ -48,7 +49,7 @@ for (const [width, height] of [[5, 8], [8, 5], [7, 10], [10, 7]]) {
         const errors: string[] = [];
         page.on('pageerror', error => errors.push(error.message));
         await page.goto('./');
-    await page.locator('.board-options summary').click();
+        await openBoardOptions(page);
         await page.getByRole('combobox', { name: 'Solver Algorithm' }).selectOption('astar');
         await dimensions(page, width, height);
         await expect(page.getByRole('combobox', { name: 'Solver Algorithm' })).toHaveValue('heuristic_bfs');
@@ -74,7 +75,7 @@ for (const [width, height] of [[5, 8], [8, 5], [7, 10], [10, 7]]) {
 for (const [width, height] of [[5, 15], [15, 5]]) {
     test(`edits and solves boundary ${width}x${height}, then resets`, async ({ page }) => {
         await page.goto('./');
-    await page.locator('.board-options summary').click();
+        await openBoardOptions(page);
         await dimensions(page, width, height);
         // One induced horizontal path per row, using even the final row/column.
         for (let y = 0; y < height; y++) {
@@ -94,14 +95,14 @@ for (const [width, height] of [[5, 15], [15, 5]]) {
 
 test('rectangular dimensions and generated solution survive reload; square preset restores square controls', async ({ page }) => {
     await page.goto('./');
-    await page.locator('.board-options summary').click();
+    await openBoardOptions(page);
     await dimensions(page, 5, 8);
     await page.getByRole('button', { name: 'Generate', exact: true }).click();
     await expect(page.getByRole('status')).toContainText('Generated');
     const input = await rows(page, 5, 8);
     await expect.poll(async () => (await savedState(page))?.generatedSolution?.[0].length).toBe(8);
     await page.reload();
-    await page.locator('.board-options summary').click();
+    await openBoardOptions(page);
     await expect(page.getByRole('combobox', { name: 'Grid Height' })).toHaveValue('8');
     expect(await rows(page, 5, 8)).toEqual(input);
     await page.getByRole('button', { name: 'Solve', exact: true }).click();
@@ -116,7 +117,7 @@ test('rectangular dimensions and generated solution survive reload; square prese
 
 test('legacy square saves load with independent dimensions', async ({ page }) => {
     await page.goto('./');
-    await page.locator('.board-options summary').click();
+    await openBoardOptions(page);
     await expect(page.getByRole('combobox', { name: 'Grid Width' })).toBeEnabled();
     await page.evaluate(async () => {
         const db = await new Promise<IDBDatabase>(resolve => {
@@ -135,7 +136,7 @@ test('legacy square saves load with independent dimensions', async ({ page }) =>
         db.close();
     });
     await page.reload();
-    await page.locator('.board-options summary').click();
+    await openBoardOptions(page);
     await expect(page.getByRole('combobox', { name: 'Grid Width' })).toHaveValue('6');
     await expect(page.getByRole('combobox', { name: 'Grid Height' })).toHaveValue('6');
     await expect(page.getByRole('combobox', { name: 'Game Mode' })).toHaveValue('standard');
@@ -147,7 +148,7 @@ test('future mode placeholders block puzzle actions, persist, and return safely 
     let workers = 0;
     page.on('worker', () => { workers++; });
     await page.goto('./');
-    await page.locator('.board-options summary').click();
+    await openBoardOptions(page);
     await dimensions(page, 5, 8);
     await page.getByRole('button', { name: 'Cell 4,7 Empty', exact: true }).click();
     for (const mode of ['bridges', 'hexes', 'warps']) {
@@ -160,7 +161,7 @@ test('future mode placeholders block puzzle actions, persist, and return safely 
     expect(workers).toBe(0);
     await expect.poll(async () => (await savedState(page))?.mode).toBe('warps');
     await page.reload();
-    await page.locator('.board-options summary').click();
+    await openBoardOptions(page);
     await expect(page.getByRole('combobox', { name: 'Game Mode' })).toHaveValue('warps');
     await expect(page.getByRole('status')).toContainText('coming soon');
     await page.getByRole('combobox', { name: 'Game Mode' }).selectOption('standard');
