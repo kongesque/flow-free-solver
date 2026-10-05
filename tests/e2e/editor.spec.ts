@@ -68,6 +68,7 @@ for (const viewport of [
         const status = await layoutBounds(page.getByRole('status'));
         const controls = await page.getByRole('region', { name: 'Game Controls' }).boundingBox();
         const desktop = viewport.width >= 960;
+        const phonePortrait = viewport.width <= 600 && viewport.height >= viewport.width;
         const phoneLandscape = !desktop && viewport.width > viewport.height && viewport.height <= 600;
         const tip = page.locator('.solver-header p');
         await expect(tip).toHaveText('Tips: Click to place. Click again to remove.');
@@ -84,7 +85,7 @@ for (const viewport of [
             });
         });
         expect(selectedLabelsFit).toBe(true);
-        if (!desktop) {
+        if (!desktop && !phonePortrait) {
             expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight + 1)).toBe(true);
         }
         if (desktop) {
@@ -124,7 +125,7 @@ for (const viewport of [
                 expect(controls!.y).toBeGreaterThanOrEqual(initialBoard!.y + initialBoard!.height);
             }
         }
-        if (viewport.height >= 768) {
+        if (viewport.height >= 768 && !phonePortrait) {
             const bottomSpace = desktop ? 0 : await page.locator('.solver-shell').evaluate(element => {
                 const shell = getComputedStyle(element);
                 return parseFloat(shell.paddingBottom) + parseFloat(shell.getPropertyValue('--workspace-gap'));
@@ -141,14 +142,11 @@ for (const viewport of [
         expect(frame.y).toBeCloseTo(initialBoard!.y, 0);
         const stableControls = await layoutBounds(page.getByRole('region', { name: 'Game Controls' }));
         const heading = await layoutBounds(page.getByRole('heading', { name: /Flow Free Solver/i }));
-        const phonePortrait = viewport.width <= 600 && viewport.height >= viewport.width;
         if (phonePortrait) {
             expect(frame.x).toBeGreaterThanOrEqual(2);
             expect(frame.width).toBeLessThanOrEqual(viewport.width - 4);
-            if (viewport.height >= 844) {
-                expect(frame.x).toBeCloseTo(2, 1);
-                expect(frame.width).toBeCloseTo(viewport.width - 4, 1);
-            }
+            expect(frame.x).toBeCloseTo(2, 1);
+            expect(frame.width).toBeCloseTo(viewport.width - 4, 1);
             expect(stableControls.x).toBeGreaterThanOrEqual(16);
             expect(stableControls.x + stableControls.width).toBeLessThanOrEqual(viewport.width - 16);
         }
@@ -161,7 +159,7 @@ for (const viewport of [
             expect(bounds!.x).toBeGreaterThanOrEqual(0);
             expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(viewport.width);
             expect(bounds!.width / bounds!.height).toBeCloseTo(width / height, 1);
-            if (phonePortrait && viewport.height >= 844 && width >= height) {
+            if (phonePortrait && width >= height) {
                 expect(bounds.x).toBeCloseTo(2, 1);
                 expect(bounds.width).toBeCloseTo(viewport.width - 4, 1);
             }
@@ -304,7 +302,7 @@ for (const viewport of [
         ];
         const initialBounds = await Promise.all(landmarks.map(layoutBounds));
         const expectStable = async () => {
-            if (viewport.width < 960) {
+            if (viewport.width < 960 && viewport.width > viewport.height) {
                 expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight + 1)).toBe(true);
             }
             for (let index = 0; index < landmarks.length; index++) {

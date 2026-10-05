@@ -196,11 +196,6 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
 .solver-about a::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 44px; }
 .solver-about a:hover { color: var(--color-stoic-primary); }
 
-@media (max-width: 600px) and (orientation: portrait) {
-  .solver-shell { --board-space: calc(100vw - 4px); --play-area-size: min(var(--board-space), max(120px, var(--available-board-space))); }
-  .puzzle-grid { border-radius: 0; }
-}
-
 @media (max-width: 959px) {
   .solver-controls { gap: 8px; }
   .primary-settings .control-field { position: relative; gap: 0; }
@@ -218,6 +213,18 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
 
 @media (max-height: 700px) {
   .solver-shell { --shell-top: max(16px, env(safe-area-inset-top)); --shell-gap: 12px; --workspace-gap: 8px; }
+}
+
+@media (max-width: 600px) and (orientation: portrait) {
+  /* Browser toolbars change viewport height; keep the portrait play area tied to width. */
+  .solver-shell {
+    --board-space: calc(100vw - 4px);
+    --play-area-size: var(--board-space);
+    --shell-top: max(28px, env(safe-area-inset-top));
+    --workspace-gap: 12px;
+  }
+  .solver-header { height: var(--mobile-header-space); }
+  .puzzle-grid { border-radius: 0; }
 }
 
 @media (max-width: 959px) and (orientation: landscape) and (max-height: 600px) {
