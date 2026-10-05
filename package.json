@@ -1,31 +1,33 @@
 {
-  "name": "app",
+  "name": "flow-free-solver",
   "version": "0.1.0",
   "description": "A React-based Flow Free puzzle solver featuring A* heuristics and client-side Z3 SAT solver integration.",
   "private": true,
   "dependencies": {
-    "@datastructures-js/priority-queue": "^6.3.1",
-    "@testing-library/user-event": "^13.5.0",
     "@vercel/analytics": "^1.6.1",
-    "coi-serviceworker": "^0.1.7",
-    "geist": "^1.7.0",
-    "lucide-react": "^0.563.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "web-vitals": "^2.1.4",
-    "z3-solver": "^4.13.3"
+    "lucide-react": "^1.52.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "z3-solver": "^4.16.0"
   },
   "scripts": {
+    "dev": "vite",
     "start": "vite",
-    "build": "vite build",
+    "build:wasm": "node scripts/build-wasm.mjs",
+    "watch:wasm": "node scripts/build-wasm.mjs --watch",
+    "sync:wasm": "node scripts/sync-wasm-assets.mjs",
+    "postinstall": "npm run sync:wasm",
+    "predev": "npm run sync:wasm",
+    "prestart": "npm run sync:wasm",
+    "prebuild": "npm run sync:wasm",
+    "build": "npm run typecheck && vite build",
+    "build:all": "npm run build:wasm && npm run build",
     "preview": "vite preview",
-    "test": "vitest run"
-  },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:wasm": "npm run build:wasm && node --test tests/wasm/*.test.mjs",
+    "test:e2e": "playwright test",
+    "check": "npm run test:wasm && npm test && npm run build && npm run test:e2e"
   },
   "browserslist": {
     "production": [
@@ -40,15 +42,24 @@
     ]
   },
   "devDependencies": {
-    "@testing-library/jest-dom": "^6.9.1",
-    "@testing-library/react": "^16.3.2",
-    "@vitejs/plugin-react": "^5.1.2",
-    "@vitest/ui": "^4.1.4",
-    "autoprefixer": "^10.4.23",
-    "jsdom": "^29.0.2",
-    "postcss": "^8.5.6",
-    "tailwindcss": "^3.4.17",
-    "vite": "^7.3.1",
-    "vitest": "^4.1.4"
+    "@playwright/test": "^1.63.0",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "coi-serviceworker": "^0.1.7",
+    "jsdom": "^29.1.1",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.2",
+    "vitest": "^4.1.11",
+    "@tailwindcss/vite": "^4.3.3"
+  },
+  "type": "module",
+  "engines": {
+    "node": "^22.12.0 || >=24.0.0"
   }
 }

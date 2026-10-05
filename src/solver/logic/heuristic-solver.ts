@@ -47,8 +47,9 @@ export function parseSolution(result: string, size: number): Board | null {
 export async function solveHeuristicBFS(board: Board): Promise<Board | null> {
   const input = serializeBoard(board);
   if (!modulePromise) {
-    const url = `${import.meta.env.BASE_URL}wasm/flow_solver_c.mjs`;
-    // Public assets are loaded at runtime, outside Vite's module graph.
+    const url = new URL(`${import.meta.env.BASE_URL}wasm/flow_solver_c.mjs`, self.location.origin).href;
+    // Absolute URLs also keep Vite's dev import helper from adding ?import to
+    // this public asset, which must be served without source transforms.
     modulePromise = import(/* @vite-ignore */ url)
       .then(({ default: createFlowSolver }) => createFlowSolver({
         locateFile: (name: string) => `${import.meta.env.BASE_URL}wasm/${name}`,

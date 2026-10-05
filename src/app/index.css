@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 /* GeistPixelCircle Font */
 @font-face {
   font-family: 'Geist Pixel Circle';
@@ -5,9 +7,21 @@
   font-display: swap;
 }
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@theme {
+  --font-sans: "JetBrains Mono", monospace;
+  --font-mono: "JetBrains Mono", monospace;
+  --color-stoic-bg: #151716;
+  --color-stoic-line: #272a2b;
+  --color-stoic-accent: #2B9EA8;
+  --color-stoic-accent-hover: #237D86;
+  --color-stoic-primary: #E6E4DF;
+  --color-stoic-secondary: #8A8E8C;
+  --color-stoic-secondary-hover: #455050;
+  --color-stoic-block-bg: #1C1F1E;
+  --color-stoic-block-border: #3A4240;
+  --color-stoic-block-hover: #1A1D1C;
+  --color-stoic-inblock-border: #2D3433;
+}
 
 /* Mobile viewport fix for iOS Safari */
 html {
