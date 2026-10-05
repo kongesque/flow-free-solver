@@ -769,7 +769,9 @@ int game_next_move_color(const game_info_t *info, const game_state_t *state) {
   if (!info->user_order && g_options.order_most_constrained) {
 
     size_t best_color = -1;
-    int best_free = 4;
+    // Four free neighbors is a valid candidate, even if every remaining
+    // endpoint has that many. Start above the grid's maximum degree.
+    int best_free = 5;
 
     /*
     size_t worst_color = -1;
@@ -1962,6 +1964,17 @@ int game_search(const game_info_t *info, const game_state_t *init_state,
     assert(n);
 
     game_state_t *parent_state = &n->state;
+
+    // Fast-forwarding can solve the root before any search move is made.
+    // Handle terminal states before trying to select an unfinished color.
+    if (parent_state->completed == (1 << info->num_colors) - 1) {
+      if (parent_state->num_free == 0) {
+        result = SEARCH_SUCCESS;
+        solution_node = n;
+        break;
+      }
+      continue;
+    }
 
     int color = game_next_move_color(info, parent_state);
     int hint_dir = -1;

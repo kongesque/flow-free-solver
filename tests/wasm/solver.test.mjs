@@ -26,6 +26,11 @@ test('solves the maximum 15×15 board', () => {
   assertSolution(input, JSON.parse(solve(input)));
 });
 
+test('accepts a board fully solved by initial forced moves', () => {
+  const input = 'R.R\nB.B\nY.Y\n';
+  assertSolution(input, JSON.parse(solve(input)));
+});
+
 for (const [name, input] of Object.entries({
   empty: '', missingRows: 'R.R\n...\n', extraRows: 'R.R\n...\n...\n...\n',
   oversized: `${'R'.repeat(16)}\n`.repeat(16), unknownColor: 'Q.Q\n...\n...\n',
