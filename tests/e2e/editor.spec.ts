@@ -10,9 +10,15 @@ const layoutBounds = (locator: Locator) => locator.evaluate(element => {
 
 for (const viewport of [
     { width: 320, height: 568 },
+    { width: 360, height: 640 },
+    { width: 375, height: 667 },
+    { width: 390, height: 667 },
+    { width: 390, height: 780 },
     { width: 390, height: 844 },
     { width: 430, height: 932 },
     { width: 568, height: 320 },
+    { width: 568, height: 264 },
+    { width: 667, height: 375 },
     { width: 768, height: 1024 },
     { width: 959, height: 900 },
     { width: 960, height: 900 },
@@ -32,6 +38,7 @@ for (const viewport of [
         await expect(source).toHaveAttribute('href', 'https://github.com/Kongesque/flow-free-solver');
         await expect(source).toHaveAttribute('target', '_blank');
         await expect(source.locator('svg')).toBeVisible();
+        expect((await source.locator('svg').boundingBox())!.width).toBe(24);
         const sourceBounds = await layoutBounds(source);
         expect(sourceBounds.height).toBeGreaterThanOrEqual(44);
         expect(sourceBounds.x + sourceBounds.width).toBeCloseTo(viewport.width - 12, 0);
@@ -56,6 +63,25 @@ for (const viewport of [
         const status = await layoutBounds(page.getByRole('status'));
         const controls = await page.getByRole('region', { name: 'Game Controls' }).boundingBox();
         const desktop = viewport.width >= 960;
+        const phoneLandscape = !desktop && viewport.width > viewport.height && viewport.height <= 600;
+        const tip = page.locator('.solver-header p');
+        await expect(tip).toHaveText('Click to place. Click again to remove.');
+        expect((await layoutBounds(tip)).height).toBeLessThan(19);
+        expect(await tip.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+        const selectedLabelsFit = await page.locator('.primary-settings select').evaluateAll(selects => {
+            const context = document.createElement('canvas').getContext('2d')!;
+            return selects.every(element => {
+                const select = element as HTMLSelectElement;
+                const style = getComputedStyle(select);
+                context.font = style.font;
+                const available = select.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+                return context.measureText(select.selectedOptions[0].text).width <= available;
+            });
+        });
+        expect(selectedLabelsFit).toBe(true);
+        if (!desktop) {
+            expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight + 1)).toBe(true);
+        }
         if (desktop) {
             await expect(page.locator('.solver-methods')).toBeVisible();
             await expect(page.locator('.desktop-board-options')).toBeVisible();
@@ -67,8 +93,6 @@ for (const viewport of [
             expect(status.y).toBeGreaterThan(initialBoard!.y + initialBoard!.height);
             expect(initialHeader.y).toBeCloseTo(initialBoard!.y, 0);
             expect(initialHeader.y + initialHeader.height).toBeLessThan(controls!.y);
-            await expect(page.locator('.desktop-placement-tip')).toBeVisible();
-            await expect(page.locator('.mobile-placement-tip')).toBeHidden();
             const tip = await layoutBounds(page.locator('.solver-header p'));
             expect(tip.x).toBeCloseTo(initialHeader.x, 0);
             expect(tip.y).toBeGreaterThan(initialHeader.y + initialHeader.height);
@@ -83,17 +107,28 @@ for (const viewport of [
             const options = await layoutBounds(page.locator('.mobile-board-options'));
             expect(about.y).toBeGreaterThan(options.y + options.height);
             await expect(page.locator('.solver-header p')).toBeVisible();
-            await expect(page.locator('.desktop-placement-tip')).toBeHidden();
             await expect(page.locator('.mobile-board-options')).not.toHaveAttribute('open', '');
             await expect(page.locator('.board-options summary')).toBeVisible();
-            expect(initialHeader.y + initialHeader.height).toBeLessThan(status.y);
-            expect(status.y + status.height).toBeLessThanOrEqual(initialBoard!.y);
-            expect(controls!.y).toBeGreaterThanOrEqual(initialBoard!.y + initialBoard!.height);
+            if (phoneLandscape) {
+                expect(initialHeader.y + initialHeader.height).toBeLessThan(initialBoard!.y);
+                expect(status.y).toBeGreaterThan(initialBoard!.y + initialBoard!.height);
+                expect(controls!.x).toBeGreaterThan(initialBoard!.x + initialBoard!.width);
+            } else {
+                expect(initialHeader.y + initialHeader.height).toBeLessThan(status.y);
+                expect(status.y + status.height).toBeLessThanOrEqual(initialBoard!.y);
+                expect(controls!.y).toBeGreaterThanOrEqual(initialBoard!.y + initialBoard!.height);
+            }
         }
         if (viewport.height >= 768) {
-            expect(initialBoard!.y + initialBoard!.height / 2).toBeCloseTo(viewport.height / 2, 0);
-        } else if (viewport.width <= 600 && viewport.height >= viewport.width) {
-            expect(Math.abs(initialBoard!.y + initialBoard!.height / 2 - viewport.height / 2)).toBeLessThan(12);
+            const bottomSpace = desktop ? 0 : await page.locator('.solver-shell').evaluate(element => {
+                const shell = getComputedStyle(element);
+                return parseFloat(shell.paddingBottom) + parseFloat(shell.getPropertyValue('--workspace-gap'));
+            });
+            const centeredBoard = desktop ? viewport.height / 2 : Math.min(
+                viewport.height / 2,
+                viewport.height - bottomSpace - controls!.height - initialBoard!.height / 2,
+            );
+            expect(initialBoard!.y + initialBoard!.height / 2).toBeCloseTo(centeredBoard, 0);
         }
         await openBoardOptions(page);
         await expect(page.getByRole('combobox', { name: 'Grid Width' })).toBeEnabled();
@@ -103,8 +138,12 @@ for (const viewport of [
         const heading = await layoutBounds(page.getByRole('heading', { name: /Flow Free Solver/i }));
         const phonePortrait = viewport.width <= 600 && viewport.height >= viewport.width;
         if (phonePortrait) {
-            expect(frame.x).toBeCloseTo(2, 1);
-            expect(frame.width).toBeCloseTo(viewport.width - 4, 1);
+            expect(frame.x).toBeGreaterThanOrEqual(2);
+            expect(frame.width).toBeLessThanOrEqual(viewport.width - 4);
+            if (viewport.height >= 780) {
+                expect(frame.x).toBeCloseTo(2, 1);
+                expect(frame.width).toBeCloseTo(viewport.width - 4, 1);
+            }
             expect(stableControls.x).toBeGreaterThanOrEqual(16);
             expect(stableControls.x + stableControls.width).toBeLessThanOrEqual(viewport.width - 16);
         }
@@ -117,7 +156,7 @@ for (const viewport of [
             expect(bounds!.x).toBeGreaterThanOrEqual(0);
             expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(viewport.width);
             expect(bounds!.width / bounds!.height).toBeCloseTo(width / height, 1);
-            if (phonePortrait && width >= height) {
+            if (phonePortrait && viewport.height >= 780 && width >= height) {
                 expect(bounds.x).toBeCloseTo(2, 1);
                 expect(bounds.width).toBeCloseTo(viewport.width - 4, 1);
             }
@@ -260,6 +299,9 @@ for (const viewport of [
         ];
         const initialBounds = await Promise.all(landmarks.map(layoutBounds));
         const expectStable = async () => {
+            if (viewport.width < 960) {
+                expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight + 1)).toBe(true);
+            }
             for (let index = 0; index < landmarks.length; index++) {
                 const bounds = await layoutBounds(landmarks[index]);
                 for (const property of ['x', 'y', 'width', 'height'] as const) {

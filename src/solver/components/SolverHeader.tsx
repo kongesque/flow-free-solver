@@ -14,10 +14,7 @@ const SolverHeader = () => (
                     ))}
                 </span>
             </h1>
-            <p>
-                <span className="mobile-placement-tip">Click to place an endpoint. Click again to remove it.</span>
-                <span className="desktop-placement-tip">Click to place. Click again to remove.</span>
-            </p>
+            <p>Click to place. Click again to remove.</p>
         </div>
     </header>
 );

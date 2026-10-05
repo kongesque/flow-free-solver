@@ -75,16 +75,20 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
 .solver-shell {
   --board-space: clamp(240px, 48svh, 480px);
   --shell-top: max(28px, env(safe-area-inset-top));
+  --shell-bottom: max(16px, env(safe-area-inset-bottom));
   --shell-left: max(16px, env(safe-area-inset-left));
   --shell-right: max(16px, env(safe-area-inset-right));
-  --shell-gap: 16px;
-  --workspace-gap: 16px;
-  --play-area-size: min(var(--board-space), calc(100vw - var(--shell-left) - var(--shell-right)));
+  --shell-gap: 12px;
+  --workspace-gap: 12px;
+  --mobile-header-space: calc(clamp(19px, 4.5vw, 30px) * 1.3 + 26px);
+  --mobile-controls-space: 200px;
+  --available-board-space: calc(100svh - var(--shell-top) - var(--shell-bottom) - var(--mobile-header-space) - var(--shell-gap) - 32px - 2 * var(--workspace-gap) - var(--mobile-controls-space));
+  --play-area-size: min(var(--board-space), calc(100vw - var(--shell-left) - var(--shell-right)), max(120px, var(--available-board-space)));
   position: relative;
   width: min(100%, 600px);
   min-height: 100svh;
   margin-inline: auto;
-  padding: var(--shell-top) var(--shell-right) max(24px, env(safe-area-inset-bottom)) var(--shell-left);
+  padding: var(--shell-top) var(--shell-right) var(--shell-bottom) var(--shell-left);
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
@@ -97,12 +101,15 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  padding-inline: 28px;
+  padding-inline: 16px;
   flex: none;
   align-self: stretch;
   min-height: min-content;
-  /* Anchor the board to the viewport, so expanded controls cannot move it. */
-  height: max(0px, calc((100svh - var(--play-area-size)) / 2 - var(--shell-top) - var(--shell-gap) - 32px - var(--workspace-gap)));
+  /* Reserve collapsed controls so opening options never moves the board. */
+  height: max(var(--mobile-header-space), min(
+    calc((100svh - var(--play-area-size)) / 2 - var(--shell-top) - var(--shell-gap) - 32px - var(--workspace-gap)),
+    calc(var(--available-board-space) + var(--mobile-header-space) - var(--play-area-size))
+  ));
 }
 .solver-header h1 {
   font-family: 'Geist Pixel Circle', monospace;
@@ -112,13 +119,12 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
   letter-spacing: .08em;
   line-height: 1.3;
 }
-.solver-header p { text-wrap: balance; margin-top: 8px; color: var(--color-stoic-secondary); font-size: 11px; }
-.desktop-placement-tip { display: none; }
+.solver-header p { margin-top: 8px; color: var(--color-stoic-secondary); font-size: 11px; line-height: 1.6; white-space: nowrap; }
 .source-link { position: absolute; top: max(12px, env(safe-area-inset-top)); right: max(12px, env(safe-area-inset-right)); z-index: 1; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 6px; color: var(--color-stoic-secondary); }
-.source-link svg { width: 20px; height: 20px; }
+.source-link svg { width: 24px; height: 24px; }
 .source-link:hover { color: var(--color-stoic-primary); }
 .solver-workspace { width: min(100%, var(--board-space)); flex: none; display: flex; flex-direction: column; gap: var(--workspace-gap); }
-.board-area { min-width: 0; width: 100%; aspect-ratio: 1; display: grid; place-items: center; }
+.board-area { min-width: 0; width: var(--play-area-size); margin-inline: calc((100% - var(--play-area-size)) / 2); aspect-ratio: 1; display: grid; place-items: center; }
 .puzzle-grid {
   display: grid;
   gap: 1px;
@@ -193,18 +199,51 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
 .solver-about a:hover { color: var(--color-stoic-primary); }
 
 @media (max-width: 600px) and (orientation: portrait) {
-  .solver-shell { --play-area-size: calc(100vw - 4px); }
-  .board-area { width: calc(100vw - 4px); margin-inline: calc((100% - 100vw + 4px) / 2); }
+  .solver-shell { --board-space: calc(100vw - 4px); --play-area-size: min(var(--board-space), max(120px, var(--available-board-space))); }
   .puzzle-grid { border-radius: 0; }
 }
 
+@media (max-width: 959px) {
+  .solver-controls { gap: 8px; }
+  .primary-settings .control-field { position: relative; gap: 0; }
+  .primary-settings .control-field > span:first-child { position: absolute; top: 4px; left: 12px; z-index: 1; line-height: 12px; pointer-events: none; }
+  .primary-settings select { padding-top: 19px; padding-bottom: 5px; }
+  .primary-settings .select-wrap svg { top: calc(65% - 6px); }
+  .solver-about { display: flex; align-items: center; gap: 12px; min-height: 44px; }
+  .solver-about > p:first-child { flex: 1; min-width: 0; }
+  .solver-about-links { flex: none; }
+  .solver-about a { margin-top: 0; }
+}
+
 @media (max-width: 479px) {
-  .solver-header { padding-inline: 24px; }
   .solver-header h1 { letter-spacing: .06em; }
 }
 
 @media (max-height: 700px) {
   .solver-shell { --shell-top: max(16px, env(safe-area-inset-top)); --shell-gap: 12px; --workspace-gap: 8px; }
+}
+
+@media (max-width: 959px) and (orientation: landscape) and (max-height: 600px) {
+  .solver-shell {
+    --shell-top: max(8px, env(safe-area-inset-top));
+    --shell-bottom: max(8px, env(safe-area-inset-bottom));
+    --board-space: min(240px, calc((min(100vw, 600px) - var(--shell-left) - var(--shell-right) - 20px) / 2), max(100px, calc(100svh - var(--shell-top) - var(--shell-bottom) - 108px)));
+    --play-area-size: var(--board-space);
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: 60px var(--play-area-size) 32px;
+    gap: 8px 20px;
+    align-content: center;
+    align-items: start;
+  }
+  .solver-workspace { display: contents; }
+  .solver-header { grid-column: 1; grid-row: 1; height: 60px; justify-content: center; padding-inline: 0; }
+  .solver-header h1 { font-size: clamp(16px, 3vw, 20px); }
+  .solver-header p { font-size: clamp(9px, 1.9vw, 11px); }
+  .board-area { grid-column: 1; grid-row: 2; margin-inline: auto; }
+  .solver-status { grid-column: 1; grid-row: 3; }
+  .game-controls { grid-column: 2; grid-row: 1 / span 3; padding-top: 48px; }
+  .primary-settings { grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); }
 }
 
 @media (min-width: 960px) {
@@ -232,10 +271,8 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
   }
   .solver-header h1 { font-size: 24px; letter-spacing: .06em; }
   .solver-header p { line-height: 1.6; white-space: nowrap; }
-  .mobile-placement-tip { display: none; }
-  .desktop-placement-tip { display: inline; }
   .solver-status { grid-column: 1; grid-row: 3; }
-  .board-area { grid-column: 1; grid-row: 1 / span 2; align-self: start; }
+  .board-area { grid-column: 1; grid-row: 1 / span 2; align-self: start; width: 100%; margin-inline: 0; }
   .game-controls { grid-column: 2; grid-row: 2; }
   .solver-controls { gap: 10px; }
   .control-actions { margin-top: 8px; }
