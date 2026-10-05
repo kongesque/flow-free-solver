@@ -4,6 +4,7 @@ interface PuzzleGridProps {
     size: number;
     currentBoard: number[][];
     solvedBoard: number[][] | null;
+    isSolving: boolean;
     activeColor: number;
     isResetting: boolean;
     onCellClick: (x: number, y: number) => void;
@@ -13,6 +14,7 @@ const PuzzleGrid = ({
     size,
     currentBoard,
     solvedBoard,
+    isSolving,
     activeColor,
     isResetting,
     onCellClick,
@@ -37,6 +39,7 @@ const PuzzleGrid = ({
                     <button
                         key={`${x}-${y}`}
                         type="button"
+                        disabled={isSolving}
                         className={`
                             group
                             w-full h-full

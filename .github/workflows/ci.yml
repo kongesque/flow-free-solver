@@ -1,0 +1,44 @@
+name: Verify solver and web app
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      # CI checks root hosting explicitly; GITHUB_ACTIONS otherwise selects Pages.
+      VITE_BASE_PATH: /
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install Emscripten
+        run: |
+          git clone --depth 1 https://github.com/emscripten-core/emsdk.git "$RUNNER_TEMP/emsdk"
+          "$RUNNER_TEMP/emsdk/emsdk" install "$(cat .emscripten-version)"
+          "$RUNNER_TEMP/emsdk/emsdk" activate "$(cat .emscripten-version)"
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Compile C and verify production web app
+        run: |
+          source "$RUNNER_TEMP/emsdk/emsdk_env.sh"
+          npm run check
+      - name: Verify development web app
+        run: E2E_SERVER=dev npm run test:e2e
+      - name: Verify subpath hosting
+        run: |
+          VITE_BASE_PATH=/flow-free-solver/ npm run build
+          VITE_BASE_PATH=/flow-free-solver/ npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-test-results
+          path: test-results/
+          if-no-files-found: ignore
