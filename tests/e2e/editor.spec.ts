@@ -9,6 +9,7 @@ const layoutBounds = (locator: Locator) => locator.evaluate(element => {
 for (const viewport of [
     { width: 320, height: 568 },
     { width: 390, height: 844 },
+    { width: 430, height: 932 },
     { width: 568, height: 320 },
     { width: 768, height: 1024 },
     { width: 1024, height: 768 },
@@ -27,6 +28,13 @@ for (const viewport of [
         const frame = await layoutBounds(page.getByRole('region', { name: 'Puzzle editor' }));
         const stableControls = await layoutBounds(page.getByRole('region', { name: 'Game Controls' }));
         const heading = await layoutBounds(page.getByRole('heading', { name: /Flow Free Solver/i }));
+        const edgeToEdge = viewport.width <= 600 && viewport.height >= viewport.width;
+        if (edgeToEdge) {
+            expect(frame.x).toBeCloseTo(0, 1);
+            expect(frame.width).toBeCloseTo(viewport.width, 1);
+            expect(stableControls.x).toBeGreaterThanOrEqual(16);
+            expect(stableControls.x + stableControls.width).toBeLessThanOrEqual(viewport.width - 16);
+        }
         const squareSizes = Array.from({ length: 11 }, (_, index) => [index + 5, index + 5]);
         for (const [width, height] of [...squareSizes, [5, 15], [15, 5]]) {
             await page.getByRole('combobox', { name: 'Grid Width' }).selectOption(String(width));
@@ -36,6 +44,10 @@ for (const viewport of [
             expect(bounds!.x).toBeGreaterThanOrEqual(0);
             expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(viewport.width);
             expect(bounds!.width / bounds!.height).toBeCloseTo(width / height, 1);
+            if (edgeToEdge && width >= height) {
+                expect(bounds.x).toBeCloseTo(0, 1);
+                expect(bounds.width).toBeCloseTo(viewport.width, 1);
+            }
             expect(bounds!.width).toBeLessThanOrEqual(frame!.width + 1);
             expect(bounds!.height).toBeLessThanOrEqual(frame!.height + 1);
             expect(bounds!.x + bounds!.width / 2).toBeCloseTo(frame!.x + frame!.width / 2, 0);
