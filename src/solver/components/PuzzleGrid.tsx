@@ -1,4 +1,4 @@
-import { useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
+import { useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent } from 'react';
 import { COLORS } from './constants';
 
 interface PuzzleGridProps {
@@ -24,6 +24,14 @@ const PuzzleGrid = ({
 }: PuzzleGridProps) => {
     const gridRef = useRef<HTMLElement>(null);
     const [focusedCell, setFocusedCell] = useState(0);
+    // Grid lines belong to the nearest cell, so small touch targets have no dead gaps.
+    const handleGridClick = (event: MouseEvent<HTMLElement>) => {
+        if (event.target !== event.currentTarget || isSolving || solvedBoard) return;
+        const bounds = event.currentTarget.getBoundingClientRect();
+        const x = Math.min(width - 1, Math.floor((event.clientX - bounds.left) / bounds.width * width));
+        const y = Math.min(height - 1, Math.floor((event.clientY - bounds.top) / bounds.height * height));
+        onCellClick(Math.max(0, x), Math.max(0, y));
+    };
     const moveFocus = (event: KeyboardEvent<HTMLButtonElement>, x: number, y: number) => {
         let nextX = x;
         let nextY = y;
@@ -47,10 +55,11 @@ const PuzzleGrid = ({
         aria-label="Puzzle Grid Board"
         aria-describedby="board-instructions board-keyboard-help"
         className="puzzle-grid"
+        onClick={handleGridClick}
         style={{
             gridTemplateColumns: `repeat(${width}, minmax(0, 1fr))`,
             gridTemplateRows: `repeat(${height}, minmax(0, 1fr))`,
-            '--board-ratio': width / height,
+            '--grid-width': `${100 * width / Math.max(width, height)}%`,
             aspectRatio: `${width} / ${height}`,
         } as CSSProperties}
     >
@@ -76,19 +85,19 @@ const PuzzleGrid = ({
                             transition-all duration-150
                             touch-manipulation
                             select-none
-                            ${solvedBoard ? 'cursor-default' : 'hover:bg-stoic-block-hover active:scale-95 active:bg-stoic-block-hover'}
+                            ${solvedBoard ? 'cursor-default' : 'hover:bg-stoic-block-hover active:bg-stoic-block-hover'}
                         `}
                         onClick={() => !solvedBoard && onCellClick(x, y)}
                         aria-label={`Cell ${x},${y} ${hasColor ? `Color ${cellValue}` : 'Empty'}`}
                     >
                         {hasColor ? (
                             <span
-                                className="endpoint-dot rounded-full w-[66%] h-[66%]"
+                                className="endpoint-dot rounded-full w-[70%] h-[70%]"
                                 style={{ backgroundColor: COLORS[cellValue] || '#888' }}
                             />
                         ) : !solvedBoard && !isResetting && (
                             <span
-                                className="endpoint-preview rounded-full w-[66%] h-[66%] transition-opacity duration-75"
+                                className="endpoint-preview rounded-full w-[70%] h-[70%] transition-opacity duration-75"
                                 style={{ backgroundColor: COLORS[activeColor] || '#888' }}
                             />
                         )}
