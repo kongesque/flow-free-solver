@@ -31,7 +31,18 @@ for (const viewport of [
         await expect(source).toBeVisible();
         await expect(source).toHaveAttribute('href', 'https://github.com/Kongesque/flow-free-solver');
         await expect(source).toHaveAttribute('target', '_blank');
-        await expect(source.locator('svg')).toHaveCount(0);
+        await expect(source.locator('svg')).toBeVisible();
+        const sourceBounds = await layoutBounds(source);
+        expect(sourceBounds.height).toBeGreaterThanOrEqual(44);
+        expect(sourceBounds.x + sourceBounds.width).toBeCloseTo(viewport.width - 12, 0);
+        expect(sourceBounds.y).toBeCloseTo(12, 0);
+        const titleColors = await page.locator('.title-letter').evaluateAll(letters =>
+            letters.map(letter => getComputedStyle(letter).color));
+        expect(titleColors).toHaveLength(6);
+        expect(new Set(titleColors).size).toBe(6);
+        const titleName = page.locator('.title-name');
+        await expect(titleName).toHaveText('Flow Free');
+        expect(await titleName.evaluate(element => getComputedStyle(element).color)).toBe('rgb(230, 228, 223)');
         await expect(page.getByRole('link', { name: 'About this solver', exact: true })).toHaveCount(0);
         const readMore = page.getByRole('link', { name: /Read more about this solver/ });
         await expect(readMore).toBeVisible();
@@ -46,6 +57,7 @@ for (const viewport of [
         const controls = await page.getByRole('region', { name: 'Game Controls' }).boundingBox();
         const desktop = viewport.width >= 960;
         if (desktop) {
+            await expect(page.locator('.solver-methods')).toBeVisible();
             await expect(page.locator('.desktop-board-options')).toBeVisible();
             await expect(page.locator('.board-options summary')).toBeHidden();
             await expect(page.getByRole('heading', { name: 'Board options', exact: true })).toBeVisible();
@@ -67,6 +79,7 @@ for (const viewport of [
             expect(actions.y).toBeGreaterThan(options.y + options.height);
             expect(controls!.y + controls!.height).toBeLessThanOrEqual(initialBoard!.y + initialBoard!.height);
         } else {
+            await expect(page.locator('.solver-methods')).toBeHidden();
             const options = await layoutBounds(page.locator('.mobile-board-options'));
             expect(about.y).toBeGreaterThan(options.y + options.height);
             await expect(page.locator('.solver-header p')).toBeVisible();
