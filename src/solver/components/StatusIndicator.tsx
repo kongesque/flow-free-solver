@@ -1,5 +1,5 @@
 import { Loader2, X, Check } from 'lucide-react';
-import { COLORS } from './constants';
+import { COLORS, COLOR_NAMES } from './constants';
 
 interface StatusIndicatorProps {
     isSolving: boolean;
@@ -30,20 +30,20 @@ const StatusIndicator = ({
                 {unavailableMode} is coming soon. Switch to Standard to edit or solve.
             </span>
         ) : isSolving || isGenerating ? (
-            <span className='text-stoic-accent text-sm  font-semibold flex items-center gap-2'>
+            <span className='text-stoic-accent text-sm font-semibold flex items-center gap-2'>
                 <Loader2 className="animate-spin h-4 w-4" aria-hidden="true" />
                 {isGenerating ? 'Generating…' : 'Solving…'}
             </span>
         ) : error ? (
             <span
-                className='text-sm  font-semibold flex items-center gap-2'
+                className='text-sm font-semibold flex items-center gap-2'
                 style={{ color: '#FF3B30' }}
             >
-                <X className="h-4 w-4" /> {error}
+                <X className="h-4 w-4 shrink-0" aria-hidden="true" /> {error}
             </span>
         ) : solvedBoard ? (
-            <span className='text-stoic-accent text-sm  font-semibold flex items-center gap-2'>
-                <Check className="h-4 w-4" /> Solved
+            <span className='text-stoic-accent text-sm font-semibold flex items-center gap-2'>
+                <Check className="h-4 w-4 shrink-0" aria-hidden="true" /> Solved
                 {solveTime !== null && (
                     <span className="text-stoic-secondary text-xs opacity-75">
                         ({solveTime < 1000 ? `${Math.round(solveTime)}ms` : `${(solveTime / 1000).toFixed(2)}s`})
@@ -56,14 +56,14 @@ const StatusIndicator = ({
             </span>
         ) : (
             <div className='flex items-center gap-3'>
-                <span className='text-stoic-primary text-sm uppercase tracking-wider font-medium'>Place</span>
+                {activeColor <= 16 && <span className='text-stoic-primary text-xs'>Place</span>}
                 <div className="flex items-center gap-3">
-                    <span
+                    {activeColor <= 16 && <span
                         className="w-4 h-4 rounded-full"
                         style={{ backgroundColor: COLORS[activeColor] || '#888' }}
-                    />
-                    <span className='text-stoic-primary text-sm uppercase tracking-wider font-medium'>
-                        {isPlacingSecond ? 'End' : 'Start'}
+                    />}
+                    <span className='text-stoic-primary text-xs'>
+                        {activeColor > 16 ? 'All pairs placed' : `${COLOR_NAMES[activeColor]} · ${isPlacingSecond ? 'End' : 'Start'}`}
                     </span>
                 </div>
             </div>

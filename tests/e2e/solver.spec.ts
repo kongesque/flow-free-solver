@@ -41,6 +41,9 @@ for (const algorithm of ['heuristic_bfs', 'astar', 'z3']) {
     if (algorithm === 'heuristic_bfs') {
       await page.screenshot({ path: test.info().outputPath('solved-puzzle.png') });
     }
+    await page.getByRole('button', { name: 'Edit puzzle', exact: true }).click();
+    await expect(page.getByRole('button', { name: /Cell .* Color/ })).toHaveCount(10);
+    await expect(page.getByRole('button', { name: /Cell .* Color/ }).first()).toBeEnabled();
     await page.getByRole('button', { name: 'Reset', exact: true }).click();
     await expect(page.getByRole('button', { name: /Cell .* Empty/ })).toHaveCount(25);
     expect(errors).toEqual([]);

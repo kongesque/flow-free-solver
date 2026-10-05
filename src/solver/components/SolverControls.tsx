@@ -1,9 +1,16 @@
 import React from 'react';
-import { Loader2, ChevronDown, Play, Shuffle, RotateCcw } from 'lucide-react';
+import { Loader2, ChevronDown, Play, Shuffle, RotateCcw, Undo2, Pencil } from 'lucide-react';
+import EndpointPicker from './EndpointPicker';
 import { GAME_MODES, type GameMode } from '../logic/game-modes';
 import { SIZE_OPTIONS, RESTRICT_Z3_TO_LARGE_GRIDS, SolverType } from './constants';
 
 interface SolverControlsProps {
+    board: number[][];
+    activeColor: number;
+    canUndo: boolean;
+    onColorSelect: (color: number) => void;
+    onUndo: () => void;
+    onEdit: () => void;
     width: number;
     height: number;
     mode: GameMode;
@@ -25,6 +32,7 @@ interface SolverControlsProps {
 }
 
 const SolverControls = ({
+    board, activeColor, canUndo, onColorSelect, onUndo, onEdit,
     width,
     height,
     mode,
@@ -58,16 +66,27 @@ const SolverControls = ({
                     {isGenerating ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Shuffle aria-hidden="true" />}
                     {isGenerating ? 'Generating' : 'Generate'}
                 </button>
+                <button className="control-button" onClick={onUndo} disabled={isBusy || unavailable || !canUndo || showingSolution}>
+                    <Undo2 aria-hidden="true" /> Undo
+                </button>
+                <button className="control-button reset-action" onClick={onReset} disabled={!isLoaded || unavailable}>
+                    <RotateCcw aria-hidden="true" /> Reset
+                </button>
                 {hasGeneratedSolution && (
                     <button className="control-button solution-action" onClick={onToggleSolution}
                         disabled={isBusy || unavailable} aria-pressed={showingSolution}>
                         {showingSolution ? 'Hide solution' : 'Show solution'}
                     </button>
                 )}
-                <button className="control-button reset-action" onClick={onReset} disabled={!isLoaded || unavailable}>
-                    <RotateCcw aria-hidden="true" /> Reset
-                </button>
+                {showingSolution && !hasGeneratedSolution && (
+                    <button className="control-button solution-action" onClick={onEdit} disabled={isBusy || unavailable}>
+                        <Pencil aria-hidden="true" /> Edit puzzle
+                    </button>
+                )}
             </div>
+
+            <EndpointPicker board={board} activeColor={activeColor} onSelect={onColorSelect}
+                disabled={isBusy || unavailable || showingSolution} />
 
             <fieldset className="board-settings" disabled={isBusy}>
                 <legend className="section-label">Board settings</legend>
@@ -121,7 +140,7 @@ const SolverControls = ({
                     </label>
                 </div>
                 <p id="algorithm-hint" className="control-hint">
-                    {wasmOnly ? 'Rectangular boards use Heuristic BFS.' : 'Heuristic BFS is a good place to start.'}
+                    {unavailable ? 'Switch to Standard to edit or solve.' : wasmOnly ? 'Rectangular boards use Heuristic BFS.' : 'Heuristic BFS is a good place to start.'}
                 </p>
                 <p className="control-hint">Changing dimensions clears the board.</p>
             </fieldset>

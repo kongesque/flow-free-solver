@@ -22,3 +22,9 @@ export const COLORS: Record<number, string> = {
 };
 
 export type SolverType = 'astar' | 'z3' | 'heuristic_bfs';
+
+export const COLOR_NAMES: Record<number, string> = {
+    1: 'Red', 2: 'Blue', 3: 'Yellow', 4: 'Green', 5: 'Orange', 6: 'Cyan',
+    7: 'Magenta', 8: 'Maroon', 9: 'Purple', 10: 'Gray', 11: 'White',
+    12: 'Lime', 13: 'Tan', 14: 'Navy', 15: 'Teal', 16: 'Pink',
+};

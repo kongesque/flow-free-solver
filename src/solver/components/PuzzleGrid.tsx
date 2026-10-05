@@ -1,7 +1,8 @@
-import type { CSSProperties } from 'react';
+import { useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
 import { COLORS } from './constants';
 
 interface PuzzleGridProps {
+    enlarged: boolean;
     width: number;
     height: number;
     currentBoard: number[][];
@@ -13,6 +14,7 @@ interface PuzzleGridProps {
 }
 
 const PuzzleGrid = ({
+    enlarged,
     width,
     height,
     currentBoard,
@@ -21,15 +23,38 @@ const PuzzleGrid = ({
     activeColor,
     isResetting,
     onCellClick,
-}: PuzzleGridProps) => (
+}: PuzzleGridProps) => {
+    const gridRef = useRef<HTMLElement>(null);
+    const [focusedCell, setFocusedCell] = useState(0);
+    const moveFocus = (event: KeyboardEvent<HTMLButtonElement>, x: number, y: number) => {
+        let nextX = x;
+        let nextY = y;
+        switch (event.key) {
+            case 'ArrowLeft': nextX = Math.max(0, x - 1); break;
+            case 'ArrowRight': nextX = Math.min(width - 1, x + 1); break;
+            case 'ArrowUp': nextY = Math.max(0, y - 1); break;
+            case 'ArrowDown': nextY = Math.min(height - 1, y + 1); break;
+            case 'Home': nextX = 0; break;
+            case 'End': nextX = width - 1; break;
+            default: return;
+        }
+        event.preventDefault();
+        const index = nextY * width + nextX;
+        setFocusedCell(index);
+        gridRef.current?.querySelectorAll('button')[index]?.focus();
+    };
+    return (
     <article
+        ref={gridRef}
         aria-label="Puzzle Grid Board"
+        aria-describedby="board-instructions board-keyboard-help"
         className="puzzle-grid"
         style={{
             gridTemplateColumns: `repeat(${width}, minmax(0, 1fr))`,
             gridTemplateRows: `repeat(${height}, minmax(0, 1fr))`,
             '--board-ratio': width / height,
             '--mobile-board-height': height > width ? 'min(60svh, 520px)' : 'clamp(240px, 38svh, 400px)',
+            width: enlarged ? `${width * 46 + 2}px` : undefined,
             aspectRatio: `${width} / ${height}`,
         } as CSSProperties}
     >
@@ -42,7 +67,10 @@ const PuzzleGrid = ({
                     <button
                         key={`${x}-${y}`}
                         type="button"
-                        disabled={isSolving}
+                        disabled={isSolving || solvedBoard !== null}
+                        tabIndex={y * width + x === Math.min(focusedCell, width * height - 1) ? 0 : -1}
+                        onFocus={() => setFocusedCell(y * width + x)}
+                        onKeyDown={event => moveFocus(event, x, y)}
                         className={`
                             group
                             w-full h-full min-w-0 min-h-0
@@ -64,7 +92,7 @@ const PuzzleGrid = ({
                             />
                         ) : !solvedBoard && !isResetting && (
                             <span
-                                className="rounded-full w-[66%] h-[66%] opacity-0 group-hover:opacity-40 transition-opacity duration-75"
+                                className="endpoint-preview rounded-full w-[66%] h-[66%] transition-opacity duration-75"
                                 style={{ backgroundColor: COLORS[activeColor] || '#888' }}
                             />
                         )}
@@ -74,5 +102,6 @@ const PuzzleGrid = ({
         )}
     </article>
 );
+};
 
 export default PuzzleGrid;
