@@ -70,7 +70,7 @@ for (const viewport of [
         const desktop = viewport.width >= 960;
         const phoneLandscape = !desktop && viewport.width > viewport.height && viewport.height <= 600;
         const tip = page.locator('.solver-header p');
-        await expect(tip).toHaveText('Click to place. Click again to remove.');
+        await expect(tip).toHaveText('Tips: Click to place. Click again to remove.');
         expect((await layoutBounds(tip)).height).toBeLessThan(19);
         expect(await tip.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
         const selectedLabelsFit = await page.locator('.primary-settings select').evaluateAll(selects => {

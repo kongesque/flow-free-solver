@@ -211,6 +211,8 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
 }
 
 @media (max-width: 479px) {
+  .solver-header { padding-inline: 0; }
+  .solver-header p { font-size: clamp(10px, 2.8vw, 11px); }
   .solver-header h1 { letter-spacing: .06em; }
 }
 
@@ -234,7 +236,7 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
   .solver-workspace { display: contents; }
   .solver-header { grid-column: 1; grid-row: 1; height: 60px; justify-content: center; padding-inline: 0; }
   .solver-header h1 { font-size: clamp(16px, 3vw, 20px); }
-  .solver-header p { font-size: clamp(9px, 1.9vw, 11px); }
+  .solver-header p { font-size: clamp(8px, 1.6vw, 10px); }
   .board-area { grid-column: 1; grid-row: 2; margin-inline: auto; }
   .solver-status { grid-column: 1; grid-row: 3; }
   .game-controls { grid-column: 2; grid-row: 1 / span 3; padding-top: 48px; }
