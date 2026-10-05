@@ -28,7 +28,14 @@ for (const viewport of [
         await expect(page.getByText('Size', { exact: true })).toBeVisible();
         await expect(page.getByText('Algorithm', { exact: true })).toBeVisible();
         await expect(page.getByRole('link', { name: 'View source on GitHub' })).toHaveCount(0);
-        await expect(page.getByRole('link', { name: 'About this solver' })).toHaveCount(0);
+        await expect(page.getByRole('link', { name: 'About this solver', exact: true })).toHaveCount(0);
+        const readMore = page.getByRole('link', { name: /Read more about this solver/ });
+        await expect(readMore).toBeVisible();
+        await expect(readMore).toHaveAttribute('href', 'https://www.kongesque.com/blog/flow-free-solver');
+        await expect(readMore).toHaveAttribute('target', '_blank');
+        const about = await layoutBounds(page.locator('.solver-about'));
+        const actionButtons = await layoutBounds(page.locator('.control-actions'));
+        expect(about.y).toBeGreaterThan(actionButtons.y + actionButtons.height);
         const initialBoard = await page.getByRole('article', { name: 'Puzzle Grid Board' }).boundingBox();
         const initialHeader = await layoutBounds(page.getByRole('heading', { name: /Flow Free Solver/i }));
         const status = await layoutBounds(page.getByRole('status'));

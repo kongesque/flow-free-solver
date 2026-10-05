@@ -181,6 +181,10 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
 .custom-settings { border: 0; padding: 12px 0 0; margin: 0; min-width: 0; }
 .mode-field { grid-column: 1 / -1; }
 .control-hint { margin-top: 8px; font-size: 10px; color: var(--color-stoic-secondary); line-height: 1.6; }
+.solver-about { color: var(--color-stoic-secondary); font-size: 11px; line-height: 1.6; text-align: left; }
+.solver-about p { margin: 0; text-wrap: balance; }
+.solver-about a { display: inline-flex; align-items: center; min-height: 44px; margin-top: 4px; color: var(--color-stoic-accent); text-decoration: underline; text-underline-offset: 4px; }
+.solver-about a:hover { color: var(--color-stoic-primary); }
 
 @media (max-width: 600px) and (orientation: portrait) {
   .solver-shell { --play-area-size: calc(100vw - 4px); }
@@ -228,6 +232,7 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
   .board-area { grid-column: 1; grid-row: 1 / span 2; align-self: start; }
   .game-controls { grid-column: 2; grid-row: 2; }
   .control-actions { margin-top: 12px; }
+  .solver-about a { min-height: 28px; }
   .board-options { margin-top: 12px; padding-top: 24px; border-top: 1px solid var(--color-stoic-line); }
   .mobile-board-options { display: none; }
   .desktop-board-options { display: block; }
