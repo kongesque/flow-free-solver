@@ -86,6 +86,7 @@ for (const [width, height] of [[5, 15], [15, 5]]) {
         await page.getByRole('button', { name: 'Solve', exact: true }).click();
         await expect(page.getByRole('status')).toContainText('Solved');
         validate(input, await rows(page, width, height));
+        page.once('dialog', dialog => dialog.accept());
         await page.getByRole('button', { name: 'Reset', exact: true }).click();
         await expect(page.getByRole('button', { name: /Cell .* Empty/ })).toHaveCount(width * height);
         await expect(page.getByRole('combobox', { name: 'Grid Width' })).toHaveValue(String(width));

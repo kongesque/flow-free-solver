@@ -54,7 +54,7 @@ Try it online: **[https://flow.kongesque.com](https://flow.kongesque.com)**
 3.  **Paint the Board**: Alternatively, click an empty cell to place an endpoint, or click a filled cell to remove it. Editing a generated puzzle discards its saved solution.
     - With a keyboard, Tab enters the board, arrow keys move between cells, and Enter or Space places or removes a dot. Home and End move to the edges of a row.
     - *Tip*: You need exactly two dots of the same color to form a pair.
-4.  **Click Solve**: The selected solver calculates non-overlapping paths. **Solve** becomes **Edit** after solving; click it to return to the original endpoints. Generated puzzles use their saved solution if the selected solver reaches its search limit. **Reset** clears the board and cancels active solving or generation.
+4.  **Click Solve**: The selected solver calculates non-overlapping paths. **Solve** becomes **Edit** after solving; click it to return to the original endpoints. Generated puzzles use their saved solution if the selected solver reaches its search limit. **Reset** asks for confirmation before clearing a puzzle or cancelling active solving or generation; Cancel preserves your current work. An empty, idle board resets immediately.
 
 Generation runs in a dedicated Web Worker. It starts with a complete path cover
 and randomly transfers cells between path endpoints while preserving full-board

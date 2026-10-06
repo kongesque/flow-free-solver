@@ -86,6 +86,7 @@ for (const [width, height] of [[5, 5], [5, 8], [8, 5]]) {
         await page.getByRole('button', { name: 'Solve', exact: true }).click();
         await expect(page.getByRole('status')).toContainText('Solved');
         await validate(page, fixture.input, fixture.walls);
+        page.once('dialog', dialog => dialog.accept());
         await page.getByRole('button', { name: 'Reset', exact: true }).click();
         await expect(page.locator('[data-wall]')).toHaveCount(0);
         await expect(grid(page).getByRole('button', { name: /Empty$/ })).toHaveCount(width * height);
@@ -228,6 +229,11 @@ test('invalid saved walls pause editing and autosave until an explicit Reset', a
     // Cross the autosave debounce, then confirm the invalid record was not overwritten.
     await page.waitForTimeout(650);
     expect((await saved(page))?.walls?.[0].x).toBe(999);
+    page.once('dialog', dialog => dialog.dismiss());
+    await page.getByRole('button', { name: 'Reset', exact: true }).click();
+    await expect(page.getByRole('status')).toContainText('Saved walls are invalid');
+    expect((await saved(page))?.walls?.[0].x).toBe(999);
+    page.once('dialog', dialog => dialog.accept());
     await page.getByRole('button', { name: 'Reset', exact: true }).click();
     await expect(cell(page, 0, 0)).toBeEnabled();
     await expect.poll(async () => (await saved(page))?.walls).toEqual([]);

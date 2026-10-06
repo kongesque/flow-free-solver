@@ -338,6 +338,7 @@ for (const viewport of [
         await page.getByRole('button', { name: 'Edit', exact: true }).click();
         await expect(page.getByRole('button', { name: 'Edit', exact: true })).toHaveCount(0);
         await expectStable();
+        page.once('dialog', dialog => dialog.accept());
         await page.getByRole('button', { name: 'Reset', exact: true }).click();
         await page.getByRole('button', { name: 'Generate', exact: true }).click();
         await expect(page.getByRole('status')).toContainText('Generated');
@@ -362,6 +363,7 @@ for (const viewport of [
         await grid.getByRole('button', { name: /Color/ }).first().click();
         await expect(page.getByRole('button', { name: 'Edit', exact: true })).toHaveCount(0);
         await expectStable();
+        page.once('dialog', dialog => dialog.accept());
         await page.getByRole('button', { name: 'Reset', exact: true }).click();
         await expectStable();
     });

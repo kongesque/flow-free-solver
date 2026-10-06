@@ -126,6 +126,13 @@ const FlowSolver = () => {
         requestAnimationFrame(() => setIsResetting(false));
     }, [width, height]);
 
+    const requestReset = () => {
+        const hasPuzzle = walls.length > 0 || board.some(column => column.some(color => color !== 0)) ||
+            generatedSolution !== null || solvedBoard !== null || isSolving || isGenerating || invalidSavedWalls;
+        if (hasPuzzle && !window.confirm('Reset this puzzle? This will clear all endpoints, walls, and saved solutions.')) return;
+        resetBoard();
+    };
+
     const changeDimensions = (newWidth: number, newHeight: number) => {
         setWidth(newWidth);
         setHeight(newHeight);
@@ -400,7 +407,7 @@ const FlowSolver = () => {
                         onHeightChange={(event) => changeDimensions(width, Number(event.target.value))}
                         onSolverTypeChange={handleSolverTypeChange}
                         onSolve={solveBoard}
-                        onReset={() => resetBoard()}
+                        onReset={requestReset}
                         onGenerate={generateBoard}
                         wallCount={walls.length}
                         editTool={editTool}

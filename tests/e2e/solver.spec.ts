@@ -44,6 +44,7 @@ for (const algorithm of ['heuristic_bfs', 'astar', 'z3']) {
     await page.getByRole('button', { name: 'Edit', exact: true }).click();
     await expect(page.getByRole('button', { name: /Cell .* Color/ })).toHaveCount(10);
     await expect(page.getByRole('button', { name: /Cell .* Color/ }).first()).toBeEnabled();
+    page.once('dialog', dialog => dialog.accept());
     await page.getByRole('button', { name: 'Reset', exact: true }).click();
     await expect(page.getByRole('button', { name: /Cell .* Empty/ })).toHaveCount(25);
     expect(errors).toEqual([]);
@@ -68,6 +69,11 @@ test('reset cancels an active Wasm solve and allows a fresh puzzle', async ({ pa
     await expect(page.getByRole('combobox', { name: 'Grid Size' })).toBeDisabled();
     await expect(page.getByRole('combobox', { name: 'Solver Algorithm' })).toBeDisabled();
     await expect(page.getByRole('button', { name: 'Cell 0,0 Color 1', exact: true })).toBeDisabled();
+    page.once('dialog', dialog => dialog.dismiss());
+    await page.getByRole('button', { name: 'Reset', exact: true }).click();
+    await expect(page.getByRole('status')).toContainText('Solving');
+    await expect(page.getByRole('button', { name: 'Cell 0,0 Color 1', exact: true })).toBeDisabled();
+    page.once('dialog', dialog => dialog.accept());
     await page.getByRole('button', { name: 'Reset', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Solve', exact: true })).toBeEnabled();
     await expect(page.getByRole('button', { name: /Cell .* Empty/ })).toHaveCount(25);
