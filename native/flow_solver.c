@@ -118,6 +118,10 @@ typedef struct game_info_struct {
   size_t width;
   size_t height;
 
+  // Immutable blocked edges, indexed using the solver's fixed 16-cell stride.
+  uint8_t walls[MAX_CELLS];
+  size_t num_walls;
+
   // Number of colors present
   size_t num_colors;
 
@@ -330,7 +334,9 @@ pos_t offset_pos(const game_info_t *info, int x, int y, int dir) {
   int offset_x = x + DIR_DELTA[dir][0];
   int offset_y = y + DIR_DELTA[dir][1];
 
-  return coords_valid(info, offset_x, offset_y)
+  return coords_valid(info, x, y) &&
+                 !(info->walls[pos_from_coords(x, y)] & (1 << dir)) &&
+                 coords_valid(info, offset_x, offset_y)
              ? pos_from_coords(offset_x, offset_y)
              : INVALID_POS;
 }
@@ -449,7 +455,7 @@ int game_can_move(const game_info_t *info, const game_state_t *state, int color,
   int new_y = cur_y + DIR_DELTA[dir][1];
 
   // If outside bounds, not legal
-  if (new_x < 0 || new_x >= info->width || new_y < 0 || new_y >= info->height) {
+  if (offset_pos(info, cur_x, cur_y, dir) == INVALID_POS) {
     return 0;
   }
 
@@ -568,6 +574,7 @@ double game_make_move(const game_info_t *info, game_state_t *state, int color,
   // Make sure valid
   assert(new_x >= 0 && new_x < (int)info->width && new_y >= 0 &&
          new_y < (int)info->height);
+  assert(offset_pos(info, cur_x, cur_y, dir) != INVALID_POS);
 
   // Make position
   pos_t new_pos = pos_from_coords(new_x, new_y);
@@ -744,17 +751,58 @@ int game_read_buffer(const char *input_buffer, game_info_t *info,
       state->pos[color] = info->init_pos[color];
     }
 
-    // Adjacent endpoints already form a complete induced path. They cannot
-    // be extended without giving an endpoint two same-color neighbors.
-    int x0, y0, x1, y1;
-    pos_get_coords(info->init_pos[color], &x0, &y0);
-    pos_get_coords(info->goal_pos[color], &x1, &y1);
-    if (abs(x0 - x1) + abs(y0 - y1) == 1) {
-      state->completed |= (1 << color);
-    }
   }
 
   return 1;
+}
+
+// Wall input is bounded decimal x,y,R|D records, separated by LF or CRLF.
+// Reject whitespace, signed/oversized coordinates and partial records.
+// Repeated boundaries are harmless and counted once.
+int game_read_walls(const char *input, game_info_t *info) {
+  if (!input) return 0;
+  size_t records = 0;
+  while (*input) {
+    if (++records > 2 * info->width * info->height) return 0;
+    int values[2];
+    for (int i = 0; i < 2; ++i) {
+      int value = 0, digits = 0;
+      while (*input >= '0' && *input <= '9') {
+        if (++digits > 2) return 0;
+        value = value * 10 + (*input++ - '0');
+      }
+      if (!digits || *input++ != ',') return 0;
+      values[i] = value;
+    }
+    int dir = *input == 'R' ? DIR_RIGHT : *input == 'D' ? DIR_DOWN : -1;
+    if (dir < 0) return 0;
+    ++input;
+    if (*input == '\r') {
+      ++input;
+      if (*input != '\n') return 0;
+    }
+    if (*input && *input != '\n') return 0;
+    if (*input == '\n') ++input;
+    int x = values[0], y = values[1];
+    int nx = x + DIR_DELTA[dir][0], ny = y + DIR_DELTA[dir][1];
+    if (!coords_valid(info, x, y) || !coords_valid(info, nx, ny)) return 0;
+    pos_t from = pos_from_coords(x, y), to = pos_from_coords(nx, ny);
+    if (!(info->walls[from] & (1 << dir))) ++info->num_walls;
+    info->walls[from] |= 1 << dir;
+    info->walls[to] |= 1 << (dir ^ 1);
+  }
+  return 1;
+}
+
+// Adjacent endpoints complete only when their shared boundary is open.
+void game_complete_adjacent(const game_info_t *info, game_state_t *state) {
+  for (size_t color = 0; color < info->num_colors; ++color) {
+    for (int dir = 0; dir < 4; ++dir) {
+      if (pos_offset_pos(info, info->init_pos[color], dir) == info->goal_pos[color]) {
+        state->completed |= 1 << color;
+      }
+    }
+  }
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -1031,13 +1079,13 @@ size_t game_build_regions(const game_info_t *info, const game_state_t *state,
         regions[pos] = region_create(pos);
         if (x) {
           pos_t pl = pos_from_coords(x - 1, y);
-          if (!state->cells[pl]) {
+          if (!state->cells[pl] && offset_pos(info, x, y, DIR_LEFT) != INVALID_POS) {
             region_unite(regions, pos, pl);
           }
         }
         if (y) {
           pos_t pu = pos_from_coords(x, y - 1);
-          if (!state->cells[pu]) {
+          if (!state->cells[pu] && offset_pos(info, x, y, DIR_UP) != INVALID_POS) {
             region_unite(regions, pos, pu);
           }
         }
@@ -1202,9 +1250,11 @@ int game_regions_stranded(const game_info_t *info, const game_state_t *state,
                            goal_rflags);
 
     if (!g_options.node_check_touch) {
-      int delta = state->pos[color] - info->goal_pos[color];
-      delta = delta < 0 ? -delta : delta;
-      if (delta == 1 || delta == 16) { // adjacent
+      int adjacent = 0;
+      for (int dir = 0; dir < 4; ++dir) {
+        adjacent |= pos_offset_pos(info, state->pos[color], dir) == info->goal_pos[color];
+      }
+      if (adjacent) {
         continue;
       }
     }
@@ -1738,6 +1788,10 @@ int game_check_chokepoint(const game_info_t *info, const game_state_t *state,
 
 int game_check_bottleneck(const game_info_t *info, const game_state_t *state) {
 
+  // This geometric straight-line pruning assumes every interior edge is open.
+  // Keep it for legacy puzzles; use topology-aware region/deadend pruning for walls.
+  if (info->num_walls) return 0;
+
   size_t color = state->last_color;
 
   if (color >= info->num_colors) {
@@ -2126,8 +2180,7 @@ int game_search(const game_info_t *info, const game_state_t *init_state,
   return result;
 }
 
-EMSCRIPTEN_KEEPALIVE
-const char *solve_puzzle_wasm(const char *input_str) {
+static const char *solve_puzzle(const char *input_str, const char *wall_str) {
 
   static char result_json[1024 * 64]; // Static buffer for result
   result_json[0] = '\0';
@@ -2167,6 +2220,12 @@ const char *solve_puzzle_wasm(const char *input_str) {
     sprintf(result_json, "Error: Invalid board");
     return result_json;
   }
+
+  if (!game_read_walls(wall_str, &info)) {
+    sprintf(result_json, "Error: Invalid walls");
+    return result_json;
+  }
+  game_complete_adjacent(&info, &state);
 
   game_order_colors(&info, &state, NULL);
 
@@ -2218,4 +2277,14 @@ const char *solve_puzzle_wasm(const char *input_str) {
 
   // game_search releases its search nodes and queue before returning.
   return result_json;
+}
+
+EMSCRIPTEN_KEEPALIVE
+const char *solve_puzzle_wasm(const char *input_str) {
+  return solve_puzzle(input_str, "");
+}
+
+EMSCRIPTEN_KEEPALIVE
+const char *solve_puzzle_with_walls_wasm(const char *input_str, const char *wall_str) {
+  return solve_puzzle(input_str, wall_str);
 }
