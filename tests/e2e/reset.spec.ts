@@ -1,3 +1,4 @@
+import { selectWallTool } from './board-options';
 import { test, expect, type Page } from '@playwright/test';
 
 const resetMessage = 'Reset this puzzle? This will clear all endpoints, walls, and saved solutions.';
@@ -37,7 +38,7 @@ for (const width of [390, 1280]) {
         await page.setViewportSize({ width, height: 900 });
         await page.goto('./');
         await page.getByRole('button', { name: 'Cell 0,0 Empty', exact: true }).click();
-        await page.getByRole('button', { name: 'Walls', exact: true }).click();
+        await selectWallTool(page);
         await page.getByRole('button', { name: 'Cell 1,1 Empty', exact: true }).focus();
         await page.keyboard.press('Shift+ArrowRight');
         await expect.poll(async () => (await saved(page))?.walls.length).toBe(1);
@@ -50,10 +51,10 @@ for (const width of [390, 1280]) {
         expect(await labels(page)).toEqual(previousLabels);
         expect(await saved(page)).toEqual(previousSave);
         await expect(page.locator('[data-wall="1,1,right"]')).toHaveCount(1);
-        await expect(page.getByRole('button', { name: 'Undo wall', exact: true })).toBeEnabled();
+        await expect(page.getByRole('button', { name: 'Undo', exact: true })).toBeEnabled();
 
         // Cancel preserves the pending endpoint color, and reload preserves the puzzle.
-        await page.getByRole('button', { name: 'Dots', exact: true }).click();
+        await page.getByRole('button', { name: 'Walls', exact: true }).click();
         await page.getByRole('button', { name: 'Cell 4,0 Empty', exact: true }).click();
         await expect(page.getByRole('button', { name: 'Cell 4,0 Color 1', exact: true })).toBeVisible();
         await expect.poll(async () => (await saved(page))?.board[4][0]).toBe(1);

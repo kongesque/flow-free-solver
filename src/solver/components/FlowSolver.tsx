@@ -8,7 +8,9 @@ import StatusIndicator from './StatusIndicator';
 import SolverControls from './SolverControls';
 import { GAME_MODES, type GameMode } from '../logic/game-modes';
 import type { GeneratedPuzzle } from '../logic/puzzle-generator';
-import { normalizeWalls, type Wall, type EditTool } from '../logic/walls';
+import { normalizeWalls, wallKey, type Wall, type EditTool } from '../logic/walls';
+
+type EditorSnapshot = { board: number[][]; walls: Wall[]; activeColor: number; isPlacingSecond: boolean };
 
 const initializeBoard = (width: number, height = width) =>
     Array(width).fill(null).map(() => Array(height).fill(0));
@@ -22,7 +24,7 @@ const FlowSolver = () => {
     const [height, setHeight] = useState(DEFAULT_SIZE);
     const [mode, setMode] = useState<GameMode>('standard');
     const [walls, setWalls] = useState<Wall[]>([]);
-    const [wallHistory, setWallHistory] = useState<Wall[][]>([]);
+    const [editHistory, setEditHistory] = useState<EditorSnapshot[]>([]);
     const [editTool, setEditTool] = useState<EditTool>('dots');
     const [zoomWalls, setZoomWalls] = useState(false);
     const isStandard = mode === 'standard';
@@ -112,7 +114,7 @@ const FlowSolver = () => {
         setIsResetting(true);
         setBoard(initializeBoard(newWidth, newHeight));
         setWalls([]);
-        setWallHistory([]);
+        setEditHistory([]);
         setZoomWalls(false);
         setInvalidSavedWalls(false);
         setSolvedBoard(null);
@@ -166,6 +168,10 @@ const FlowSolver = () => {
     // 2. Clear feedback: Show which color is being placed
     // 3. Predictable: Same action = same result
     // 4. Forgiving: Easy to undo mistakes
+    const recordEdit = useCallback(() => {
+        setEditHistory(history => [...history.slice(-49), { board, walls, activeColor, isPlacingSecond }]);
+    }, [board, walls, activeColor, isPlacingSecond]);
+
     const handleCellClick = useCallback((x: number, y: number) => {
         if (invalidSavedWalls || editTool !== 'dots' || solvedBoard || isSolving || isGenerating || !isLoaded || !isStandard) return;
 
@@ -218,16 +224,19 @@ const FlowSolver = () => {
             }
         }
 
+        recordEdit();
         setBoard(newBoard);
         setGeneratedSolution(null);
         setError(null);
         setSolveTime(null);
-    }, [board, solvedBoard, isSolving, isGenerating, isLoaded, isStandard, activeColor, editTool, invalidSavedWalls]);
+    }, [board, solvedBoard, isSolving, isGenerating, isLoaded, isStandard, activeColor, editTool, invalidSavedWalls, recordEdit]);
 
-    const applyWalls = (next: Wall[], remember = true) => {
+    const applyWalls = (next: Wall[]) => {
         if (invalidSavedWalls || solvedBoard || isSolving || isGenerating || !isLoaded || !isStandard) return;
-        if (remember) setWallHistory(history => [...history.slice(-49), walls]);
-        setWalls(normalizeWalls(next, width, height));
+        const normalized = normalizeWalls(next, width, height);
+        if (normalized.length === walls.length && normalized.every((wall, i) => wallKey(wall) === wallKey(walls[i]))) return;
+        recordEdit();
+        setWalls(normalized);
         setGeneratedSolution(null);
         setSolvedBoard(null);
         setSolveTime(null);
@@ -235,11 +244,19 @@ const FlowSolver = () => {
         if (next.length) setSolverType('heuristic_bfs');
     };
 
-    const undoWalls = () => {
-        const previous = wallHistory.at(-1);
-        if (!previous) return;
-        applyWalls(previous, false);
-        setWallHistory(history => history.slice(0, -1));
+    const canUndo = editHistory.length > 0 && !invalidSavedWalls && !solvedBoard && !isSolving && !isGenerating && isLoaded && isStandard;
+    const undoEdit = () => {
+        if (!canUndo) return;
+        const previous = editHistory.at(-1)!;
+        setBoard(previous.board);
+        setWalls(previous.walls);
+        setActiveColor(previous.activeColor);
+        setIsPlacingSecond(previous.isPlacingSecond);
+        setGeneratedSolution(null);
+        setError(null);
+        setSolveTime(null);
+        if (previous.walls.length) setSolverType('heuristic_bfs');
+        setEditHistory(history => history.slice(0, -1));
     };
 
     const generateBoard = () => {
@@ -264,6 +281,7 @@ const FlowSolver = () => {
                 return;
             }
             setBoard(puzzle.board);
+            setEditHistory([]);
             setGeneratedSolution(puzzle.solution);
             setSolvedBoard(null);
             setSolveTime(null);
@@ -352,7 +370,14 @@ const FlowSolver = () => {
     const currentBoard = solvedBoard || board;
 
     return (
-        <main className="solver-shell touch-manipulation">
+        <main className="solver-shell touch-manipulation" onKeyDown={event => {
+            const target = event.target as HTMLElement;
+            if (canUndo && (event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === 'z' &&
+                !target.isContentEditable && !['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) {
+                event.preventDefault();
+                undoEdit();
+            }
+        }}>
             <SolverHeader />
 
             <div className="solver-workspace">
@@ -412,8 +437,8 @@ const FlowSolver = () => {
                         wallCount={walls.length}
                         editTool={editTool}
                         onEditToolChange={setEditTool}
-                        canUndoWalls={wallHistory.length > 0}
-                        onUndoWalls={undoWalls}
+                        canUndo={canUndo}
+                        onUndo={undoEdit}
                         onClearWalls={() => applyWalls([])}
                         zoomWalls={zoomWalls}
                         onZoomWalls={() => setZoomWalls(value => !value)}

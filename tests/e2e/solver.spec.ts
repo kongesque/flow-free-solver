@@ -1,3 +1,4 @@
+import { openBoardOptions } from './board-options';
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { assertSolution } from '../fixtures/assert-solution.mjs';
@@ -27,6 +28,7 @@ for (const algorithm of ['heuristic_bfs', 'astar', 'z3']) {
     await page.goto('./');
     await expect(page.getByRole('heading', { name: /Flow Free Solver/i })).toBeVisible();
     await expect.poll(() => page.evaluate(() => crossOriginIsolated)).toBe(true);
+    await openBoardOptions(page);
     await page.getByRole('combobox', { name: 'Solver Algorithm' }).selectOption(algorithm);
     await placePuzzle(page);
     await page.getByRole('button', { name: 'Solve', exact: true }).click();
@@ -61,6 +63,7 @@ test('reset cancels an active Wasm solve and allows a fresh puzzle', async ({ pa
   });
   try {
     await page.goto('./');
+    await openBoardOptions(page);
     await placePuzzle(page);
     const request = page.waitForRequest(/flow_solver_c\.wasm/);
     await page.getByRole('button', { name: 'Solve', exact: true }).click();

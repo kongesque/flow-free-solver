@@ -143,16 +143,18 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
 .wall-preview { stroke: var(--color-stoic-accent); stroke-width: 7px; stroke-linecap: round; opacity: .7; stroke-dasharray: 4 3; }
 .wall-target { position: absolute; z-index: 2; touch-action: none; cursor: crosshair; }
 .editing-walls button { touch-action: pan-x pan-y; }
-.editor-tools { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 3px; border: 1px solid var(--color-stoic-line); border-radius: 8px; background: var(--color-stoic-block-bg); }
-.editor-tools .control-button { min-height: 44px; padding: 6px 8px; border: 0; border-radius: 5px; color: var(--color-stoic-secondary); }
-.editor-tools button[aria-pressed="true"], .editor-tools button[aria-pressed="true"]:hover { background: #303533; color: var(--color-stoic-primary); }
-.wall-count { font-size: 10px; color: var(--color-stoic-secondary); font-variant-numeric: tabular-nums; }
+/* Advanced controls live inside the board disclosure. */
+.control-button.wall-toggle { justify-content: space-between; text-align: left; }
+.wall-toggle-indicator { width: 28px; height: 16px; padding: 2px; border-radius: 10px; background: var(--color-stoic-line); }
+.wall-toggle-indicator::before { content: ''; display: block; width: 12px; height: 12px; border-radius: 50%; background: var(--color-stoic-secondary); }
+.wall-toggle[aria-pressed="true"] .wall-toggle-indicator { background: #455050; }
+.wall-toggle[aria-pressed="true"] .wall-toggle-indicator::before { transform: translateX(12px); background: var(--color-stoic-primary); }
+.wall-count, .active-tool { font-size: 10px; color: var(--color-stoic-secondary); }
 .wall-context { display: flex; flex-direction: column; gap: 6px; }
-.wall-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
-.wall-actions button { font-size: 11px; padding-inline: 4px; white-space: nowrap; }
+.wall-actions { display: flex; gap: 6px; }
+.wall-actions button { flex: 1; font-size: 11px; padding-inline: 4px; white-space: nowrap; }
+.wall-zoom-action:not(.large-board) { display: none; }
 .wall-help, .panel-notice { margin: 0; color: var(--color-stoic-secondary); font-size: 10px; line-height: 1.6; text-align: left; }
-.wall-help { min-height: 32px; }
-.wall-keyboard-tip { display: none; }
 .puzzle-grid button { position: relative; }
 .puzzle-grid button:active:not(:disabled) { background: #252b29; }
 .puzzle-grid button:focus-visible { outline-offset: -3px; z-index: 1; }
@@ -166,6 +168,7 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
 .solver-status { min-height: 32px; display: flex; align-items: center; justify-content: center; line-height: 1.6; overflow-wrap: anywhere; }
 .solver-controls { display: flex; flex-direction: column; gap: 10px; min-height: var(--mobile-controls-space); }
 .primary-settings, .settings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.control-button.undo-action { color: var(--color-stoic-secondary); }
 .control-field { display: flex; min-width: 0; flex-direction: column; gap: 0; position: relative; text-align: left; font-size: 10px; color: var(--color-stoic-secondary); }
 .control-field > span:first-child { position: absolute; top: 4px; left: 12px; z-index: 1; line-height: 12px; pointer-events: none; }
 .select-wrap { position: relative; display: block; }
@@ -205,10 +208,8 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
 .board-options summary:hover { color: var(--color-stoic-primary); }
 .board-options summary svg { width: 12px; height: 12px; }
 .board-options[open] summary svg { transform: rotate(180deg); }
-.desktop-board-options { display: none; }
-.custom-settings { border: 0; padding: 12px 0 0; margin: 0; min-width: 0; }
-.mode-field { grid-column: 1 / -1; }
-.control-hint { margin-top: 8px; font-size: 10px; color: var(--color-stoic-secondary); line-height: 1.6; }
+.custom-settings { display: flex; flex-direction: column; gap: 8px; border: 0; padding: 8px 0 0; margin: 0; min-width: 0; }
+.control-hint { margin: 0; font-size: 10px; color: var(--color-stoic-secondary); line-height: 1.6; }
 .solver-about { color: var(--color-stoic-secondary); font-size: 11px; line-height: 1.6; text-align: center; }
 .solver-about p { margin: 0; }
 .solver-about a { position: relative; color: inherit; text-decoration: underline; text-underline-offset: 4px; }
@@ -217,6 +218,7 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
 
 @media (max-width: 959px) {
   .solver-controls { gap: 8px; }
+  .wall-zoom-action:not(.large-board) { display: flex; }
   .solver-about { padding-top: 4px; }
 }
 
@@ -262,16 +264,8 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
   .board-area { grid-column: 1; grid-row: 2; margin-inline: auto; }
   .solver-status { grid-column: 1; grid-row: 3; }
   .game-controls { grid-column: 2; grid-row: 1 / span 3; padding-top: 48px; }
-  .primary-settings { grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); }
-  .solver-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 8px; min-height: 0; }
-  .primary-settings { grid-column: 1 / -1; grid-row: 1; }
-  .editor-tools { grid-column: 1; grid-row: 2; padding: 0; }
-  .editor-tools .control-button { font-size: 10px; padding-inline: 2px; }
-  .control-actions { grid-column: 1 / -1; grid-row: 3; }
-  .mobile-board-options { grid-column: 2; grid-row: 2; }
-  .mobile-board-options[open] { grid-column: 1 / -1; grid-row: auto; }
-  .mobile-board-options summary { font-size: 10px; }
-  .wall-context, .panel-notice, .solver-about { grid-column: 1 / -1; }
+  .solver-controls { gap: 4px; min-height: 0; }
+  .board-options summary { font-size: 10px; }
   .solver-about { font-size: 9px; line-height: 1.4; }
 }
 
@@ -305,12 +299,8 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
   .game-controls { grid-column: 2; grid-row: 2; }
   .solver-controls { gap: 10px; min-height: 0; }
   .solver-about { text-align: left; }
-  .board-options { padding-top: 10px; border-top: 1px solid var(--color-stoic-line); }
-  .mobile-board-options { display: none; }
-  .desktop-board-options { display: block; }
-  .board-options-title { display: block; margin: 0; color: var(--color-stoic-secondary); font-size: 11px; font-weight: normal; }
-  .custom-settings { padding-top: 8px; }
-  .wall-keyboard-tip { display: inline; }
+  .board-options { border-top: 1px solid var(--color-stoic-line); }
+  .board-options summary { justify-content: flex-start; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -1,3 +1,4 @@
+import { openBoardOptions } from './board-options';
 import { test, expect, type Page } from '@playwright/test';
 import { assertSolution } from '../fixtures/assert-solution.mjs';
 
@@ -69,6 +70,7 @@ for (const algorithm of ['heuristic_bfs', 'astar', 'z3']) {
     test(`generated puzzle can be independently solved by ${algorithm} in a real worker`, async ({ page }) => {
         await page.goto('./');
         const input = await generate(page, 5);
+        await openBoardOptions(page);
         await page.getByRole('combobox', { name: 'Solver Algorithm' }).selectOption(algorithm);
         await solve(page);
         await expect(page.getByRole('status')).toContainText('Solved', { timeout: 45_000 });

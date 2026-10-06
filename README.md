@@ -64,12 +64,18 @@ multiple solutions; the generator does not certify uniqueness or difficulty.
 Some large puzzles can exceed an independent solver's search budget. **Show
 solution** always reveals the solution retained during construction.
 
-The tool panel sits beside the board on desktop and below it on mobile. Size and
-Algorithm stay visible, followed by the Dots/Walls switch and puzzle actions.
-Solve becomes Edit in the same position. Wall tools appear in Walls mode, with
-short guidance for drawing or panning. Board options stay open on desktop and
-collapsed on mobile. The board keeps its size and position as tools change;
-on phones, the footer can scroll when browser bars leave less room.
+The tool panel sits beside the board on desktop and below it on mobile. Size,
+Undo, Solve, Generate, and Reset stay visible. Solve becomes Edit in the same
+position. Board options start collapsed on both layouts and contain dimensions,
+algorithm, mode, and a single Draw walls toggle. Wall tools appear only while
+drawing walls. The board keeps its size and position as tools change; on phones,
+the footer can scroll when browser bars leave less room.
+
+**Undo** reverses endpoint placement/removal, wall strokes, and Clear walls in
+order, restoring the endpoint color and placement state. **Ctrl+Z** or **⌘Z**
+also works when focus is outside a form field. Up to 50 edits are retained for
+the current session. Reset, resizing, successful generation, and reloading start
+a fresh history. Undoing an edit does not restore a discarded generated solution.
 
 ---
 
@@ -81,12 +87,14 @@ disabled in these modes; switching back to Standard preserves the current puzzle
 Mode, dimensions, endpoints, and the generated solution are saved locally. Legacy
 square saves with a single size continue to load.
 
-**Walls** can be added to Standard square or rectangular boards. Select **Walls**,
-then tap or drag along the lines between cells to add or remove boundaries.
-Both cells beside a wall still need to be filled. **Undo wall** reverses the last
-stroke; **Clear walls** is also undoable. Use **Zoom in** for larger mobile targets,
-and swipe from a cell center to pan the enlarged board. With the keyboard, focus
-a cell and press **Shift + Arrow** to toggle the wall on that side.
+**Walls** can be added to Standard square or rectangular boards. Open **Board
+options** and turn on **Draw walls**, then tap or drag along the lines between
+cells to add or remove boundaries. Turn it off to place endpoints again. Both
+cells beside a wall still need to be filled. **Undo** reverses the last edit;
+**Clear walls** appears when walls exist and is also undoable. **Zoom in** is
+available on mobile and for large desktop boards. Swipe from a cell center to
+pan the enlarged board. With the keyboard, focus a cell and press **Shift +
+Arrow** to toggle the wall on that side.
 
 Wall puzzles automatically use **Heuristic BFS** (C/Wasm). **Generate** is disabled
 until walls are cleared. Wall edits discard any retained generated solution;

@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { assertSolution } from '../fixtures/assert-solution.mjs';
 import { wallCorridor, wallDetour } from '../fixtures/wall-puzzles.mjs';
-import { openBoardOptions } from './board-options';
+import { openBoardOptions, selectWallTool } from './board-options';
 
 const colors = '.RBYGOCMmPAWgTbcp';
 type Wall = { x: number; y: number; side: 'right' | 'down' };
@@ -20,7 +20,7 @@ async function place(page: Page, input: string) {
 }
 
 async function drawWithKeyboard(page: Page, walls: Wall[]) {
-    await page.getByRole('button', { name: 'Walls', exact: true }).click();
+    await selectWallTool(page);
     for (const { x, y, side } of walls) {
         await cell(page, x, y).focus();
         await page.keyboard.press(side === 'right' ? 'Shift+ArrowRight' : 'Shift+ArrowDown');
@@ -59,6 +59,7 @@ for (const [width, height] of [[5, 5], [5, 8], [8, 5]]) {
         await openBoardOptions(page);
         await page.getByRole('combobox', { name: 'Grid Width' }).selectOption(String(width));
         await page.getByRole('combobox', { name: 'Grid Height' }).selectOption(String(height));
+        await openBoardOptions(page);
         if (width === height) await page.getByRole('combobox', { name: 'Solver Algorithm' }).selectOption('astar');
         await place(page, fixture.input);
         await drawWithKeyboard(page, fixture.walls);
@@ -77,12 +78,12 @@ for (const [width, height] of [[5, 5], [5, 8], [8, 5]]) {
         if (width === 5 && height === 5) await page.screenshot({ path: test.info().outputPath('walls-solved.png') });
         await expect(cell(page, 0, 0)).toBeDisabled();
         await page.getByRole('button', { name: 'Edit', exact: true }).click();
-        await page.getByRole('button', { name: 'Walls', exact: true }).click();
+        await selectWallTool(page);
         await cell(page, 0, 0).focus();
         await page.keyboard.press('Shift+ArrowRight');
         await page.getByRole('button', { name: 'Solve', exact: true }).click();
         await expect(page.getByRole('status')).toContainText('No solution');
-        await page.getByRole('button', { name: 'Undo wall', exact: true }).click();
+        await page.getByRole('button', { name: 'Undo', exact: true }).click();
         await page.getByRole('button', { name: 'Solve', exact: true }).click();
         await expect(page.getByRole('status')).toContainText('Solved');
         await validate(page, fixture.input, fixture.walls);
@@ -106,7 +107,7 @@ test('walls between adjacent endpoints force a multi-color detour', async ({ pag
 test('pointer strokes add/remove once per edge, with undo and center/outer-border protection', async ({ page }) => {
     await page.goto('./');
     await cell(page, 0, 0).click();
-    await page.getByRole('button', { name: 'Walls', exact: true }).click();
+    await selectWallTool(page);
     const bounds = (await grid(page).boundingBox())!;
     const point = (x: number, y: number) => ({ x: bounds.x + bounds.width * x / 5, y: bounds.y + bounds.height * y / 5 });
     const start = point(.5, 1), end = point(3.5, 1);
@@ -123,7 +124,7 @@ test('pointer strokes add/remove once per edge, with undo and center/outer-borde
     await page.mouse.click(outside.x, outside.y);
     await expect(page.locator('[data-wall]')).toHaveCount(4);
     await expect(grid(page).getByRole('button', { name: /Color/ })).toHaveCount(1);
-    await page.getByRole('button', { name: 'Undo wall', exact: true }).click();
+    await page.getByRole('button', { name: 'Undo', exact: true }).click();
     await expect(page.locator('[data-wall]')).toHaveCount(0);
     // A removing stroke stays a removal even when revisiting its first edge.
     await page.mouse.click(start.x, start.y);
@@ -133,11 +134,11 @@ test('pointer strokes add/remove once per edge, with undo and center/outer-borde
     await page.mouse.move(start.x, start.y, { steps: 12 });
     await page.mouse.up();
     await expect(page.locator('[data-wall]')).toHaveCount(0);
-    await page.getByRole('button', { name: 'Undo wall', exact: true }).click();
+    await page.getByRole('button', { name: 'Undo', exact: true }).click();
     await expect(page.locator('[data-wall]')).toHaveCount(1);
     await page.getByRole('button', { name: 'Clear walls', exact: true }).click();
     await expect(page.locator('[data-wall]')).toHaveCount(0);
-    await page.getByRole('button', { name: 'Undo wall', exact: true }).click();
+    await page.getByRole('button', { name: 'Undo', exact: true }).click();
     await expect(page.locator('[data-wall]')).toHaveCount(1);
     await cell(page, 0, 0).focus();
     await page.keyboard.press('Enter');
@@ -146,7 +147,7 @@ test('pointer strokes add/remove once per edge, with undo and center/outer-borde
     await expect(cell(page, 0, 0)).toBeFocused();
     await expect(cell(page, 0, 0)).toHaveAttribute('aria-label', 'Cell 0,0 Color 1');
     await expect(page.locator('[data-wall]')).toHaveCount(1);
-    await page.getByRole('button', { name: 'Dots', exact: true }).click();
+    await page.getByRole('button', { name: 'Walls', exact: true }).click();
     await cell(page, 1, 0).click();
     await expect(cell(page, 1, 0)).toHaveAttribute('aria-label', 'Cell 1,0 Color 1');
     await page.getByRole('combobox', { name: 'Grid Size' }).selectOption('6');
@@ -160,7 +161,7 @@ test('wall edits invalidate generated solutions and remain invalidated after und
     await expect.poll(async () => !!(await saved(page))?.generatedSolution).toBe(true);
     await drawWithKeyboard(page, [{ x: 0, y: 0, side: 'right' }]);
     await expect.poll(async () => (await saved(page))?.generatedSolution).toBeNull();
-    await page.getByRole('button', { name: 'Undo wall', exact: true }).click();
+    await page.getByRole('button', { name: 'Undo', exact: true }).click();
     await expect.poll(async () => (await saved(page))?.walls?.length).toBe(0);
     await page.reload();
     await expect(page.getByRole('status')).not.toContainText('Generated');
@@ -192,7 +193,7 @@ for (const requested of ['astar', 'z3', 'malformed']) {
 
 test('cancelled pointer strokes leave walls and history unchanged', async ({ page }) => {
     await page.goto('./');
-    await page.getByRole('button', { name: 'Walls', exact: true }).click();
+    await selectWallTool(page);
     const bounds = (await grid(page).boundingBox())!;
     await page.mouse.move(bounds.x + bounds.width / 5, bounds.y + bounds.height / 10);
     await page.mouse.down();
@@ -200,7 +201,7 @@ test('cancelled pointer strokes leave walls and history unchanged', async ({ pag
     await grid(page).dispatchEvent('pointercancel', { pointerId: 1 });
     await page.mouse.up();
     await expect(page.locator('[data-wall]')).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Undo wall', exact: true })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Undo', exact: true })).toBeDisabled();
 });
 
 test('invalid saved walls pause editing and autosave until an explicit Reset', async ({ page }) => {
@@ -266,8 +267,9 @@ test.describe('mobile wall editing', () => {
     test('touch toggles walls and zoom offers large targets without page overflow', async ({ page }) => {
         await page.goto('./');
         await page.getByRole('combobox', { name: 'Grid Size' }).selectOption('15');
-        await page.getByRole('button', { name: 'Walls', exact: true }).tap();
+        await selectWallTool(page);
         await page.getByRole('button', { name: 'Zoom in', exact: true }).tap();
+        await grid(page).scrollIntoViewIfNeeded();
         const bounds = (await grid(page).boundingBox())!;
         expect(bounds.width).toBeGreaterThanOrEqual(720);
         await page.touchscreen.tap(bounds.x + 48, bounds.y + 24);
