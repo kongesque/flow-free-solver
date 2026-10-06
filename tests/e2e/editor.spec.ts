@@ -55,8 +55,8 @@ for (const viewport of [
         await expect(readMore).toBeVisible();
         await expect(readMore).toHaveAttribute('href', 'https://www.kongesque.com/blog/flow-free-solver');
         await expect(readMore).toHaveAttribute('target', '_blank');
-        await expect(page.locator('.solver-about > p')).toHaveText('Solve any Flow Free or Numberlink puzzle instantly. Powered by C/Wasm Heuristic BFS, SAT (Z3) & A* search. Read more');
-        await expect(page.locator('.solver-methods')).toHaveText('Powered by C/Wasm Heuristic BFS, SAT (Z3) & A* search. Read more');
+        await expect(page.locator('.solver-about > p')).toHaveText('Solved locally in your browser. Read more');
+        await expect(page.locator('.solver-methods')).toHaveText('Solved locally in your browser.');
         expect(await readMore.evaluate(element => getComputedStyle(element).color)).toBe('rgb(138, 142, 140)');
         expect(await page.locator('.solver-about').evaluate(element => getComputedStyle(element).textAlign))
             .toBe(viewport.width >= 960 ? 'left' : 'center');
@@ -106,7 +106,7 @@ for (const viewport of [
             expect(tip.height).toBeLessThan(19);
             const options = await layoutBounds(page.locator('.desktop-board-options'));
             const actions = await layoutBounds(page.locator('.control-actions'));
-            expect(actions.y).toBeGreaterThan(options.y + options.height);
+            expect(options.y).toBeGreaterThan(actions.y + actions.height);
             expect(controls!.y + controls!.height).toBeLessThanOrEqual(initialBoard!.y + initialBoard!.height);
         } else {
             await expect(page.locator('.solver-methods')).toBeVisible();

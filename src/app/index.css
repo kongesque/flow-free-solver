@@ -143,12 +143,16 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
 .wall-preview { stroke: var(--color-stoic-accent); stroke-width: 7px; stroke-linecap: round; opacity: .7; stroke-dasharray: 4 3; }
 .wall-target { position: absolute; z-index: 2; touch-action: none; cursor: crosshair; }
 .editing-walls button { touch-action: pan-x pan-y; }
-.editor-tools { display: flex; gap: 4px; margin-bottom: 8px; }
-.editor-tools button { flex: 1; }
-.editor-tools button[aria-pressed="true"] { border-color: var(--color-stoic-accent); background: #203336; }
-.wall-actions { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
-.wall-actions button { flex: 1; font-size: 10px; white-space: nowrap; }
-.wall-help { font-size: 10px; line-height: 1.6; margin-bottom: 8px; }
+.editor-tools { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 3px; border: 1px solid var(--color-stoic-line); border-radius: 8px; background: var(--color-stoic-block-bg); }
+.editor-tools .control-button { min-height: 44px; padding: 6px 8px; border: 0; border-radius: 5px; color: var(--color-stoic-secondary); }
+.editor-tools button[aria-pressed="true"], .editor-tools button[aria-pressed="true"]:hover { background: #303533; color: var(--color-stoic-primary); }
+.wall-count { font-size: 10px; color: var(--color-stoic-secondary); font-variant-numeric: tabular-nums; }
+.wall-context { display: flex; flex-direction: column; gap: 6px; }
+.wall-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.wall-actions button { font-size: 11px; padding-inline: 4px; white-space: nowrap; }
+.wall-help, .panel-notice { margin: 0; color: var(--color-stoic-secondary); font-size: 10px; line-height: 1.6; text-align: left; }
+.wall-help { min-height: 32px; }
+.wall-keyboard-tip { display: none; }
 .puzzle-grid button { position: relative; }
 .puzzle-grid button:active:not(:disabled) { background: #252b29; }
 .puzzle-grid button:focus-visible { outline-offset: -3px; z-index: 1; }
@@ -160,14 +164,15 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
 }
 .game-controls { min-width: 0; width: 100%; }
 .solver-status { min-height: 32px; display: flex; align-items: center; justify-content: center; line-height: 1.6; overflow-wrap: anywhere; }
-.solver-controls { display: flex; flex-direction: column; gap: 12px; }
+.solver-controls { display: flex; flex-direction: column; gap: 10px; min-height: var(--mobile-controls-space); }
 .primary-settings, .settings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-.control-field { display: flex; min-width: 0; flex-direction: column; gap: 6px; text-align: left; font-size: 10px; color: var(--color-stoic-secondary); }
+.control-field { display: flex; min-width: 0; flex-direction: column; gap: 0; position: relative; text-align: left; font-size: 10px; color: var(--color-stoic-secondary); }
+.control-field > span:first-child { position: absolute; top: 4px; left: 12px; z-index: 1; line-height: 12px; pointer-events: none; }
 .select-wrap { position: relative; display: block; }
 .select-wrap select {
   width: 100%; min-height: 44px;
   appearance: none;
-  padding: 10px 30px 10px 12px;
+  padding: 19px 30px 5px 12px;
   border: 1px solid var(--color-stoic-line);
   border-radius: 6px;
   color: var(--color-stoic-primary);
@@ -176,8 +181,8 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
   cursor: pointer;
 }
 .select-wrap select:hover:not(:disabled) { border-color: var(--color-stoic-block-border); }
-.select-wrap svg { position: absolute; right: 10px; top: calc(50% - 6px); width: 12px; height: 12px; pointer-events: none; }
-.control-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.select-wrap svg { position: absolute; right: 10px; top: calc(65% - 6px); width: 12px; height: 12px; pointer-events: none; }
+.control-actions { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, .8fr); gap: 8px; }
 .control-button {
   min-height: 44px;
   display: flex; align-items: center; justify-content: center; gap: 6px;
@@ -207,16 +212,12 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
 .solver-about { color: var(--color-stoic-secondary); font-size: 11px; line-height: 1.6; text-align: center; }
 .solver-about p { margin: 0; }
 .solver-about a { position: relative; color: inherit; text-decoration: underline; text-underline-offset: 4px; }
-.solver-about a::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 44px; }
+.solver-about a::after { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 44px; }
 .solver-about a:hover { color: var(--color-stoic-primary); }
 
 @media (max-width: 959px) {
   .solver-controls { gap: 8px; }
-  .primary-settings .control-field { position: relative; gap: 0; }
-  .primary-settings .control-field > span:first-child { position: absolute; top: 4px; left: 12px; z-index: 1; line-height: 12px; pointer-events: none; }
-  .primary-settings select { padding-top: 19px; padding-bottom: 5px; }
-  .primary-settings .select-wrap svg { top: calc(65% - 6px); }
-  .solver-about { min-height: 108px; }
+  .solver-about { padding-top: 4px; }
 }
 
 @media (max-width: 479px) {
@@ -262,11 +263,16 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
   .solver-status { grid-column: 1; grid-row: 3; }
   .game-controls { grid-column: 2; grid-row: 1 / span 3; padding-top: 48px; }
   .primary-settings { grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); }
-  .solver-controls { gap: 4px; position: relative; }
-  .mobile-board-options summary { width: calc(100% - 112px); margin-left: 112px; }
-  .editor-tools { position: absolute; left: 0; top: 96px; width: 104px; margin: 0; }
-  .editor-tools button { font-size: 10px; padding: 4px; }
-  .solver-about { min-height: 56px; font-size: 9px; line-height: 1.4; }
+  .solver-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 8px; min-height: 0; }
+  .primary-settings { grid-column: 1 / -1; grid-row: 1; }
+  .editor-tools { grid-column: 1; grid-row: 2; padding: 0; }
+  .editor-tools .control-button { font-size: 10px; padding-inline: 2px; }
+  .control-actions { grid-column: 1 / -1; grid-row: 3; }
+  .mobile-board-options { grid-column: 2; grid-row: 2; }
+  .mobile-board-options[open] { grid-column: 1 / -1; grid-row: auto; }
+  .mobile-board-options summary { font-size: 10px; }
+  .wall-context, .panel-notice, .solver-about { grid-column: 1 / -1; }
+  .solver-about { font-size: 9px; line-height: 1.4; }
 }
 
 @media (min-width: 960px) {
@@ -297,14 +303,14 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
   .solver-status { grid-column: 1; grid-row: 3; }
   .board-area { grid-column: 1; grid-row: 1 / span 2; align-self: start; width: 100%; margin-inline: 0; }
   .game-controls { grid-column: 2; grid-row: 2; }
-  .solver-controls { gap: 8px; }
+  .solver-controls { gap: 10px; min-height: 0; }
   .solver-about { text-align: left; }
-  .control-actions { margin-top: 8px; }
-  .board-options { margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--color-stoic-line); }
+  .board-options { padding-top: 10px; border-top: 1px solid var(--color-stoic-line); }
   .mobile-board-options { display: none; }
   .desktop-board-options { display: block; }
   .board-options-title { display: block; margin: 0; color: var(--color-stoic-secondary); font-size: 11px; font-weight: normal; }
-  .custom-settings { padding-top: 12px; }
+  .custom-settings { padding-top: 8px; }
+  .wall-keyboard-tip { display: inline; }
 }
 
 @media (prefers-reduced-motion: reduce) {

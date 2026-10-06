@@ -116,52 +116,56 @@ const SolverControls = ({
                     </span>
                 </label>
             </div>
-            <section className="board-options desktop-board-options" aria-label="Board options">
-                <h2 className="board-options-title">Board options</h2>
-                {boardSettings}
-            </section>
+            <div className="editor-tools" role="group" aria-label="Editing tool">
+                <button type="button" className="control-button" aria-pressed={editTool === 'dots'}
+                    disabled={editingDisabled} onClick={() => onEditToolChange('dots')}>Dots</button>
+                <button type="button" className="control-button" aria-label="Walls" aria-pressed={editTool === 'walls'}
+                    disabled={editingDisabled} onClick={() => onEditToolChange('walls')}>
+                    Walls{wallCount > 0 && <span className="wall-count">{wallCount}</span>}
+                </button>
+            </div>
             <div className="control-actions" aria-label="Puzzle actions">
                 <button className="control-button primary-action" onClick={showingSolution ? onEdit : onSolve} disabled={isBusy || unavailable}>
                     {showingSolution ? 'Edit' : 'Solve'}
                 </button>
-                <button className="control-button" onClick={onGenerate} disabled={isBusy || unavailable || wallCount > 0}>
+                <button className="control-button" onClick={onGenerate} disabled={isBusy || unavailable || wallCount > 0}
+                    aria-describedby={wallCount > 0 ? 'wall-generation-hint' : undefined}>
                     Generate
                 </button>
                 <button className="control-button reset-action" onClick={onReset} disabled={!isLoaded || unavailable}>
                     Reset
                 </button>
             </div>
+            {editTool === 'walls' && <div className="wall-context">
+                <div className="wall-actions" role="group" aria-label="Wall tools">
+                    <button type="button" className="control-button" disabled={editingDisabled || !canUndoWalls} onClick={onUndoWalls}>Undo wall</button>
+                    <button type="button" className="control-button" disabled={editingDisabled || !wallCount} onClick={onClearWalls}>Clear walls</button>
+                    <button type="button" className="control-button" disabled={editingDisabled} aria-pressed={zoomWalls}
+                        onClick={onZoomWalls}>{zoomWalls ? 'Fit board' : 'Zoom in'}</button>
+                </div>
+                <p className="wall-help">{showingSolution ? 'Choose Edit to change walls.' : zoomWalls
+                    ? 'Swipe from a cell center to pan.'
+                    : 'Tap or drag a line to edit walls.'}
+                    {!showingSolution && <span className="wall-keyboard-tip"> Shift + arrow edits walls.</span>}
+                    {wallCount > 0 && <span id="wall-generation-hint"> Clear walls to generate.</span>}
+                </p>
+            </div>}
+            {wallCount > 0 && editTool !== 'walls' && <p id="wall-generation-hint" className="panel-notice">Clear walls to generate a puzzle.</p>}
+            <section className="board-options desktop-board-options" aria-label="Board options">
+                <h2 className="board-options-title">Board options</h2>
+                {boardSettings}
+            </section>
             <details className="board-options mobile-board-options">
                 <summary>Board options <ChevronDown aria-hidden="true" /></summary>
                 {boardSettings}
             </details>
             <div className="solver-about selectable-text">
-                <div className="editor-tools" role="group" aria-label="Editing tool">
-                    <button type="button" className="control-button" aria-pressed={editTool === 'dots'}
-                        disabled={editingDisabled} onClick={() => onEditToolChange('dots')}>Dots</button>
-                    <button type="button" className="control-button" aria-label="Walls" aria-pressed={editTool === 'walls'}
-                        disabled={editingDisabled} onClick={() => onEditToolChange('walls')}>
-                        Walls{wallCount > 0 ? ` (${wallCount})` : ''}
-                    </button>
-                </div>
-                {editTool === 'walls' && !showingSolution && <>
-                    <div className="wall-actions">
-                        <button type="button" className="control-button" disabled={editingDisabled || !canUndoWalls} onClick={onUndoWalls}>Undo wall</button>
-                        <button type="button" className="control-button" disabled={editingDisabled || !wallCount} onClick={onClearWalls}>Clear walls</button>
-                        <button type="button" className="control-button" disabled={editingDisabled} onClick={onZoomWalls}>{zoomWalls ? 'Fit board' : 'Zoom in'}</button>
-                    </div>
-                    <div className="wall-help">Tap or drag along a line to toggle walls. Shift + arrow edits a cell boundary. Zoom in for larger targets; swipe from a cell center to pan.</div>
-                </>}
-                {wallCount > 0 && <div className="wall-help">Walls use Heuristic BFS. Clear walls to generate a puzzle.</div>}
                 <p>
-                    Solve any Flow Free or Numberlink puzzle instantly.{' '}
-                    <span className="solver-methods">
-                        Powered by C/Wasm Heuristic BFS, SAT (Z3) &amp; A* search.{' '}
-                        <a href="https://www.kongesque.com/blog/flow-free-solver" target="_blank" rel="noreferrer"
-                            aria-label="Read more about this solver (opens in a new tab)">
-                            Read more
-                        </a>
-                    </span>
+                    <span className="solver-methods">Solved locally in your browser. </span>
+                    <a href="https://www.kongesque.com/blog/flow-free-solver" target="_blank" rel="noreferrer"
+                        aria-label="Read more about this solver (opens in a new tab)">
+                        Read more
+                    </a>
                 </p>
             </div>
         </div>

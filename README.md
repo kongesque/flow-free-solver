@@ -64,6 +64,13 @@ multiple solutions; the generator does not certify uniqueness or difficulty.
 Some large puzzles can exceed an independent solver's search budget. **Show
 solution** always reveals the solution retained during construction.
 
+The tool panel sits beside the board on desktop and below it on mobile. Size and
+Algorithm stay visible, followed by the Dots/Walls switch and puzzle actions.
+Solve becomes Edit in the same position. Wall tools appear in Walls mode, with
+short guidance for drawing or panning. Board options stay open on desktop and
+collapsed on mobile. The board keeps its size and position as tools change;
+on phones, the footer can scroll when browser bars leave less room.
+
 ---
 
 ## Board modes
