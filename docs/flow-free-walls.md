@@ -3,9 +3,11 @@
 Date: 2026-10-06. Research baseline: `77b146e`; implementation branch: `feat/flow-free-walls`.
 
 **Status: implemented for Standard square and rectangular boards.** Walls use
-the C/Wasm solver. The editor supports tap/drag, stroke undo, keyboard boundaries,
-mobile zoom and panning, and saved walls. Generation requires clearing walls.
-The research/design below is followed by the implementation verification record.
+the C/Wasm solver. The editor uses two neighboring cell taps, universal Undo, keyboard wall editing,
+zoom and panning, and saved walls. Generation requires clearing walls.
+The research/design below includes the original boundary-drag prototype and its
+verification record. The current editor supersedes that gesture, as documented
+in the [UI/UX implementation record](ui-ux-research.md#implementation-record--october-6-2026).
 A* and Z3 support for walls remains future work.
 
 ## 1. What a wall does

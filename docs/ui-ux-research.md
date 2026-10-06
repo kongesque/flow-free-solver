@@ -298,3 +298,37 @@ actions, and single options disclosure. Avoid adding permanent toolbars,
 multiple nested settings levels, gesture-only commands, decorative animation,
 or frequent confirmation prompts for reversible edits. Improvements should
 remove uncertainty at the moment it occurs.
+
+
+## Implementation record · October 6, 2026
+
+The approved changes are implemented on `feat/flow-free-walls`:
+
+- Dimension confirmation preserves all work and history on cancellation; choosing
+  existing dimensions is a no-op.
+- Guidance moved from the static header to the existing status area. It introduces
+  the first dot, matching dot, next pair, and tap-again removal. Endpoints include
+  pair numbers and accessible color names; the darker palette was adjusted for
+  contrast against the board and number text.
+- Unavailable modes are hidden and old placeholder saves normalize to Standard.
+  Fixed algorithms explain why they are selected.
+- Zoom supports dot and wall editing within a fixed outer frame; native touch and
+  mouse panning suppress edit clicks. Advanced controls remain in Board options.
+- Wall editing uses two adjacent cell taps, highlighting the first cell and its
+  neighbors. This supersedes boundary dragging after the user's feedback that
+  dragging a boundary was difficult. Tap the same pair to remove a wall. Keyboard
+  selection and Shift+Arrow remain available, with a direct Place dots exit.
+- Cancel stops solving/generation while preserving the puzzle and Undo history.
+  Errors identify incomplete colors, and solve timing lives in Board options.
+
+Browser regressions cover first/matching/next guidance, removal, wall selection,
+keyboard use, precision panning, resize cancellation, worker cancellation, legacy
+saves, and independently validated full-board solutions. The frequency ranking
+above remains a design hypothesis; these checks are not a usability study.
+
+Verification: `npm run check` passed with Node.js 24 and the pinned Emscripten
+4.0.23 compiler: 76 C/Wasm tests, 42 unit tests, TypeScript checks, the production
+build, and 97 browser tests (93 Chromium and 4 mobile WebKit). Focused development
+server checks also exercised the new guidance, wall selection, precision panning,
+and cancellation. Visual inspection covered portrait mobile, short landscape,
+desktop, and the 320px wall-selection layout.

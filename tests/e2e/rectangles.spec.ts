@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { assertSolution } from '../fixtures/assert-solution.mjs';
-import { openBoardOptions } from './board-options';
+import { openBoardOptions, resizeBoard } from './board-options';
 
 const colors = '.RBYGOCMmPAWgTbcp';
 
@@ -8,8 +8,8 @@ async function dimensions(page: Page, width: number, height: number) {
     if (!(await page.getByRole('combobox', { name: 'Grid Width' }).isVisible())) {
         await openBoardOptions(page);
     }
-    await page.getByRole('combobox', { name: 'Grid Width' }).selectOption(String(width));
-    await page.getByRole('combobox', { name: 'Grid Height' }).selectOption(String(height));
+    await resizeBoard(page, 'Grid Width', String(width));
+    await resizeBoard(page, 'Grid Height', String(height));
     await expect(page.getByRole('article', { name: 'Puzzle Grid Board' }).getByRole('button')).toHaveCount(width * height);
 }
 
@@ -109,7 +109,7 @@ test('rectangular dimensions and generated solution survive reload; square prese
     await page.getByRole('button', { name: 'Solve', exact: true }).click();
     await expect(page.getByRole('status')).toContainText('Solved');
     validate(input, await rows(page, 5, 8));
-    await page.getByRole('combobox', { name: 'Grid Size' }).selectOption('8');
+    await resizeBoard(page, 'Grid Size', '8');
     await expect(page.getByRole('combobox', { name: 'Grid Width' })).toHaveValue('8');
     await expect(page.getByRole('combobox', { name: 'Grid Height' })).toHaveValue('8');
     await expect(page.getByRole('combobox', { name: 'Solver Algorithm' })).toBeEnabled();
@@ -140,33 +140,38 @@ test('legacy square saves load with independent dimensions', async ({ page }) =>
     await openBoardOptions(page);
     await expect(page.getByRole('combobox', { name: 'Grid Width' })).toHaveValue('6');
     await expect(page.getByRole('combobox', { name: 'Grid Height' })).toHaveValue('6');
-    await expect(page.getByRole('combobox', { name: 'Game Mode' })).toHaveValue('standard');
+    await expect(page.getByRole('combobox', { name: 'Game Mode' })).toHaveCount(0);
     await expect(page.getByRole('combobox', { name: 'Solver Algorithm' })).toHaveValue('astar');
     await expect(page.getByRole('button', { name: 'Cell 5,0 Color 1', exact: true })).toBeVisible();
 });
 
-test('future mode placeholders block puzzle actions, persist, and return safely to Standard', async ({ page }) => {
-    let workers = 0;
-    page.on('worker', () => { workers++; });
-    await page.goto('./');
-    await openBoardOptions(page);
-    await dimensions(page, 5, 8);
-    await page.getByRole('button', { name: 'Cell 4,7 Empty', exact: true }).click();
-    for (const mode of ['bridges', 'hexes', 'warps']) {
-        await page.getByRole('combobox', { name: 'Game Mode' }).selectOption(mode);
-        await expect(page.getByRole('status')).toContainText('coming soon');
-        await expect(page.getByRole('button', { name: 'Solve', exact: true })).toBeDisabled();
-        await expect(page.getByRole('button', { name: 'Generate', exact: true })).toBeDisabled();
-        await expect(page.getByRole('button', { name: 'Cell 4,7 Color 1', exact: true })).toBeDisabled();
-    }
-    expect(workers).toBe(0);
-    await expect.poll(async () => (await savedState(page))?.mode).toBe('warps');
-    await page.reload();
-    await openBoardOptions(page);
-    await expect(page.getByRole('combobox', { name: 'Game Mode' })).toHaveValue('warps');
-    await expect(page.getByRole('status')).toContainText('coming soon');
-    await page.getByRole('combobox', { name: 'Game Mode' }).selectOption('standard');
-    await expect(page.getByRole('button', { name: 'Generate', exact: true })).toBeEnabled();
-    await expect(page.getByRole('button', { name: 'Cell 4,7 Color 1', exact: true })).toBeEnabled();
-    await expect(page.getByRole('combobox', { name: 'Grid Height' })).toHaveValue('8');
-});
+for (const mode of ['bridges', 'hexes', 'warps']) {
+    test(`legacy ${mode} saves reopen as playable Standard boards without losing work`, async ({ page }) => {
+        await page.goto('./');
+        await openBoardOptions(page);
+        await dimensions(page, 5, 8);
+        await page.getByRole('button', { name: 'Cell 4,7 Empty', exact: true }).click();
+        await expect.poll(async () => (await savedState(page))?.height).toBe(8);
+        await page.evaluate(async mode => {
+            const db = await new Promise<IDBDatabase>(resolve => {
+                const request = indexedDB.open('flow-solver-db');
+                request.onsuccess = () => resolve(request.result);
+            });
+            await new Promise<void>(resolve => {
+                const tx = db.transaction('puzzle-state', 'readwrite');
+                const store = tx.objectStore('puzzle-state');
+                const read = store.get('current');
+                read.onsuccess = () => store.put({ ...read.result, mode }, 'current');
+                tx.oncomplete = () => resolve();
+            });
+            db.close();
+        }, mode);
+        await page.reload();
+        await openBoardOptions(page);
+        await expect(page.getByRole('combobox', { name: 'Game Mode' })).toHaveCount(0);
+        await expect(page.getByRole('button', { name: 'Cell 4,7 Color 1', exact: true })).toBeEnabled();
+        await expect(page.getByRole('button', { name: 'Generate', exact: true })).toBeEnabled();
+        await expect(page.getByRole('combobox', { name: 'Grid Height' })).toHaveValue('8');
+        await expect.poll(async () => (await savedState(page))?.mode).toBe('standard');
+    });
+}

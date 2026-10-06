@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { assertSolution } from '../fixtures/assert-solution.mjs';
 import { wallCorridor, wallDetour } from '../fixtures/wall-puzzles.mjs';
-import { openBoardOptions, selectWallTool } from './board-options';
+import { openBoardOptions, selectWallTool, resizeBoard } from './board-options';
 
 const colors = '.RBYGOCMmPAWgTbcp';
 type Wall = { x: number; y: number; side: 'right' | 'down' };
@@ -57,8 +57,8 @@ for (const [width, height] of [[5, 5], [5, 8], [8, 5]]) {
         page.on('pageerror', error => errors.push(error.message));
         await page.goto('./');
         await openBoardOptions(page);
-        await page.getByRole('combobox', { name: 'Grid Width' }).selectOption(String(width));
-        await page.getByRole('combobox', { name: 'Grid Height' }).selectOption(String(height));
+        await resizeBoard(page, 'Grid Width', String(width));
+        await resizeBoard(page, 'Grid Height', String(height));
         await openBoardOptions(page);
         if (width === height) await page.getByRole('combobox', { name: 'Solver Algorithm' }).selectOption('astar');
         await place(page, fixture.input);
@@ -104,53 +104,46 @@ test('walls between adjacent endpoints force a multi-color detour', async ({ pag
     await validate(page, wallDetour.input, wallDetour.walls);
 });
 
-test('pointer strokes add/remove once per edge, with undo and center/outer-border protection', async ({ page }) => {
+test('two neighboring cell taps add/remove walls with universal Undo and keyboard editing', async ({ page }) => {
     await page.goto('./');
     await cell(page, 0, 0).click();
     await selectWallTool(page);
-    const bounds = (await grid(page).boundingBox())!;
-    const point = (x: number, y: number) => ({ x: bounds.x + bounds.width * x / 5, y: bounds.y + bounds.height * y / 5 });
-    const start = point(.5, 1), end = point(3.5, 1);
-    await page.mouse.move(start.x, start.y);
-    await page.mouse.down();
-    await page.mouse.move(end.x, end.y, { steps: 12 });
-    await page.mouse.move(start.x, start.y, { steps: 12 });
-    await page.mouse.up();
-    await expect(page.locator('[data-wall]')).toHaveCount(4);
-    for (let x = 0; x < 4; x++) await expect(page.locator(`[data-wall="${x},0,down"]`)).toHaveCSS('stroke-width', '5px');
+    await expect(page.getByRole('status')).toContainText('Pick a cell');
+    await cell(page, 0, 0).click();
+    await expect(cell(page, 0, 0)).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('.wall-choice')).toHaveCount(2);
+    await expect(page.getByRole('status')).toContainText('Pick a neighbor');
+    await cell(page, 1, 0).click();
+    await expect(page.locator('[data-wall="0,0,right"]')).toHaveCount(1);
     await expect(cell(page, 0, 0)).toHaveAttribute('aria-label', 'Cell 0,0 Color 1');
-    await cell(page, 2, 2).click();
-    const outside = point(0, 2.5);
-    await page.mouse.click(outside.x, outside.y);
-    await expect(page.locator('[data-wall]')).toHaveCount(4);
-    await expect(grid(page).getByRole('button', { name: /Color/ })).toHaveCount(1);
-    await page.getByRole('button', { name: 'Undo', exact: true }).click();
-    await expect(page.locator('[data-wall]')).toHaveCount(0);
-    // A removing stroke stays a removal even when revisiting its first edge.
-    await page.mouse.click(start.x, start.y);
-    await page.mouse.move(start.x, start.y);
-    await page.mouse.down();
-    await page.mouse.move(end.x, end.y, { steps: 12 });
-    await page.mouse.move(start.x, start.y, { steps: 12 });
-    await page.mouse.up();
+    await cell(page, 0, 0).click();
+    await cell(page, 1, 0).click();
     await expect(page.locator('[data-wall]')).toHaveCount(0);
     await page.getByRole('button', { name: 'Undo', exact: true }).click();
     await expect(page.locator('[data-wall]')).toHaveCount(1);
     await page.getByRole('button', { name: 'Clear walls', exact: true }).click();
-    await expect(page.locator('[data-wall]')).toHaveCount(0);
     await page.getByRole('button', { name: 'Undo', exact: true }).click();
     await expect(page.locator('[data-wall]')).toHaveCount(1);
+    await cell(page, 0, 0).click();
+    await cell(page, 4, 4).click();
+    await expect(cell(page, 4, 4)).toHaveAttribute('aria-pressed', 'true');
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.wall-origin')).toHaveCount(0);
     await cell(page, 0, 0).focus();
     await page.keyboard.press('Enter');
     await page.keyboard.press('Space');
+    await expect(page.locator('.wall-origin')).toHaveCount(0);
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Space');
+    await expect(page.locator('[data-wall="0,0,down"]')).toHaveCount(1);
+    await cell(page, 0, 0).focus();
     await page.keyboard.press('Shift+ArrowLeft');
-    await expect(cell(page, 0, 0)).toBeFocused();
-    await expect(cell(page, 0, 0)).toHaveAttribute('aria-label', 'Cell 0,0 Color 1');
-    await expect(page.locator('[data-wall]')).toHaveCount(1);
-    await page.getByRole('button', { name: 'Walls', exact: true }).click();
+    await expect(page.locator('[data-wall]')).toHaveCount(2);
+    await page.getByRole('button', { name: 'Place dots', exact: true }).click();
     await cell(page, 1, 0).click();
     await expect(cell(page, 1, 0)).toHaveAttribute('aria-label', 'Cell 1,0 Color 1');
-    await page.getByRole('combobox', { name: 'Grid Size' }).selectOption('6');
+    await resizeBoard(page, 'Grid Size', '6');
     await expect(page.locator('[data-wall]')).toHaveCount(0);
 });
 
@@ -191,13 +184,14 @@ for (const requested of ['astar', 'z3', 'malformed']) {
     });
 }
 
-test('cancelled pointer strokes leave walls and history unchanged', async ({ page }) => {
+test('dragging across cells leaves walls and history unchanged', async ({ page }) => {
     await page.goto('./');
     await selectWallTool(page);
     const bounds = (await grid(page).boundingBox())!;
     await page.mouse.move(bounds.x + bounds.width / 5, bounds.y + bounds.height / 10);
     await page.mouse.down();
-    await expect(page.locator('[data-wall]')).toHaveCount(1); // Local preview only.
+    await page.mouse.move(bounds.x + bounds.width * .8, bounds.y + bounds.height * .8, { steps: 12 });
+    await expect(page.locator('[data-wall]')).toHaveCount(0);
     await grid(page).dispatchEvent('pointercancel', { pointerId: 1 });
     await page.mouse.up();
     await expect(page.locator('[data-wall]')).toHaveCount(0);
@@ -266,15 +260,17 @@ test.describe('mobile wall editing', () => {
     test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
     test('touch toggles walls and zoom offers large targets without page overflow', async ({ page }) => {
         await page.goto('./');
-        await page.getByRole('combobox', { name: 'Grid Size' }).selectOption('15');
+        await resizeBoard(page, 'Grid Size', '15');
         await selectWallTool(page);
         await page.getByRole('button', { name: 'Zoom in', exact: true }).tap();
-        await grid(page).scrollIntoViewIfNeeded();
+        await page.locator('.board-viewport').scrollIntoViewIfNeeded();
         const bounds = (await grid(page).boundingBox())!;
         expect(bounds.width).toBeGreaterThanOrEqual(720);
-        await page.touchscreen.tap(bounds.x + 48, bounds.y + 24);
+        await page.touchscreen.tap(bounds.x + 24, bounds.y + 24);
+        await page.touchscreen.tap(bounds.x + 72, bounds.y + 24);
         await expect(page.locator('[data-wall="0,0,right"]')).toHaveCount(1);
-        await page.touchscreen.tap(bounds.x + 48, bounds.y + 24);
+        await page.touchscreen.tap(bounds.x + 24, bounds.y + 24);
+        await page.touchscreen.tap(bounds.x + 72, bounds.y + 24);
         await expect(page.locator('[data-wall]')).toHaveCount(0);
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
         // A native touch swipe starting at a cell center pans instead of drawing.
@@ -291,7 +287,8 @@ test.describe('mobile wall editing', () => {
         // Scroll within the viewport to expose the final column's boundary.
         await page.locator('.board-viewport').evaluate(element => { element.scrollLeft = element.scrollWidth; });
         const moved = (await grid(page).boundingBox())!;
-        await page.touchscreen.tap(moved.x + 14 * 48, moved.y + 24);
+        await page.touchscreen.tap(moved.x + 13.5 * 48, moved.y + 24);
+        await page.touchscreen.tap(moved.x + 14.5 * 48, moved.y + 24);
         await expect(page.locator('[data-wall="13,0,right"]')).toHaveCount(1);
         await page.getByRole('button', { name: 'Fit board', exact: true }).tap();
         expect((await grid(page).boundingBox())!.width).toBeLessThanOrEqual(390);

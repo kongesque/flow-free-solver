@@ -1,4 +1,4 @@
-import { openBoardOptions } from './board-options';
+import { openBoardOptions, resizeBoard } from './board-options';
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { assertSolution } from '../fixtures/assert-solution.mjs';
@@ -92,10 +92,10 @@ test('reset cancels an active Wasm solve and allows a fresh puzzle', async ({ pa
 test('shows validation feedback and preserves endpoints after reload', async ({ page }) => {
   await page.goto('./');
   await page.getByRole('button', { name: 'Solve', exact: true }).click();
-  await expect(page.getByRole('status')).toContainText('Please place some endpoints');
+  await expect(page.getByRole('status')).toContainText('Place a pair to solve.');
   await page.getByRole('button', { name: 'Cell 0,0 Empty', exact: true }).click();
   await page.getByRole('button', { name: 'Solve', exact: true }).click();
-  await expect(page.getByRole('status')).toContainText('missing an endpoint');
+  await expect(page.getByRole('status')).toContainText('needs a matching dot');
   await expect.poll(() => page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>(resolve => {
       const request = indexedDB.open('flow-solver-db');
@@ -110,6 +110,6 @@ test('shows validation feedback and preserves endpoints after reload', async ({ 
   })).toBe(1);
   await page.reload();
   await expect(page.getByRole('button', { name: 'Cell 0,0 Color 1', exact: true })).toBeVisible();
-  await page.getByRole('combobox', { name: 'Grid Size' }).selectOption('15');
+  await resizeBoard(page, 'Grid Size', '15');
   await expect(page.getByRole('button', { name: /Cell .* Empty/ })).toHaveCount(225);
 });

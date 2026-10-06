@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { openBoardOptions, selectWallTool } from './board-options';
+import { openBoardOptions, selectWallTool, resizeBoard } from './board-options';
 
 const undo = (page: Page) => page.getByRole('button', { name: 'Undo', exact: true });
 const cell = (page: Page, x: number, y: number) => page.getByRole('button', { name: new RegExp(`^Cell ${x},${y} `) });
@@ -48,8 +48,8 @@ for (const width of [390, 1280]) {
         await page.keyboard.press('Meta+z'); // Second red endpoint.
         await expect(cell(page, 4, 0)).toHaveAttribute('aria-label', 'Cell 4,0 Empty');
         await openBoardOptions(page);
-        await page.getByRole('button', { name: 'Walls', exact: true }).click();
-        await expect(page.getByRole('status')).toContainText('End');
+        await page.getByRole('button', { name: 'Draw walls', exact: true }).click();
+        await expect(page.getByRole('status')).toContainText('Place matching dot');
         await cell(page, 4, 1).click(); // The restored pending color is red.
         await expect(cell(page, 4, 1)).toHaveAttribute('aria-label', 'Cell 4,1 Color 1');
         await undo(page).click();
@@ -86,7 +86,7 @@ test('Undo restores removed endpoints and leaves form shortcuts alone; Reset and
     await expect(undo(page)).toBeDisabled();
     await cell(page, 1, 1).click();
     await expect(undo(page)).toBeEnabled();
-    await page.getByRole('combobox', { name: 'Grid Size' }).selectOption('6');
+    await resizeBoard(page, 'Grid Size', '6');
     await expect(undo(page)).toBeDisabled();
     await expect(page.getByRole('button', { name: /Cell .* Empty$/ })).toHaveCount(36);
 });
