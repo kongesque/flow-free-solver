@@ -11,6 +11,8 @@ interface StatusIndicatorProps {
     solveTime: number | null;
     activeColor: number;
     isPlacingSecond: boolean;
+    editingWalls: boolean;
+    wallCount: number;
 }
 
 const StatusIndicator = ({
@@ -23,6 +25,8 @@ const StatusIndicator = ({
     solveTime,
     activeColor,
     isPlacingSecond,
+    editingWalls,
+    wallCount,
 }: StatusIndicatorProps) => (
     <div role="status" className="solver-status selectable-text" aria-live="polite" aria-atomic="true">
         {unavailableMode ? (
@@ -50,6 +54,8 @@ const StatusIndicator = ({
                     </span>
                 )}
             </span>
+        ) : editingWalls ? (
+            <span className="text-stoic-primary text-xs">Walls · {wallCount} · Tap a boundary</span>
         ) : generatedPairCount !== null ? (
             <span className="text-stoic-accent text-xs">
                 Generated · {generatedPairCount} pairs

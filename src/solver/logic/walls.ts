@@ -41,7 +41,7 @@ export function wallAtPoint(gx: number, gy: number, width: number, height: numbe
     const vertical = vx > 0 && vx < width && Math.abs(gx - vx) <= .22;
     const horizontal = hy > 0 && hy < height && Math.abs(gy - hy) <= .22;
     const dx = Math.abs(gx - vx), dy = Math.abs(gy - hy);
-    if (vertical && (!horizontal || dx < dy || (dx === dy && preferred !== 'down'))) {
+    if (vertical && (!horizontal || dx < dy - 1e-6 || (Math.abs(dx - dy) <= 1e-6 && preferred !== 'down'))) {
         return { x: vx - 1, y: Math.floor(gy), side: 'right' };
     }
     return horizontal ? { x: Math.floor(gx), y: hy - 1, side: 'down' } : null;

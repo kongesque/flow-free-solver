@@ -8,6 +8,7 @@ import StatusIndicator from './StatusIndicator';
 import SolverControls from './SolverControls';
 import { GAME_MODES, type GameMode } from '../logic/game-modes';
 import type { GeneratedPuzzle } from '../logic/puzzle-generator';
+import { normalizeWalls, type Wall, type EditTool } from '../logic/walls';
 
 const initializeBoard = (width: number, height = width) =>
     Array(width).fill(null).map(() => Array(height).fill(0));
@@ -20,8 +21,12 @@ const FlowSolver = () => {
     const [width, setWidth] = useState(DEFAULT_SIZE);
     const [height, setHeight] = useState(DEFAULT_SIZE);
     const [mode, setMode] = useState<GameMode>('standard');
+    const [walls, setWalls] = useState<Wall[]>([]);
+    const [wallHistory, setWallHistory] = useState<Wall[][]>([]);
+    const [editTool, setEditTool] = useState<EditTool>('dots');
+    const [zoomWalls, setZoomWalls] = useState(false);
     const isStandard = mode === 'standard';
-    const wasmOnly = width !== height || !isStandard;
+    const wasmOnly = width !== height || !isStandard || walls.length > 0;
     const [board, setBoard] = useState<number[][]>(() => initializeBoard(DEFAULT_SIZE));
     const [solvedBoard, setSolvedBoard] = useState<number[][] | null>(null);
     const [generatedSolution, setGeneratedSolution] = useState<number[][] | null>(null);
@@ -40,6 +45,7 @@ const FlowSolver = () => {
 
     // IndexedDB: Track if initial load is complete
     const [isLoaded, setIsLoaded] = useState(false);
+    const [invalidSavedWalls, setInvalidSavedWalls] = useState(false);
     const saveTimeoutRef = useRef<number | null>(null);
     const workerRef = useRef<Worker | null>(null);
 
@@ -49,14 +55,25 @@ const FlowSolver = () => {
             if (saved) {
                 const savedWidth = saved.width ?? saved.size ?? DEFAULT_SIZE;
                 const savedHeight = saved.height ?? saved.size ?? DEFAULT_SIZE;
+                let savedWalls: Wall[];
+                try {
+                    savedWalls = normalizeWalls(saved.walls, savedWidth, savedHeight);
+                } catch {
+                    // Keep the fresh board rather than silently solving a save without its walls.
+                    setError('Saved walls are invalid. Reset the board to start again.');
+                    setInvalidSavedWalls(true);
+                    setIsLoaded(true);
+                    return;
+                }
                 setWidth(savedWidth);
                 setHeight(savedHeight);
                 setMode(saved.mode ?? 'standard');
                 setBoard(saved.board);
-                setSolverType(savedWidth !== savedHeight || (saved.mode && saved.mode !== 'standard') ? 'heuristic_bfs' : saved.solverType);
+                setWalls(savedWalls);
+                setSolverType(savedWalls.length || savedWidth !== savedHeight || (saved.mode && saved.mode !== 'standard') ? 'heuristic_bfs' : saved.solverType);
                 setActiveColor(saved.activeColor);
                 setIsPlacingSecond(saved.isPlacingSecond);
-                setGeneratedSolution(saved.generatedSolution ?? null);
+                setGeneratedSolution(savedWalls.length ? null : saved.generatedSolution ?? null);
             }
             setIsLoaded(true);
         });
@@ -64,18 +81,18 @@ const FlowSolver = () => {
 
     // Auto-save state on changes (debounced 500ms)
     useEffect(() => {
-        if (!isLoaded) return;
+        if (!isLoaded || invalidSavedWalls) return;
 
         if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
 
         saveTimeoutRef.current = window.setTimeout(() => {
-            savePuzzleState({ width, height, mode, board, solverType, activeColor, isPlacingSecond, generatedSolution });
+            savePuzzleState({ width, height, mode, board, walls, solverType, activeColor, isPlacingSecond, generatedSolution });
         }, 500);
 
         return () => {
             if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
         };
-    }, [width, height, mode, board, solverType, activeColor, isPlacingSecond, generatedSolution, isLoaded]);
+    }, [width, height, mode, board, walls, solverType, activeColor, isPlacingSecond, generatedSolution, isLoaded, invalidSavedWalls]);
 
     // Cleanup worker on unmount
     useEffect(() => {
@@ -94,6 +111,10 @@ const FlowSolver = () => {
         // Prevent hover preview flash by setting isResetting before state changes
         setIsResetting(true);
         setBoard(initializeBoard(newWidth, newHeight));
+        setWalls([]);
+        setWallHistory([]);
+        setZoomWalls(false);
+        setInvalidSavedWalls(false);
         setSolvedBoard(null);
         setGeneratedSolution(null);
         setActiveColor(1);
@@ -139,7 +160,7 @@ const FlowSolver = () => {
     // 3. Predictable: Same action = same result
     // 4. Forgiving: Easy to undo mistakes
     const handleCellClick = useCallback((x: number, y: number) => {
-        if (solvedBoard || isSolving || isGenerating || !isLoaded || !isStandard) return;
+        if (invalidSavedWalls || editTool !== 'dots' || solvedBoard || isSolving || isGenerating || !isLoaded || !isStandard) return;
 
         const cellValue = board[x][y];
         const newBoard = board.map(row => [...row]);
@@ -194,10 +215,28 @@ const FlowSolver = () => {
         setGeneratedSolution(null);
         setError(null);
         setSolveTime(null);
-    }, [board, solvedBoard, isSolving, isGenerating, isLoaded, isStandard, activeColor]);
+    }, [board, solvedBoard, isSolving, isGenerating, isLoaded, isStandard, activeColor, editTool, invalidSavedWalls]);
+
+    const applyWalls = (next: Wall[], remember = true) => {
+        if (invalidSavedWalls || solvedBoard || isSolving || isGenerating || !isLoaded || !isStandard) return;
+        if (remember) setWallHistory(history => [...history.slice(-49), walls]);
+        setWalls(normalizeWalls(next, width, height));
+        setGeneratedSolution(null);
+        setSolvedBoard(null);
+        setSolveTime(null);
+        setError(null);
+        if (next.length) setSolverType('heuristic_bfs');
+    };
+
+    const undoWalls = () => {
+        const previous = wallHistory.at(-1);
+        if (!previous) return;
+        applyWalls(previous, false);
+        setWallHistory(history => history.slice(0, -1));
+    };
 
     const generateBoard = () => {
-        if (isSolving || isGenerating || !isLoaded || !isStandard) return;
+        if (invalidSavedWalls || walls.length || isSolving || isGenerating || !isLoaded || !isStandard) return;
         if (!generatedSolution && board.some(column => column.some(color => color !== 0)) &&
             !window.confirm('Replace your endpoints with a generated puzzle?')) return;
         setError(null);
@@ -231,11 +270,11 @@ const FlowSolver = () => {
             setIsGenerating(false);
             setError('Could not generate puzzle. Please try again.');
         };
-        worker.postMessage({ width, height, mode, seed: crypto.getRandomValues(new Uint32Array(1))[0] });
+        worker.postMessage({ width, height, mode, walls, seed: crypto.getRandomValues(new Uint32Array(1))[0] });
     };
 
     const solveBoard = async () => {
-        if (isSolving || isGenerating || !isLoaded || !isStandard) return;
+        if (invalidSavedWalls || isSolving || isGenerating || !isLoaded || !isStandard) return;
         setError(null);
 
         // ── Validation ──────────────────────────────────────────────────────────
@@ -266,7 +305,7 @@ const FlowSolver = () => {
         workerRef.current = worker;
 
         const startTime = performance.now();
-        worker.postMessage({ board, type: solverType, mode });
+        worker.postMessage({ board, type: solverType, mode, walls });
 
         worker.onmessage = (event) => {
             if (workerRef.current !== worker) return;
@@ -278,7 +317,7 @@ const FlowSolver = () => {
             if (result.board) {
                 setSolveTime(performance.now() - startTime);
                 setSolvedBoard(result.board);
-            } else if (generatedSolution && (result.timedOut || /result code 2/.test(result.error ?? ''))) {
+            } else if (!walls.length && generatedSolution && (result.timedOut || /result code 2/.test(result.error ?? ''))) {
                 // Generated puzzles already have a valid solution if search reaches its budget.
                 setSolvedBoard(generatedSolution);
                 setSolveTime(null);
@@ -287,7 +326,7 @@ const FlowSolver = () => {
             } else if (result.error) {
                 setError('Solver error: ' + result.error);
             } else {
-                setError(solverType === 'heuristic_bfs' && width === 15 && height === 15 ? 'No solution. Try Z3.' : 'No solution found');
+                setError(!walls.length && solverType === 'heuristic_bfs' && width === 15 && height === 15 ? 'No solution. Try Z3.' : 'No solution found');
             }
         };
 
@@ -320,20 +359,28 @@ const FlowSolver = () => {
                     solveTime={solveTime}
                     activeColor={activeColor}
                     isPlacingSecond={isPlacingSecond}
+                    editingWalls={editTool === 'walls'}
+                    wallCount={walls.length}
                 />
-                <section className="board-area" aria-label="Puzzle editor">
-                    <PuzzleGrid
-                        width={width}
-                        height={height}
-                        activeColor={activeColor}
-                        currentBoard={currentBoard}
-                        solvedBoard={solvedBoard}
-                        isSolving={isSolving || isGenerating || !isLoaded || !isStandard}
-                        isResetting={isResetting}
-                        onCellClick={handleCellClick}
-                    />
-                    <p className="sr-only" id="board-keyboard-help">Use arrow keys to move between cells. Press Enter or Space to place or remove a dot.</p>
-                    <p id="board-instructions" className="sr-only">Tap an empty cell to place a dot. Tap a dot to remove it.</p>
+                <section className={`board-area ${editTool === 'walls' && zoomWalls && !solvedBoard ? 'wall-zoom' : ''}`} aria-label="Puzzle editor">
+                    <div className="board-viewport">
+                        <PuzzleGrid
+                            width={width}
+                            height={height}
+                            activeColor={activeColor}
+                            currentBoard={currentBoard}
+                            solvedBoard={solvedBoard}
+                            isSolving={invalidSavedWalls || isSolving || isGenerating || !isLoaded || !isStandard}
+                            isResetting={isResetting}
+                            onCellClick={handleCellClick}
+                            walls={walls}
+                            editTool={editTool}
+                            zoomed={editTool === 'walls' && zoomWalls && !solvedBoard}
+                            onWallsChange={applyWalls}
+                        />
+                    </div>
+                    <p className="sr-only" id="board-keyboard-help">Use arrow keys to move between cells. {editTool === 'walls' ? 'Press Shift and an arrow key to add or remove a wall on that side.' : 'Press Enter or Space to place or remove a dot.'}</p>
+                    <p id="board-instructions" className="sr-only">{editTool === 'walls' ? 'Tap or drag along lines between cells to add or remove walls. Cell centers and outer borders do not change.' : 'Tap an empty cell to place a dot. Tap a dot to remove it.'}</p>
                 </section>
                 <section aria-label="Game Controls" className="game-controls">
                     <SolverControls
@@ -344,6 +391,7 @@ const FlowSolver = () => {
                         isSolving={isSolving}
                         isGenerating={isGenerating}
                         isLoaded={isLoaded}
+                        invalidSavedWalls={invalidSavedWalls}
                         showingSolution={solvedBoard !== null}
                         mode={mode}
                         onModeChange={handleModeChange}
@@ -354,6 +402,14 @@ const FlowSolver = () => {
                         onSolve={solveBoard}
                         onReset={() => resetBoard()}
                         onGenerate={generateBoard}
+                        wallCount={walls.length}
+                        editTool={editTool}
+                        onEditToolChange={setEditTool}
+                        canUndoWalls={wallHistory.length > 0}
+                        onUndoWalls={undoWalls}
+                        onClearWalls={() => applyWalls([])}
+                        zoomWalls={zoomWalls}
+                        onZoomWalls={() => setZoomWalls(value => !value)}
                     />
                 </section>
             </div>

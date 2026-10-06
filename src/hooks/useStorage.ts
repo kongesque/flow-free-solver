@@ -1,4 +1,5 @@
 import type { GameMode } from '../solver/logic/game-modes';
+import type { Wall } from '../solver/logic/walls';
 
 /**
  * IndexedDB Storage Hook for Flow Free Solver
@@ -16,6 +17,7 @@ export interface PuzzleState {
     width?: number;
     height?: number;
     mode?: GameMode;
+    walls?: Wall[];
     board: number[][];
     solverType: 'astar' | 'z3' | 'heuristic_bfs';
     activeColor: number;
