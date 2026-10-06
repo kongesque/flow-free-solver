@@ -139,8 +139,8 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
   margin-inline: auto;
 }
 .wall-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3; }
-.puzzle-wall { stroke: #eee9d8; stroke-width: 5px; stroke-linecap: square; }
-.wall-preview { stroke: var(--color-stoic-accent); stroke-width: 7px; opacity: .7; stroke-dasharray: 4 3; }
+.puzzle-wall { stroke: #eee9d8; stroke-width: 5px; stroke-linecap: round; }
+.wall-preview { stroke: var(--color-stoic-accent); stroke-width: 7px; stroke-linecap: round; opacity: .7; stroke-dasharray: 4 3; }
 .wall-target { position: absolute; z-index: 2; touch-action: none; cursor: crosshair; }
 .editing-walls button { touch-action: pan-x pan-y; }
 .editor-tools { display: flex; gap: 4px; margin-bottom: 8px; }
