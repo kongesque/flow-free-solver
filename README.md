@@ -74,6 +74,10 @@ disabled in these modes; switching back to Standard preserves the current puzzle
 Mode, dimensions, endpoints, and the generated solution are saved locally. Legacy
 square saves with a single size continue to load.
 
+Walls are not implemented yet. See the [wall research and implementation plan](docs/flow-free-walls.md)
+for boundary-blocking rules, the proposed editor workflow, solver changes, and
+the tests required to confirm support.
+
 Rectangular and future variant solving use the C/Wasm backend only. The generator
 remains TypeScript in a dedicated worker; it constructs solutions without search.
 Worker requests carry the mode and reject unavailable variants, so future bridge,
