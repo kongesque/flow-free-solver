@@ -133,12 +133,11 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
   gap: 1px;
   padding: 1px;
   background: var(--color-stoic-line);
-  border-radius: 6px;
+  border-radius: 3px;
   overflow: hidden;
   width: var(--grid-width);
   margin-inline: auto;
 }
-.puzzle-grid::after { content: ''; position: absolute; inset: 0; border: 5px solid #747a77; border-radius: inherit; pointer-events: none; z-index: 4; }
 .wall-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3; }
 .puzzle-wall { stroke: #eee9d8; stroke-width: 5px; stroke-linecap: round; }
 .wall-preview { stroke: var(--color-stoic-accent); stroke-width: 7px; stroke-linecap: round; opacity: .7; stroke-dasharray: 4 3; }
