@@ -142,6 +142,7 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
 .puzzle-wall, .bridge-rail, .warp-marker { stroke: var(--color-topology-rail); stroke-width: .04; stroke-linecap: butt; fill: none; }
 .puzzle-wall, .warp-marker { stroke-width: .055; }
 .wall-preview { stroke: var(--color-stoic-accent); stroke-width: .055; stroke-linecap: butt; opacity: .7; }
+.puzzle-wall, .wall-preview { stroke-linecap: round; }
 .wall-target { position: absolute; z-index: 2; touch-action: none; cursor: crosshair; }
 .editing-walls button { touch-action: pan-x pan-y; }
 .wall-count { font-size: 10px; color: var(--color-stoic-secondary); }

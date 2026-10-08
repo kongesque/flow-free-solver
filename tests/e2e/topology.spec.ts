@@ -61,6 +61,9 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
         await page.getByRole('button', { name: 'Walls', exact: true }).click();
         await cell(page, 1, 1).focus();
         await page.keyboard.press('Shift+ArrowRight');
+        // Include a joined corner in the visual check, not just an isolated segment.
+        await cell(page, 1, 0).focus();
+        await page.keyboard.press('Shift+ArrowDown');
         const markerStyle = (selector: string) => page.locator(selector).first().evaluate(element => {
             const style = getComputedStyle(element);
             return { stroke: style.stroke, width: style.strokeWidth, dash: style.strokeDasharray };
