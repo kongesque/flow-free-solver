@@ -305,14 +305,12 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
 .warp-marker { stroke-dasharray: .1 .08; }
 .warp-marker.paired { stroke: var(--color-stoic-accent); }
 .editor-toolbar { display: flex; align-items: center; gap: 6px; }
-.edit-tools { display: flex; flex: 1; min-width: 0; gap: 4px; }
-.edit-tools button { position: relative; min-width: 44px; gap: 7px; border: 1px solid var(--color-stoic-block-border); border-radius: 6px; background: var(--color-stoic-block-bg); padding-inline: 10px; color: var(--color-stoic-secondary); transition: color .15s, background-color .15s, border-color .15s; }
-.edit-tools .tool-glyph { width: 12px; height: 12px; opacity: .75; }
-.edit-tools button[aria-pressed="true"] .tool-glyph { opacity: 1; }
-.edit-tools button::after { content: ''; position: absolute; left: 10px; right: 10px; bottom: 3px; height: 2px; border-radius: 1px; background: transparent; }
-.edit-tools button:hover:not(:disabled) { background: var(--color-stoic-block-hover); border-color: var(--color-topology-rail); color: var(--color-stoic-primary); }
-.edit-tools button[aria-pressed="true"], .edit-tools button[aria-pressed="true"]:hover:not(:disabled) { background: rgb(43 158 168 / .1); border-color: var(--color-stoic-accent); color: var(--color-stoic-primary); }
-.edit-tools button[aria-pressed="true"]::after { background: var(--color-stoic-accent); }
+/* A single tool tray keeps the editor choices distinct from puzzle actions. */
+.edit-tools { display: flex; flex: 1; min-width: 0; gap: 3px; padding: 3px; border: 1px solid var(--color-stoic-block-border); border-radius: 8px; background: var(--color-stoic-block-bg); }
+.edit-tools button { flex: 1; min-width: 0; min-height: 44px; gap: 7px; border: 1px solid transparent; border-radius: 5px; background: transparent; padding-inline: 8px; color: var(--color-stoic-secondary); transition: color .15s, background-color .15s, border-color .15s; }
+.edit-tools .tool-glyph { width: 14px; height: 14px; flex-shrink: 0; }
+.edit-tools button:hover:not(:disabled) { background: var(--color-stoic-block-hover); color: var(--color-stoic-primary); }
+.edit-tools button[aria-pressed="true"], .edit-tools button[aria-pressed="true"]:hover:not(:disabled) { background: rgb(43 158 168 / .14); border-color: rgb(43 158 168 / .3); color: var(--color-stoic-primary); }
 .working-label { display: inline-flex; }
 .working-dots { display: inline-flex; width: 3ch; }
 .working-dots span { width: 1ch; animation: working-dot 1.2s ease-in-out infinite; }
