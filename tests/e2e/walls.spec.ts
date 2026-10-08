@@ -73,7 +73,7 @@ for (const [width, height] of [[5, 5], [5, 8], [8, 5]]) {
         await validate(page, fixture.input, fixture.walls);
         // SVG line geometry has zero height/width; check the visible overlay and painted stroke.
         await expect(page.locator('.wall-overlay')).toBeVisible();
-        await expect(page.locator('[data-wall]').first()).toHaveCSS('stroke', 'rgb(238, 233, 216)');
+        await expect(page.locator('[data-wall]').first()).toHaveCSS('stroke', 'rgb(186, 196, 190)');
         if (width === 5 && height === 5) await page.screenshot({ path: test.info().outputPath('walls-solved.png') });
         await expect(cell(page, 0, 0)).toBeDisabled();
         await page.getByRole('button', { name: 'Edit', exact: true }).click();
@@ -116,7 +116,7 @@ test('pointer strokes add/remove once per edge, with undo and center/outer-borde
     await page.mouse.move(start.x, start.y, { steps: 12 });
     await page.mouse.up();
     await expect(page.locator('[data-wall]')).toHaveCount(4);
-    for (let x = 0; x < 4; x++) await expect(page.locator(`[data-wall="${x},0,down"]`)).toHaveCSS('stroke-width', '5px');
+    for (let x = 0; x < 4; x++) await expect(page.locator(`[data-wall="${x},0,down"]`)).toHaveCSS('stroke-width', '0.04px');
     await expect(cell(page, 0, 0)).toHaveAttribute('aria-label', 'Cell 0,0 Color 1');
     await cell(page, 2, 2).click();
     const outside = point(0, 2.5);

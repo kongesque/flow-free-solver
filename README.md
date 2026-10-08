@@ -104,11 +104,13 @@ solved paths show edge stubs rather than a line across the board.
 
 In **Bridges**, choose **Bridges** and tap an empty interior cell to add or remove
 a crossing. Its horizontal and vertical lanes remain straight, use different
-colors, and both must be filled. A horizontal arch marks the overpass; the
+colors, and both must be filled. Two continuous horizontal rails mark the overpass; the
 vertical route passes underneath it. Orientation is fixed, so no selector or
 rotation control is needed. **Clear bridges** in Board options is undoable.
 Bridges cannot replace dots or touch a wall that blocks any of their four ports.
-Solved crossings retain the arch and a small gap separating the pipes.
+Solved crossings retain both rails and a raised deck separating the pipes.
+Walls and warp openings use the same thin, neutral rails; warp openings have
+curved brackets at both connected borders and highlight together on focus.
 
 Variant solving uses the C/Wasm engine. **Generate** remains available only for
 Standard without walls. **Cancel** stops active work while preserving the puzzle.

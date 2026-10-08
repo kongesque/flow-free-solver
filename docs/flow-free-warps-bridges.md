@@ -472,10 +472,14 @@ The release makes these concrete UI choices:
   instead of filled toggle blocks. Generate is omitted for variants; fixed
   C/Wasm solver choices and editing-only controls are omitted where inapplicable.
   Short landscape layouts preserve touch target size.
-- Bridges use a slim horizontal arch with straight side stubs while editing.
-  Solved crossings curve the upper pipe over the lower route, with a small gap
-  separating them. Straight upper-lane SVG segments stop at the cell boundary
-  so they do not draw through the arch.
+- Bridges use two continuous horizontal rails with arched centers and straight
+  side stubs. Editing and solved crossings share the same shape. The upper pipe
+  fills the raised deck between the rails, which masks the lower route at the
+  crossing. Straight upper-lane SVG segments stop at the cell boundary so they
+  do not draw through the arch.
+- Walls and warp openings share the bridge rail color and weight. Warp openings
+  use curved brackets at matching borders, with transparent editing targets and
+  paired focus highlights. Closed seams have subtle solid border ticks.
 - Solution rendering uses explicit SVG path steps, split warp stubs, and an
   outlined gap at crossings. Only the original endpoint cells retain dots.
 - Saves use schema version 2 and keep flat active-draft fields for existing

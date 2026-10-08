@@ -2,6 +2,13 @@ import type { PuzzleSolution } from '../logic/solution';
 import type { Bridge, PathNode } from '../logic/topology';
 import { COLORS } from './constants';
 
+// Both rails share a smooth, continuous arch; the ribbon between them hides
+// the lower route only where it passes under the raised horizontal deck.
+const bridgeRail = (offset: number) =>
+    `M-.5,${offset} H-.25 C-.15,${offset} -.15,${offset - .2} 0,${offset - .2} C.15,${offset - .2} .15,${offset} .25,${offset} H.5`;
+const bridgeRibbon = (halfWidth: number) =>
+    `${bridgeRail(-halfWidth)} V${halfWidth} H.25 C.15,${halfWidth} .15,${halfWidth - .2} 0,${halfWidth - .2} C-.15,${halfWidth - .2} -.15,${halfWidth} -.25,${halfWidth} H-.5 Z`;
+
 export default function PipeOverlay({ width, height, solution, bridges }: {
     width: number; height: number; solution: PuzzleSolution | null; bridges: Bridge[];
 }) {
@@ -26,11 +33,9 @@ export default function PipeOverlay({ width, height, solution, bridges }: {
             const color = colors.get(`${x},${y},horizontal`);
             return <g key={`${x},${y}`} data-bridge={`${x},${y}`}
                 transform={`translate(${x + .5} ${y + .5})`}>
-                {color ? <>
-                    <path d="M-.27,0 Q0,-.5 .27,0" stroke="#1C1F1E" strokeWidth=".4" fill="none" strokeLinecap="round" />
-                    <path d="M-.5,0 H-.27 M-.27,0 Q0,-.5 .27,0 M.27,0 H.5" stroke={color} strokeWidth=".28" fill="none" strokeLinecap="round" />
-                </> : <path d="M-.5,0 H-.24 M-.18,-.02 Q0,-.34 .18,-.02 M.24,0 H.5"
-                    stroke="#bac4be" strokeWidth=".09" fill="none" strokeLinecap="butt" />}
+                <path className="bridge-deck" d={bridgeRibbon(.18)} fill="var(--color-stoic-block-bg)" />
+                {color && <path className="bridge-flow" d={bridgeRibbon(.14)} fill={color} />}
+                {[-.18, .18].map(offset => <path key={offset} className="bridge-rail" d={bridgeRail(offset)} />)}
             </g>;
         })}
     </svg>;

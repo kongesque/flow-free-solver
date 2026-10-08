@@ -47,6 +47,45 @@ async function state(page: Page) {
 }
 
 for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 }]) {
+    test(`wall and warp markers match bridge rails at ${viewport.width}px`, async ({ page }) => {
+        await page.setViewportSize(viewport);
+        await page.goto('./');
+        await page.getByRole('combobox', { name: 'Game Mode' }).selectOption('bridges');
+        await page.getByRole('button', { name: 'Bridges', exact: true }).click();
+        await cell(page, 2, 2).click();
+        const railStyle = await page.locator('.bridge-rail').first().evaluate(element => {
+            const style = getComputedStyle(element);
+            return { stroke: style.stroke, width: style.strokeWidth, dash: style.strokeDasharray };
+        });
+        await page.getByRole('button', { name: 'Walls', exact: true }).click();
+        await cell(page, 1, 1).focus();
+        await page.keyboard.press('Shift+ArrowRight');
+        const markerStyle = (selector: string) => page.locator(selector).first().evaluate(element => {
+            const style = getComputedStyle(element);
+            return { stroke: style.stroke, width: style.strokeWidth, dash: style.strokeDasharray };
+        });
+        expect(await markerStyle('.puzzle-wall')).toEqual(railStyle);
+        await page.getByRole('button', { name: 'Dots', exact: true }).click();
+        await page.screenshot({ path: test.info().outputPath('bridge-walls.png'), fullPage: true });
+        await page.getByRole('combobox', { name: 'Game Mode' }).selectOption('warps');
+        await page.getByRole('button', { name: 'Walls', exact: true }).click();
+        await cell(page, 1, 1).focus();
+        await page.keyboard.press('Shift+ArrowRight');
+        await page.getByRole('button', { name: 'Warps', exact: true }).click();
+        const left = page.getByRole('button', { name: 'Row 3 warp, left', exact: true });
+        const right = page.getByRole('button', { name: 'Row 3 warp, right', exact: true });
+        await left.click();
+        await expect(right).toHaveAttribute('aria-pressed', 'true');
+        await page.getByRole('button', { name: 'Column 3 warp, top', exact: true }).click();
+        await left.focus();
+        await expect(page.locator('[data-warp="horizontal-2"].paired')).toHaveCount(2);
+        await page.getByRole('button', { name: 'Dots', exact: true }).click();
+        await expect(page.locator('.warp-marker')).toHaveCount(4);
+        expect(await markerStyle('.warp-marker')).toEqual(railStyle);
+        expect(await markerStyle('.puzzle-wall')).toEqual(railStyle);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await page.screenshot({ path: test.info().outputPath('warp-walls.png'), fullPage: true });
+    });
     test(`horizontal bridge arches preserve both lane routes and board position at ${viewport.width}px`, async ({ page }) => {
         await page.setViewportSize(viewport);
         await page.goto('./');
@@ -57,9 +96,38 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
         await page.locator('.board-options summary').click();
         const grid = page.getByRole('article', { name: 'Puzzle Grid Board' });
         const initialBounds = await grid.boundingBox();
+        const bridge = page.locator('[data-bridge="2,2"]');
+        const rails = bridge.locator('.bridge-rail');
+        await expect(rails).toHaveCount(2);
+        const railShapes = await rails.evaluateAll(elements => elements.map(element => {
+            const path = element as SVGPathElement;
+            const length = path.getTotalLength();
+            const start = path.getPointAtLength(0);
+            const middle = path.getPointAtLength(length / 2);
+            const end = path.getPointAtLength(length);
+            return { d: path.getAttribute('d')!, start: [start.x, start.y], middle: [middle.x, middle.y], end: [end.x, end.y] };
+        }));
+        for (const rail of railShapes) {
+            // Each rail connects both cell edges through one raised arch,
+            // without the disconnected subpaths that left gaps at the joins.
+            expect(rail.d.match(/M/gi)).toHaveLength(1);
+            expect(rail.start[0]).toBeCloseTo(-.5);
+            expect(rail.end[0]).toBeCloseTo(.5);
+            expect(rail.start[1]).toBeCloseTo(rail.end[1]);
+            expect(rail.middle[1]).toBeLessThan(rail.start[1]);
+        }
         await page.screenshot({ path: test.info().outputPath('bridge-editor.png'), fullPage: true });
         await solveAndValidate(page, fixture);
         await expect(cell(page, 2, 2)).toHaveAccessibleName(/Bridge horizontal on top; vertical Color 1; horizontal Color 2/);
+        expect(await rails.evaluateAll(elements => elements.map(element => element.getAttribute('d')))).toEqual(railShapes.map(rail => rail.d));
+        // The opaque deck hides the vertical route at the raised crossing,
+        // while leaving its continuation visible below the arch.
+        for (const selector of ['.bridge-deck', '.bridge-flow']) {
+            expect(await bridge.locator(selector).evaluate(element => {
+                const path = element as SVGPathElement;
+                return { crossing: path.isPointInFill(new DOMPoint(0, -.2)), underneath: path.isPointInFill(new DOMPoint(0, .1)) };
+            })).toEqual({ crossing: true, underneath: false });
+        }
         expect(await grid.boundingBox()).toEqual(initialBounds);
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
         await page.screenshot({ path: test.info().outputPath('bridge-solved.png'), fullPage: true });

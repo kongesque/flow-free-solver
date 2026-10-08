@@ -233,14 +233,21 @@ const PuzzleGrid = ({
                 const style: CSSProperties = axis === 'horizontal'
                     ? { [side]: 0, top: `${index / height * 100}%`, height: `${100 / height}%`, width: '12px' }
                     : { [side]: 0, left: `${index / width * 100}%`, width: `${100 / width}%`, height: '12px' };
-                return <button key={`${side}-${index}`} className={`seam-target ${open ? 'open' : ''} ${highlightSeam === key ? 'paired' : ''}`} style={style}
+                return <button key={`${side}-${index}`} data-axis={axis} className={`seam-target ${open ? 'open' : ''} ${highlightSeam === key ? 'paired' : ''}`} style={style}
                     type="button" aria-label={`${axis === 'horizontal' ? 'Row' : 'Column'} ${index + 1} warp, ${side}`} aria-pressed={open}
                     onMouseEnter={() => setHighlightSeam(key)} onMouseLeave={() => setHighlightSeam(null)} onFocus={() => setHighlightSeam(key)} onBlur={() => setHighlightSeam(null)}
                     onClick={event => { event.stopPropagation(); onSeamClick(seam); setAnnouncement(`${axis === 'horizontal' ? 'Row' : 'Column'} ${index + 1} warp ${open ? 'closed' : 'opened'}.`); }} />;
             }))}
         <svg className="warp-overlay" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-hidden="true">
-            {warps.flatMap(({ axis, index }) => axis === 'horizontal' ? [0, width].map(x => <line key={`H-${index}-${x}`} x1={x} x2={x} y1={index + .22} y2={index + .78} />)
-                : [0, height].map(y => <line key={`V-${index}-${y}`} y1={y} y2={y} x1={index + .22} x2={index + .78} />))}
+            {warps.flatMap(({ axis, index }) => ['start', 'end'].map(end => {
+                const atStart = end === 'start';
+                const transform = axis === 'horizontal'
+                    ? `translate(${atStart ? 0 : width} ${index}) scale(${atStart ? 1 : -1} 1)`
+                    : `translate(${index} ${atStart ? 0 : height}) matrix(0 ${atStart ? 1 : -1} 1 0 0 0)`;
+                return <path key={`${axis}-${index}-${end}`} data-warp={`${axis}-${index}`} transform={transform}
+                    className={`warp-marker ${highlightSeam === seamKey({ axis, index }) ? 'paired' : ''}`}
+                    d="M.04,.22 V.26 Q.04,.32 .1,.32 H.24 M.04,.78 V.74 Q.04,.68 .1,.68 H.24" />;
+            }))}
         </svg>
         {editingWalls && Array.from({ length: height }, (_, y) =>
             Array.from({ length: width }, (_, x) => (['right', 'down'] as const).map(side => {
@@ -252,10 +259,10 @@ const PuzzleGrid = ({
         <svg className="wall-overlay" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-hidden="true">
             {visibleWalls.map(wall => <line key={wallKey(wall)} data-wall={wallKey(wall)} className="puzzle-wall"
                 x1={wall.x + (wall.side === 'right' ? 1 : 0)} y1={wall.y + (wall.side === 'down' ? 1 : 0)}
-                x2={wall.x + 1} y2={wall.y + 1} vectorEffect="non-scaling-stroke" />)}
+                x2={wall.x + 1} y2={wall.y + 1} />)}
             {editingWalls && preview && <line className="wall-preview"
                 x1={preview.x + (preview.side === 'right' ? 1 : 0)} y1={preview.y + (preview.side === 'down' ? 1 : 0)}
-                x2={preview.x + 1} y2={preview.y + 1} vectorEffect="non-scaling-stroke" />}
+                x2={preview.x + 1} y2={preview.y + 1} />}
         </svg>
         <span aria-live="polite" aria-atomic="true" className="sr-only">{announcement}</span>
     </article>
