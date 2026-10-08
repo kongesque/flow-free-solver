@@ -54,7 +54,7 @@ for (const width of [390, 1280]) {
         await expect(page.getByRole('button', { name: 'Undo', exact: true })).toBeEnabled();
 
         // Cancel preserves the pending endpoint color, and reload preserves the puzzle.
-        await page.getByRole('button', { name: 'Draw walls', exact: true }).click();
+        await page.getByRole('button', { name: 'Walls', exact: true }).click();
         await page.getByRole('button', { name: 'Cell 4,0 Empty', exact: true }).click();
         await expect(page.getByRole('button', { name: 'Cell 4,0 Color 1', exact: true })).toBeVisible();
         await expect.poll(async () => (await saved(page))?.board[4][0]).toBe(1);

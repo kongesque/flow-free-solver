@@ -9,6 +9,7 @@ interface SolverControlsProps {
     width: number;
     height: number;
     mode: GameMode;
+    onModeChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
     onWidthChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
     onHeightChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
     solverType: SolverType;
@@ -22,17 +23,14 @@ interface SolverControlsProps {
     onSolve: () => void;
     onReset: () => void;
     onGenerate: () => void;
-    onCancel: () => void;
-    solveTime: number | null;
     wallCount: number;
     editTool: EditTool;
     onEditToolChange: (tool: EditTool) => void;
     canUndo: boolean;
     onUndo: () => void;
     onClearWalls: () => void;
-    canZoom: boolean;
-    zoomed: boolean;
-    onZoom: () => void;
+    zoomWalls: boolean;
+    onZoomWalls: () => void;
 }
 
 const SolverControls = ({
@@ -40,6 +38,7 @@ const SolverControls = ({
     width,
     height,
     mode,
+    onModeChange,
     onWidthChange,
     onHeightChange,
     solverType,
@@ -53,9 +52,7 @@ const SolverControls = ({
     onSolve,
     onReset,
     onGenerate,
-    onCancel,
-    solveTime,
-    wallCount, editTool, onEditToolChange, canUndo, onUndo, onClearWalls, canZoom, zoomed, onZoom,
+    wallCount, editTool, onEditToolChange, canUndo, onUndo, onClearWalls, zoomWalls, onZoomWalls,
 }: SolverControlsProps) => {
     const isBusy = isSolving || isGenerating || !isLoaded || invalidSavedWalls;
     const unavailable = !GAME_MODES[mode].available;
@@ -79,9 +76,8 @@ const SolverControls = ({
                     aria-keyshortcuts="Control+Z Meta+Z" title="Undo last edit (Ctrl+Z / ⌘Z)">Undo</button>
             </div>
             <div className="control-actions" aria-label="Puzzle actions">
-                <button className="control-button primary-action" onClick={isSolving || isGenerating ? onCancel : showingSolution ? onEdit : onSolve}
-                    disabled={!isLoaded || invalidSavedWalls || unavailable}>
-                    {isSolving || isGenerating ? 'Cancel' : showingSolution ? 'Edit' : 'Solve'}
+                <button className="control-button primary-action" onClick={showingSolution ? onEdit : onSolve} disabled={isBusy || unavailable}>
+                    {showingSolution ? 'Edit' : 'Solve'}
                 </button>
                 <button className="control-button" onClick={onGenerate} disabled={isBusy || unavailable || wallCount > 0}
                     aria-describedby={wallCount > 0 ? 'wall-generation-hint' : undefined}>
@@ -113,7 +109,6 @@ const SolverControls = ({
                             <span>Algorithm</span>
                             <span className="select-wrap">
                                 <select value={solverType} onChange={onSolverTypeChange} aria-label="Solver Algorithm"
-                                    aria-describedby={wasmOnly ? 'algorithm-reason' : undefined}
                                     disabled={isBusy || wasmOnly || (RESTRICT_Z3_TO_LARGE_GRIDS && (width !== 15 || height !== 15))}>
                                     <option value="heuristic_bfs">Heuristic BFS</option>
                                     <option value="astar" disabled={wasmOnly}>A*</option>
@@ -122,23 +117,32 @@ const SolverControls = ({
                                 <ChevronDown aria-hidden="true" />
                             </span>
                         </label>
+                        <label className="control-field">
+                            <span>Mode</span>
+                            <span className="select-wrap">
+                                <select aria-label="Game Mode" value={mode} onChange={onModeChange}>
+                                    {Object.entries(GAME_MODES).map(([value, config]) => (
+                                        <option key={value} value={value}>{config.label}{config.available ? '' : ' (coming soon)'}</option>
+                                    ))}
+                                </select>
+                                <ChevronDown aria-hidden="true" />
+                            </span>
+                        </label>
                     </div>
-                    {wasmOnly && <p className="control-hint" id="algorithm-reason">{wallCount > 0 ? 'Wall' : 'Rectangular'} boards use Heuristic BFS.</p>}
                     <p className="control-hint">Resizing clears the puzzle.</p>
-                    <button type="button" className="control-button wall-toggle" aria-label="Draw walls" aria-pressed={editTool === 'walls'}
+                    <button type="button" className="control-button wall-toggle" aria-label="Walls" aria-pressed={editTool === 'walls'}
                         disabled={editingDisabled} onClick={() => onEditToolChange(editTool === 'walls' ? 'dots' : 'walls')}>
                         <span>Draw walls{wallCount > 0 && <span className="wall-count"> · {wallCount}</span>}</span>
                         <span className="wall-toggle-indicator" aria-hidden="true" />
                     </button>
-                    {!showingSolution && (editTool === 'walls' || canZoom || zoomed) && <div className="wall-context">
-                        <div className="wall-actions" role="group" aria-label={editTool === 'walls' ? 'Wall tools' : 'Board tools'}>
-                            {editTool === 'walls' && wallCount > 0 && <button type="button" className="control-button" disabled={editingDisabled} onClick={onClearWalls}>Clear walls</button>}
-                            {(canZoom || zoomed) && <button type="button" className="control-button"
-                                disabled={editingDisabled} aria-pressed={zoomed} onClick={onZoom}>{zoomed ? 'Fit board' : 'Zoom in'}</button>}
+                    {editTool === 'walls' && !showingSolution && <div className="wall-context">
+                        <div className="wall-actions" role="group" aria-label="Wall tools">
+                            {wallCount > 0 && <button type="button" className="control-button" disabled={editingDisabled} onClick={onClearWalls}>Clear walls</button>}
+                            <button type="button" className={`control-button wall-zoom-action ${Math.max(width, height) >= 10 ? 'large-board' : ''}`}
+                                disabled={editingDisabled} aria-pressed={zoomWalls} onClick={onZoomWalls}>{zoomWalls ? 'Fit board' : 'Zoom in'}</button>
                         </div>
-                        {zoomed && <p className="wall-help">Drag to pan. Tap a cell to edit.</p>}
+                        <p className="wall-help">{zoomWalls ? 'Swipe from a cell center to pan.' : 'Tap or drag a boundary.'}</p>
                     </div>}
-                    {showingSolution && solveTime !== null && <p className="control-hint">Solved in {solveTime < 1000 ? `${Math.round(solveTime)}ms` : `${(solveTime / 1000).toFixed(2)}s`}.</p>}
                 </fieldset>
             </details>
             <div className="solver-about selectable-text">

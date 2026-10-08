@@ -31,12 +31,12 @@ for (const viewport of [
         await expect(options).not.toHaveAttribute('open', '');
         await expect(page.getByRole('combobox')).toHaveCount(1);
         await expect(page.locator('.game-controls button:visible')).toHaveCount(4);
-        await expect(page.getByRole('button', { name: 'Draw walls', exact: true })).toBeHidden();
+        await expect(page.getByRole('button', { name: 'Walls', exact: true })).toBeHidden();
         await expect(page.getByRole('combobox', { name: 'Solver Algorithm' })).toBeHidden();
         await openBoardOptions(page);
         await expect(page.getByRole('combobox', { name: 'Grid Width' })).toBeVisible();
         await expect(page.getByRole('combobox', { name: 'Solver Algorithm' })).toBeVisible();
-        await expect(page.getByRole('button', { name: 'Draw walls', exact: true })).toHaveAttribute('aria-pressed', 'false');
+        await expect(page.getByRole('button', { name: 'Walls', exact: true })).toHaveAttribute('aria-pressed', 'false');
         await expectStable();
         await options.locator('summary').click();
         await expectStable();
@@ -45,7 +45,7 @@ for (const viewport of [
         await page.getByRole('button', { name: 'Cell 4,4 Empty', exact: true }).click();
         await selectWallTool(page);
         await expectStable();
-        await expect(page.getByRole('button', { name: 'Draw walls', exact: true })).toHaveAttribute('aria-pressed', 'true');
+        await expect(page.getByRole('button', { name: 'Walls', exact: true })).toHaveAttribute('aria-pressed', 'true');
         await expect(page.getByRole('button', { name: 'Undo', exact: true })).toBeEnabled();
         await expect(page.getByRole('button', { name: 'Clear walls', exact: true })).toHaveCount(0);
         for (const { x, y, side } of fixture.walls) {
@@ -61,7 +61,7 @@ for (const viewport of [
         }
         await options.locator('summary').click();
         await expect(options.locator('summary')).toContainText('Walls');
-        await expect(page.getByRole('button', { name: 'Draw walls', exact: true })).toBeHidden();
+        await expect(page.getByRole('button', { name: 'Walls', exact: true })).toBeHidden();
         await expectStable();
         await page.getByRole('button', { name: 'Solve', exact: true }).click();
         await expect(page.getByRole('button', { name: 'Edit', exact: true })).toBeEnabled();

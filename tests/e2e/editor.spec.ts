@@ -1,6 +1,6 @@
 import { test, expect, type Locator } from '@playwright/test';
 import { assertSolution } from '../fixtures/assert-solution.mjs';
-import { openBoardOptions, resizeBoard } from './board-options';
+import { openBoardOptions } from './board-options';
 
 // Compare document positions even when selecting an offscreen control scrolls the page.
 const layoutBounds = (locator: Locator) => locator.evaluate(element => {
@@ -70,7 +70,10 @@ for (const viewport of [
         const desktop = viewport.width >= 960;
         const phonePortrait = viewport.width <= 600 && viewport.height >= viewport.width;
         const phoneLandscape = !desktop && viewport.width > viewport.height && viewport.height <= 600;
-        await expect(page.locator('.solver-header p')).toHaveCount(0);
+        const tip = page.locator('.solver-header p');
+        await expect(tip).toHaveText('Click to place or remove.');
+        expect((await layoutBounds(tip)).height).toBeLessThan(19);
+        expect(await tip.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
         const selectedLabelsFit = await page.locator('.primary-settings select').evaluateAll(selects => {
             const context = document.createElement('canvas').getContext('2d')!;
             return selects.every(element => {
@@ -94,6 +97,11 @@ for (const viewport of [
             expect(status.y).toBeGreaterThan(initialBoard!.y + initialBoard!.height);
             expect(initialHeader.y).toBeCloseTo(initialBoard!.y, 0);
             expect(initialHeader.y + initialHeader.height).toBeLessThan(controls!.y);
+            const tip = await layoutBounds(page.locator('.solver-header p'));
+            expect(tip.x).toBeCloseTo(initialHeader.x, 0);
+            expect(tip.y).toBeGreaterThan(initialHeader.y + initialHeader.height);
+            expect(tip.y + tip.height).toBeLessThan(controls!.y);
+            expect(tip.height).toBeLessThan(19);
             const options = await layoutBounds(page.locator('.board-options'));
             const actions = await layoutBounds(page.locator('.control-actions'));
             expect(options.y).toBeGreaterThan(actions.y + actions.height);
@@ -102,7 +110,7 @@ for (const viewport of [
             await expect(page.locator('.solver-methods')).toBeVisible();
             const options = await layoutBounds(page.locator('.board-options'));
             expect(about.y).toBeGreaterThan(options.y + options.height);
-            await expect(page.locator('.solver-header p')).toHaveCount(0);
+            await expect(page.locator('.solver-header p')).toBeVisible();
             await expect(page.locator('.board-options')).not.toHaveAttribute('open', '');
             await expect(page.locator('.board-options summary')).toBeVisible();
             if (phoneLandscape) {
@@ -142,8 +150,8 @@ for (const viewport of [
         }
         const squareSizes = Array.from({ length: 11 }, (_, index) => [index + 5, index + 5]);
         for (const [width, height] of [...squareSizes, [5, 15], [15, 5]]) {
-            await resizeBoard(page, 'Grid Width', String(width));
-            await resizeBoard(page, 'Grid Height', String(height));
+            await page.getByRole('combobox', { name: 'Grid Width' }).selectOption(String(width));
+            await page.getByRole('combobox', { name: 'Grid Height' }).selectOption(String(height));
             const grid = page.getByRole('article', { name: 'Puzzle Grid Board' });
             const bounds = await layoutBounds(grid);
             expect(bounds!.x).toBeGreaterThanOrEqual(0);
@@ -200,7 +208,7 @@ test('board options keep their open state across mobile and desktop while preser
 test('keyboard editing uses a single grid tab stop and respects rectangular boundaries', async ({ page }) => {
     await page.goto('./');
     await openBoardOptions(page);
-    await resizeBoard(page, 'Grid Height', '8');
+    await page.getByRole('combobox', { name: 'Grid Height' }).selectOption('8');
     const first = page.getByRole('button', { name: 'Cell 0,0 Empty', exact: true });
     await first.focus();
     await first.press('Enter');
@@ -225,11 +233,11 @@ test('keeps the familiar automatic endpoint sequence and repairs removed pairs',
     await expect(page.getByRole('button', { name: 'Choose endpoint color' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Undo', exact: true })).toBeDisabled();
     const cell = (x: number, y: number, color = 'Empty') => page.getByRole('button', { name: `Cell ${x},${y} ${color}`, exact: true });
-    await expect(page.getByRole('status')).toContainText('Place first dot');
+    await expect(page.getByRole('status')).toContainText('Start');
     await cell(0, 0).click();
-    await expect(page.getByRole('status')).toContainText('Place matching dot');
+    await expect(page.getByRole('status')).toContainText('End');
     await cell(4, 0).click();
-    await expect(page.getByRole('status')).toContainText('Place next pair');
+    await expect(page.getByRole('status')).toContainText('Start');
     await cell(0, 1).click();
     await cell(4, 1).click();
     await expect(cell(0, 0, 'Color 1')).toBeVisible();
@@ -237,7 +245,7 @@ test('keeps the familiar automatic endpoint sequence and repairs removed pairs',
     await expect(cell(0, 1, 'Color 2')).toBeVisible();
     await expect(cell(4, 1, 'Color 2')).toBeVisible();
     await cell(0, 0, 'Color 1').click();
-    await expect(page.getByRole('status')).toContainText('Place matching dot');
+    await expect(page.getByRole('status')).toContainText('End');
     await cell(1, 0).click();
     await expect(cell(1, 0, 'Color 1')).toBeVisible();
     await cell(0, 2).click();
@@ -250,7 +258,7 @@ test.describe('touch input', () => {
         await page.setViewportSize({ width: 390, height: 844 });
         await page.goto('./');
         await openBoardOptions(page);
-        await resizeBoard(page, 'Grid Height', '15');
+        await page.getByRole('combobox', { name: 'Grid Height' }).selectOption('15');
         const grid = page.getByRole('article', { name: 'Puzzle Grid Board' });
         const first = page.getByRole('button', { name: 'Cell 0,0 Empty', exact: true });
         const bounds = await first.boundingBox();
@@ -264,7 +272,7 @@ test.describe('touch input', () => {
         await page.getByRole('button', { name: 'Cell 4,14 Empty', exact: true }).tap();
         await expect(page.getByRole('button', { name: 'Cell 4,14 Color 1', exact: true })).toBeVisible();
         await page.getByRole('button', { name: placedName!, exact: true }).tap();
-        await expect(page.getByRole('status')).toContainText('Place matching dot');
+        await expect(page.getByRole('status')).toContainText('End');
         await expect(grid.getByRole('button', { name: /Color/ })).toHaveCount(1);
     });
 });

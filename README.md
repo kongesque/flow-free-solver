@@ -49,12 +49,12 @@ Try it online: **[https://flow.kongesque.com](https://flow.kongesque.com)**
 
 ## 🎮 How to Use
 
-1.  **Select Dimensions**: Choose a square **Grid Size** preset, or open **Board options** to set **Width** and **Height** independently from 5 to 15. Rectangular boards automatically select **Heuristic BFS**, the C/Wasm solver. A* and Z3 remain available for Standard square boards. Resizing a puzzle asks for confirmation; Cancel preserves its endpoints, walls, and Undo history. Selecting the current dimensions does nothing.
+1.  **Select Dimensions**: Choose a square **Grid Size** preset, or open **Board options** to set **Width** and **Height** independently from 5 to 15. Rectangular boards automatically select **Heuristic BFS**, the C/Wasm solver. A* and Z3 remain available for Standard square boards.
 2.  **Generate a Puzzle**: Click **Generate** for a new solvable puzzle. If you have placed or edited endpoints, confirm before replacing them; Cancel keeps your board and current color. The puzzle and its generated solution are saved locally across reloads.
 3.  **Paint the Board**: Alternatively, click an empty cell to place an endpoint, or click a filled cell to remove it. Editing a generated puzzle discards its saved solution.
     - With a keyboard, Tab enters the board, arrow keys move between cells, and Enter or Space places or removes a dot. Home and End move to the edges of a row.
-    - The status area guides you from **Place first dot** to **Place matching dot** and **Place next pair**. Pair numbers identify endpoints alongside color; tap an existing dot again to remove it.
-4.  **Click Solve**: The selected solver calculates non-overlapping paths. **Solve** becomes **Edit** after solving; click it to return to the original endpoints. Generated puzzles use their saved solution if the selected solver reaches its search limit. **Cancel** stops active solving or generation without clearing your puzzle or Undo history. **Reset** asks for confirmation before clearing a puzzle or cancelling active solving or generation; Cancel preserves your current work. An empty, idle board resets immediately.
+    - *Tip*: You need exactly two dots of the same color to form a pair.
+4.  **Click Solve**: The selected solver calculates non-overlapping paths. **Solve** becomes **Edit** after solving; click it to return to the original endpoints. Generated puzzles use their saved solution if the selected solver reaches its search limit. **Reset** asks for confirmation before clearing a puzzle or cancelling active solving or generation; Cancel preserves your current work. An empty, idle board resets immediately.
 
 Generation runs in a dedicated Web Worker. It starts with a complete path cover
 and randomly transfers cells between path endpoints while preserving full-board
@@ -67,11 +67,11 @@ solution** always reveals the solution retained during construction.
 The tool panel sits beside the board on desktop and below it on mobile. Size,
 Undo, Solve, Generate, and Reset stay visible. Solve becomes Edit in the same
 position. Board options start collapsed on both layouts and contain dimensions,
-algorithm, and a single Draw walls toggle. Solve timing appears here after completion. Wall tools appear only while
+algorithm, mode, and a single Draw walls toggle. Wall tools appear only while
 drawing walls. The board keeps its size and position as tools change; on phones,
 the footer can scroll when browser bars leave less room.
 
-**Undo** reverses endpoint placement/removal, wall edits, and Clear walls in
+**Undo** reverses endpoint placement/removal, wall strokes, and Clear walls in
 order, restoring the endpoint color and placement state. **Ctrl+Z** or **⌘Z**
 also works when focus is outside a form field. Up to 50 edits are retained for
 the current session. Reset, resizing, successful generation, and reloading start
@@ -81,26 +81,20 @@ a fresh history. Undoing an edit does not restore a discarded generated solution
 
 ## Board modes
 
-**Standard** supports square and rectangular boards. The unavailable Bridges,
-Hexes, and Warps options are hidden. Older saves in these placeholder modes load
-as Standard while preserving dimensions and endpoints. Dimensions, endpoints,
-walls, and the generated solution are saved locally. Legacy square saves with
-a single size continue to load.
+**Standard** supports square and rectangular boards. **Bridges**, **Hexes**, and
+**Warps** are selectable placeholders marked **coming soon**. Puzzle actions are
+disabled in these modes; switching back to Standard preserves the current puzzle.
+Mode, dimensions, endpoints, and the generated solution are saved locally. Legacy
+square saves with a single size continue to load.
 
 **Walls** can be added to Standard square or rectangular boards. Open **Board
-options** and turn on **Draw walls**. Tap a cell, then an adjacent cell to add or
-remove the wall between them. The first cell is outlined and its neighbors are
-highlighted. Tap the selected cell again or press Escape to cancel the selection;
-a nonadjacent cell moves the selection. **Place dots** returns directly to dot
-placement, even with Board options closed. Both cells beside a wall still need
-to be filled. **Undo** reverses the last edit; **Clear walls** appears when walls
-exist and is also undoable. With the keyboard, Enter/Space selects cells; **Shift
-+ Arrow** toggles a wall directly on that side.
-
-**Zoom in** appears in Board options when fitted cells are too small for precise
-editing, for both dots and walls. It enlarges cells within the existing board
-frame. Drag or swipe to pan; tap to edit. Panning never places dots or walls.
-**Fit board** restores the complete board.
+options** and turn on **Draw walls**, then tap or drag along the lines between
+cells to add or remove boundaries. Turn it off to place endpoints again. Both
+cells beside a wall still need to be filled. **Undo** reverses the last edit;
+**Clear walls** appears when walls exist and is also undoable. **Zoom in** is
+available on mobile and for large desktop boards. Swipe from a cell center to
+pan the enlarged board. With the keyboard, focus a cell and press **Shift +
+Arrow** to toggle the wall on that side.
 
 Wall puzzles automatically use **Heuristic BFS** (C/Wasm). **Generate** is disabled
 until walls are cleared. Wall edits discard any retained generated solution;

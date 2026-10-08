@@ -1,5 +1,5 @@
-import { openBoardOptions, resizeBoard } from './board-options';
-import { test, expect, type Page, type Dialog } from '@playwright/test';
+import { openBoardOptions } from './board-options';
+import { test, expect, type Page } from '@playwright/test';
 import { assertSolution } from '../fixtures/assert-solution.mjs';
 
 const colors = ' RBYGOCMmPAWgTbcp';
@@ -20,14 +20,8 @@ function validateSolution(input: number[][], solution: number[][]) {
 }
 
 async function generate(page: Page, size: number) {
-    await resizeBoard(page, 'Grid Size', String(size));
-    const accept = (dialog: Dialog) => dialog.accept();
-    page.once('dialog', accept);
-    try {
-        await page.getByRole('button', { name: 'Generate', exact: true }).click();
-    } finally {
-        page.off('dialog', accept);
-    }
+    await page.getByRole('combobox', { name: 'Grid Size' }).selectOption(String(size));
+    await page.getByRole('button', { name: 'Generate', exact: true }).click();
     await expect(page.getByRole('status')).toContainText(`Generated · ${size} pairs`);
     const board = await readGrid(page, size);
     expect(board.flat().filter(Boolean)).toHaveLength(size * 2);
@@ -112,7 +106,7 @@ test('generated endpoints and solution survive reload; editing invalidates the s
     await page.getByRole('button', { name: 'Edit', exact: true }).click();
     await page.getByRole('button', { name: /Cell .* Color/ }).first().click();
     await expect(page.getByRole('button', { name: 'Edit', exact: true })).toHaveCount(0);
-    await expect(page.getByRole('status')).toContainText('Place matching dot');
+    await expect(page.getByRole('status')).toContainText('End');
     page.once('dialog', dialog => dialog.accept());
     await page.getByRole('button', { name: 'Reset', exact: true }).click();
     await expect(page.getByRole('button', { name: /Cell .* Empty/ })).toHaveCount(64);
@@ -131,7 +125,7 @@ test('Reset cancels generation and a fresh generation succeeds', async ({ page }
         await page.getByRole('button', { name: 'Generate', exact: true }).click();
         await request;
         await expect(page.getByRole('status')).toContainText('Generating');
-        await expect(page.getByRole('button', { name: 'Cancel', exact: true })).toBeEnabled();
+        await expect(page.getByRole('button', { name: 'Solve', exact: true })).toBeDisabled();
         await expect(page.getByRole('combobox', { name: 'Grid Size' })).toBeDisabled();
         await expect(page.getByRole('button', { name: 'Cell 0,0 Empty', exact: true })).toBeDisabled();
         page.once('dialog', dialog => dialog.dismiss());
@@ -207,7 +201,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
             }
             const endpoints = await readGrid(page, 5);
             const previousWorkers = workers;
-            await expect(page.getByRole('status')).toContainText('Place matching dot');
+            await expect(page.getByRole('status')).toContainText('End');
             let message = '';
             page.once('dialog', dialog => {
                 message = dialog.message();
@@ -217,7 +211,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
             expect(message).toBe('Replace your endpoints with a generated puzzle?');
             expect(await readGrid(page, 5)).toEqual(endpoints);
             expect(workers).toBe(previousWorkers);
-            await expect(page.getByRole('status')).toContainText('Place matching dot');
+            await expect(page.getByRole('status')).toContainText('End');
             // Cancel also preserves the pending color, so the next tap completes its pair.
             const pendingColor = endpoints.flat().find(color => color !== 0 && endpoints.flat().filter(c => c === color).length === 1)!;
             await page.getByRole('button', { name: missingCell, exact: true }).click();
