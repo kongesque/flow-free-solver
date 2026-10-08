@@ -72,7 +72,7 @@ Size stay visible above the primary actions. Compact Undo and Reset buttons sit
 beside Board options, separated from Solve and Generate.
 Solve becomes Cancel while working and Edit after solving, in the same position.
 Dots/Walls and the active variant's tool are directly accessible during editing,
-as quiet tabs with small matching glyphs and an active underline. Selecting a tool keeps it selected; choose Dots
+as compact outlined buttons with matching glyphs and an active underline. Selecting a tool keeps it selected; choose Dots
 to return to endpoint placement. Editing tools disappear when viewing a solution.
 Board options start collapsed and contain custom dimensions, applicable solver
 choices, and contextual bulk edits. Generate appears in all implemented modes; variants,

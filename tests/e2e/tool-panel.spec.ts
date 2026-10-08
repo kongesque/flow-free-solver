@@ -102,7 +102,7 @@ for (const width of [390, 1280]) {
             await expect(page.getByRole('combobox', { name: 'Solver Algorithm' })).toHaveCount(0);
             await page.getByRole('button', { name: tool, exact: true }).click();
             await expect(page.getByRole('button', { name: tool, exact: true })).toHaveAttribute('aria-pressed', 'true');
-            await expect(page.getByRole('button', { name: tool, exact: true })).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+            await expect(page.getByRole('button', { name: tool, exact: true })).toHaveCSS('background-color', 'rgba(43, 158, 168, 0.1)');
             await expect(page.getByRole('button', { name: tool, exact: true })).toHaveCSS('color', 'rgb(230, 228, 223)');
             await expect(page.getByRole('combobox', { name: 'Grid Width' })).toBeHidden();
             await expect(options).not.toHaveAttribute('open', '');

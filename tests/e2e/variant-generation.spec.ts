@@ -123,6 +123,7 @@ for (const mode of ['bridges', 'warps'] as const) {
         await expect(page.getByRole('status')).toContainText('Generated');
         await page.getByRole('button', { name: 'Solve', exact: true }).click();
         await expect(page.getByRole('status')).toContainText('Solved');
+        await expect(page.getByRole('status')).toContainText(/\(\d+(?:\.\d+)?(?:ms|s)\)/);
         const paths = JSON.parse((await page.locator('.puzzle-grid').getAttribute('data-solution'))!) as PuzzleSolution;
         expect(paths).toEqual(draft.generatedPathSolution);
         assertTopologySolution({ width: 5, height: 5, board: draft.board, mode, input: '', solution: paths,

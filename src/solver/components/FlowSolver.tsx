@@ -421,7 +421,7 @@ const FlowSolver = () => {
                 // Generated puzzles already have a valid solution if search reaches its budget.
                 setSolvedBoard(generatedSolution);
                 setPathSolution(generatedPathSolution);
-                setSolveTime(null);
+                setSolveTime(performance.now() - startTime);
             } else if (result.timedOut) {
                 setError(mode !== 'standard' ? 'Search limit reached. Your puzzle is preserved.' : solverType === 'astar' ? 'Timed out. Try Heuristic BFS.' : 'Timed out (15s limit)');
             } else if (result.error) {

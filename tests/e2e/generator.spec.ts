@@ -204,7 +204,7 @@ test('retains a valid generated solution when independent search reaches its lim
     await page.goto('./');
     const input = await generate(page, 13);
     await solve(page);
-    await expect(page.getByRole('status')).not.toContainText('ms');
+    await expect(page.getByRole('status')).toContainText(/\(\d+(?:\.\d+)?(?:ms|s)\)/);
     await expect(page.getByRole('status')).toContainText('Solved');
     validateSolution(input, await readGrid(page, 13));
 });

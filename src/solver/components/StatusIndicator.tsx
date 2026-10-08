@@ -38,7 +38,11 @@ const StatusIndicator = ({
         ) : isSolving || isGenerating ? (
             <span className='text-stoic-accent text-sm font-semibold flex items-center gap-2'>
                 <Loader2 className="animate-spin h-4 w-4" aria-hidden="true" />
-                {isGenerating ? 'Generating…' : 'Solving…'}
+                <span className="working-label">
+                    {isGenerating ? 'Generating' : 'Solving'}
+                    <span className="working-dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span>
+                    <span className="sr-only">…</span>
+                </span>
             </span>
         ) : error ? (
             <span

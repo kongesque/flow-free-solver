@@ -289,6 +289,11 @@ test('Cancel preserves a variant puzzle and a fresh worker can solve it', async 
         await page.getByRole('button', { name: 'Solve', exact: true }).click();
         await request;
         await expect(page.getByRole('status')).toContainText('Solving');
+        await expect(page.locator('.working-dots span')).toHaveCount(3);
+        await expect(page.locator('.working-dots span').first()).toHaveCSS('animation-duration', '1.2s');
+        await page.screenshot({ path: test.info().outputPath('solving-state.png'), fullPage: true });
+        await page.emulateMedia({ reducedMotion: 'reduce' });
+        expect(await page.locator('.working-dots span').first().evaluate(element => parseFloat(getComputedStyle(element).animationDuration))).toBeLessThan(.001);
         await page.getByRole('button', { name: 'Cancel', exact: true }).click();
         await expect(page.getByRole('button', { name: 'Solve', exact: true })).toBeEnabled();
         await expect(page.locator('[data-bridge]')).toHaveCount(1);
