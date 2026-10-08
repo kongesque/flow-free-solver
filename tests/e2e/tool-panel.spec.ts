@@ -60,7 +60,7 @@ for (const viewport of [
             await page.getByRole('button', { name: new RegExp(`^Cell ${x},${y} `) }).focus();
             await page.keyboard.press(side === 'right' ? 'Shift+ArrowRight' : 'Shift+ArrowDown');
         }
-        await expect(page.locator('.wall-count')).toContainText('16');
+        await expect(page.getByRole('button', { name: 'Walls', exact: true })).toHaveText('Walls');
         await expect(page.getByRole('button', { name: 'Generate', exact: true })).toBeDisabled();
         await expect(page.getByRole('button', { name: 'Generate', exact: true })).toHaveAccessibleDescription(/Clear walls to generate/);
         await expectStable();

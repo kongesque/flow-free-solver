@@ -103,7 +103,6 @@ const SolverControls = ({
                             {toolGlyphs[tool]}
                         </svg>
                         {tool[0].toUpperCase() + tool.slice(1)}
-                        {tool === 'walls' && wallCount > 0 && <span aria-hidden="true" className="wall-count">{wallCount}</span>}
                     </button>)}
                 </div>
             </div>
