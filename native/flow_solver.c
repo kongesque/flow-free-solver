@@ -2288,3 +2288,5 @@ EMSCRIPTEN_KEEPALIVE
 const char *solve_puzzle_with_walls_wasm(const char *input_str, const char *wall_str) {
   return solve_puzzle(input_str, wall_str);
 }
+
+#include "topology_solver.h"
