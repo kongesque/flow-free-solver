@@ -67,38 +67,60 @@ solution** always reveals the solution retained during construction.
 The tool panel sits beside the board on desktop and below it on mobile. Size,
 Undo, Solve, Generate, and Reset stay visible. Solve becomes Edit in the same
 position. Board options start collapsed on both layouts and contain dimensions,
-algorithm, mode, and a single Draw walls toggle. Wall tools appear only while
-drawing walls. The board keeps its size and position as tools change; on phones,
+algorithm, mode, and Dots/Walls plus the active variant's tool. Contextual controls appear while
+editing that tool. The board keeps its size and position as tools change; on phones,
 the footer can scroll when browser bars leave less room.
 
-**Undo** reverses endpoint placement/removal, wall strokes, and Clear walls in
+**Undo** reverses endpoint placement/removal, wall strokes, bridge/seam edits, and bulk changes in
 order, restoring the endpoint color and placement state. **Ctrl+Z** or **⌘Z**
 also works when focus is outside a form field. Up to 50 edits are retained for
-the current session. Reset, resizing, successful generation, and reloading start
-a fresh history. Undoing an edit does not restore a discarded generated solution.
+each mode during the current session. Reset, resizing, successful generation, and reloading start
+a fresh history for the affected draft. Undoing an edit does not restore a discarded generated solution.
 
 ---
 
 ## Board modes
 
-**Standard** supports square and rectangular boards. **Bridges**, **Hexes**, and
-**Warps** are selectable placeholders marked **coming soon**. Puzzle actions are
-disabled in these modes; switching back to Standard preserves the current puzzle.
-Mode, dimensions, endpoints, and the generated solution are saved locally. Legacy
-square saves with a single size continue to load.
+**Standard**, **Bridges**, and **Warps** support square and rectangular boards from
+5×5 through 15×15. **Hexes** remains unavailable. Each implemented mode has its
+own locally saved draft and session Undo history. Switching modes restores its
+dimensions, endpoints, and topology. Reset and confirmed resizing clear only the
+active draft. Legacy square saves still load; an old variant placeholder's
+endpoint puzzle becomes its Standard draft, with an empty variant draft.
+
+In **Warps**, choose **Warps** under Board options and tap the border of a row or
+column to connect it to the opposite edge. Both matching border controls open or
+close together and highlight together on focus/hover. Use **Open all left/right**,
+**Open all top/bottom**, or **Clear warps** for bulk edits. With keyboard focus on
+a boundary cell, **Shift + an outward Arrow** toggles that seam; regular arrows
+move focus without wrapping. Available seams are optional route choices, and
+solved paths show edge stubs rather than a line across the board.
+
+In **Bridges**, choose **Bridges** and tap an empty interior cell to add or remove
+a crossing. Its horizontal and vertical lanes remain straight, use different
+colors, and both must be filled. **Bridge on top** sets the appearance of new
+bridges; **Rotate bridges** changes all existing crossings and is undoable.
+Bridges cannot replace dots or touch a wall that blocks any of their four ports.
+Solved crossings display a gap and outline separating the upper/lower pipes.
+
+Variant solving uses the C/Wasm engine. **Generate** remains available only for
+Standard without walls. **Cancel** stops active work while preserving the puzzle.
+The graph search has a 2,000,000-visit / 10-second CPU budget; reaching it is
+reported as a search limit, so difficult puzzles can remain unresolved. Mixed
+Warps + Bridges boards and exact official-pack compatibility are outside this release.
 
 See the [Warps and Bridges research and implementation plan](docs/flow-free-warps-bridges.md)
-for verified rule evidence, the proposed C/Wasm topology model, editor interactions,
-delivery milestones, and regression criteria. These variants remain unavailable
-until their implementation is complete.
+for rule evidence, the C/Wasm topology model, editor interactions,
+delivery milestones, and regression criteria.
 
-**Walls** can be added to Standard square or rectangular boards. Open **Board
-options** and turn on **Draw walls**, then tap or drag along the lines between
-cells to add or remove boundaries. Turn it off to place endpoints again. Both
+**Walls** can be added in all implemented modes. Open **Board
+options** and choose **Walls**, then tap or drag along the lines between
+cells to add or remove boundaries. Choose **Dots** to place endpoints again. Both
 cells beside a wall still need to be filled. **Undo** reverses the last edit;
 **Clear walls** appears when walls exist and is also undoable. **Zoom in** is
 available on mobile and for large desktop boards. Swipe from a cell center to
-pan the enlarged board. With the keyboard, focus a cell and press **Shift +
+pan the enlarged board, or choose **Pan board** to temporarily disable editing.
+With the keyboard, focus a cell and press **Shift +
 Arrow** to toggle the wall on that side.
 
 Wall puzzles automatically use **Heuristic BFS** (C/Wasm). **Generate** is disabled
@@ -107,10 +129,10 @@ walls and endpoints persist across reloads. **Edit** preserves walls and **Reset
 or changing dimensions clears them. See the [wall research and implementation record](docs/flow-free-walls.md)
 for the data model, solver design, fixtures, and verification results.
 
-Rectangular and future variant solving use the C/Wasm backend only. The generator
+Rectangular and variant solving use the C/Wasm backend only. The generator
 remains TypeScript in a dedicated worker; it constructs solutions without search.
-Worker requests carry the mode and reject unavailable variants, so future bridge,
-hex, and warp rules cannot silently run as a Standard puzzle. See [issue #2](https://github.com/kongesque/flow-free-solver/issues/2).
+Worker requests carry the mode and reject unsupported algorithms and generator
+requests instead of silently applying Standard rules. See [issue #2](https://github.com/kongesque/flow-free-solver/issues/2).
 
 ## 🧠 Technical Architecture
 
@@ -256,7 +278,10 @@ Generator tests independently validate 330 square and 330 rectangular seeded boa
 across every supported dimension combination. Browser tests generate, independently solve, and reveal every size through real workers, solve
 generated puzzles with all three algorithms, and check reload, editing,
 cancellation, worker failure recovery, mobile controls, rectangular C/Wasm solving,
-legacy saves, and safe future-mode switching.
+legacy saves, and separate mode drafts. Variant tests validate ordered paths
+independently, including required seams, independent bridge lanes, adjacent
+crossings, and a 15×15 board with 169 bridges (394 occupied nodes). An exhaustive
+small-board oracle checks wrapped graphs without relying on planar pruning.
 
 ---
 

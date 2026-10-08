@@ -439,3 +439,71 @@ This planning milestone used source review, public rule descriptions, official
 screenshot inspection, and documentation diff checks. It does not claim a
 working variant solver, measured variant performance, new UI usability results,
 or completed application regression checks.
+
+## Implementation record — 2026-10-08
+
+The implementation enables Warps and Bridges on `feat/warps-bridges`.
+The graph engine, versioned wire contract, fixtures, worker adapter, and generated
+Wasm shipped together as a native milestone. The editor milestone adds separate
+saved mode drafts, a session history per mode, selected-path rendering, tool
+controls, cancellation, and legacy migration. No new dependencies were needed.
+
+The native graph uses 16-bit IDs and an independent bounded DFS with necessary
+degree/reachability/component checks. Its selected paths are validated before
+the worker returns them. The fixture validator reconstructs edges independently;
+an unpruned exhaustive oracle agrees on 80 seeded 3×3 wrapped boards. A 15×15
+bridge fixture covers 394 nodes with 169 interior crossings, testing counts
+above 255. A difficult existing 13×13 generated puzzle with one added seam
+reaches the search budget and returns `limit`, then a fresh bridge call succeeds.
+
+The release makes these concrete UI choices:
+
+- Border targets sit inside the board, preserving its footprint as tools change.
+  Opposite targets share state and highlight. Keyboard focus stays clamped;
+  Shift + an outward arrow toggles a seam. Zoom offers larger cells and Pan board
+  temporarily disables editing.
+- Bridges toggle on empty interior cells. New bridges use the selected top axis;
+  Rotate bridges changes all current crossings in one Undo step. Individual
+  crossings can be removed and added with the other top axis. There is no
+  separate selected-bridge inspector or hover-placement preview in this release.
+- Contextual tools live in Board options. The collapsed summary names the active
+  tool; reopening options provides Dots. Endpoint numbers supplement color.
+- Solution rendering uses explicit SVG path steps, split warp stubs, and an
+  outlined gap at crossings. Only the original endpoint cells retain dots.
+- Saves use schema version 2 and keep flat active-draft fields for existing
+  consumers. Invalid saved topology pauses editing/autosave until Reset. Legacy
+  placeholder endpoint boards migrate to Standard, while their active variant
+  starts empty. Variant drafts always select the C/Wasm algorithm.
+
+Synthetic fixture timings below are median wall time of ten warmed calls under
+Node 24.21.0 on this development Mac, including serialization and JSON parsing.
+They establish a small reproducible baseline, not official-pack performance.
+
+| Fixture | Recursive visits | Median time |
+| --- | ---: | ---: |
+| Warps 5×5, required row seams | 21 | 0.035 ms |
+| Warps 15×15, required row seams | 211 | 0.254 ms |
+| Bridges 5×5, one crossing | 17 | 0.014 ms |
+| Bridges 15×15, 169 crossings | 391 | 0.775 ms |
+
+The difficult 13×13 seam example returned `limit` after 2,000,001 visits in
+approximately 2.8 seconds. The native state is fixed-capacity (450 nodes,
+16 path arrays) and freed per call; the result buffer is 64 KiB. Peak runtime
+memory has not been independently profiled. Search remains capped and does not
+promise to solve arbitrary large variant boards. Generation stays Standard-only;
+Hexes and mixed variants remain unavailable.
+
+Browser coverage exercises real C/Wasm workers on square and rectangular
+variants, independent full-cover validation, Edit/reload, mixed edits and bulk
+Undo, draft switching, legacy migration, conflicts, resize/Reset cancellation,
+Cancel/retry, and mobile touch with zoom/pan. Existing Standard, A*, Z3,
+generator, wall, persistence, and layout checks remain in the full suite.
+
+Final verification used Node 24.21.0 and pinned Emscripten 4.0.23:
+
+- `npm run check` passed native Wasm tests, unit tests, type checking, production
+  build, and all 95 browser tests.
+- `E2E_SERVER=dev npm run test:e2e` passed all 95 browser tests.
+- The `/flow-free-solver/` production build and its full 95-test browser suite
+  passed. The default root-hosted build was restored afterward.
+- `git diff --check` passed. Dependencies were unchanged.

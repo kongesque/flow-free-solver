@@ -8,7 +8,7 @@ exception described in the root README.
 Run `npm run build:wasm` from the repository root. The compiler command lives in
 `scripts/build-wasm.mjs` and produces `public/wasm/flow_solver_c.mjs` plus
 `flow_solver_c.wasm`. Emscripten's modular ES module factory exports `cwrap` and
-`solve_puzzle_wasm` and `solve_puzzle_with_walls_wasm`. It supports browsers, Web Workers, and Node.js for regression
+`solve_puzzle_wasm`, `solve_puzzle_with_walls_wasm`, and `solve_puzzle_topology_wasm`. It supports browsers, Web Workers, and Node.js for regression
 tests, with memory growth capped at 512 MiB and search storage capped at 128 MiB.
 The filesystem is disabled; puzzle input and result output stay in memory.
 
