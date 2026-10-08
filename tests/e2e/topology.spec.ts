@@ -179,7 +179,7 @@ for (const fixture of [warpRows(), warpRows(8, 5, true), bridgeCross(), bridgeCr
         const errors: string[] = [];
         page.on('pageerror', e => errors.push(e.message));
         await page.goto('./'); await recreate(page, fixture);
-        await expect(page.getByRole('button', { name: 'Generate', exact: true })).toHaveCount(0);
+        await expect(page.getByRole('button', { name: 'Generate', exact: true })).toBeVisible();
         await solveAndValidate(page, fixture);
         await page.screenshot({ path: test.info().outputPath(`${fixture.mode}-solved.png`) });
         await page.getByRole('button', { name: 'Edit', exact: true }).click();
@@ -246,7 +246,7 @@ test('horizontal bridge conflicts, clearing, Undo and reset/resize cancellation 
     await expect(page.locator('[data-bridge]')).toHaveCount(0);
 });
 
-test('variant worker refuses other algorithms and generator requests', async ({ page }) => {
+test('variant solver worker refuses unsupported algorithms', async ({ page }) => {
     await page.addInitScript(() => {
         const Original = Worker;
         window.Worker = class extends Original {
@@ -256,9 +256,6 @@ test('variant worker refuses other algorithms and generator requests', async ({ 
     await page.goto('./'); await cell(page, 0, 0).click(); await cell(page, 4, 0).click();
     await page.getByRole('button', { name: 'Solve', exact: true }).click();
     await expect(page.getByRole('status')).toContainText('requires the C/Wasm solver');
-    page.once('dialog', dialog => dialog.accept());
-    await page.getByRole('button', { name: 'Generate', exact: true }).click();
-    await expect(page.getByRole('status')).toContainText('not available yet');
 });
 
 test('mobile bridge editing and warp targets work with touch without page overflow', async ({ browser }) => {

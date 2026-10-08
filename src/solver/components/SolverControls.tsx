@@ -85,16 +85,16 @@ const SolverControls = ({
                     </span>
                 </label>
             </div>
-            <div className={`control-actions ${mode !== 'standard' ? 'without-generation' : ''}`} aria-label="Puzzle actions">
+            <div className="control-actions" aria-label="Puzzle actions">
                 <button type="button" className="control-button primary-action" onClick={working ? onCancel : showingSolution ? onEdit : onSolve}
                     disabled={!working && (isBusy || unavailable)}>
                     {working ? 'Cancel' : showingSolution ? 'Edit' : 'Solve'}
                 </button>
-                {mode === 'standard' && <button type="button" className="control-button generate-action" onClick={onGenerate}
-                    disabled={isBusy || wallCount > 0} aria-describedby={wallCount > 0 ? 'wall-generation-hint' : undefined}
-                    title={wallCount > 0 ? 'Clear walls to generate' : 'Generate a puzzle'}>Generate</button>}
+                <button type="button" className="control-button generate-action" onClick={onGenerate}
+                    disabled={isBusy || unavailable || wallCount > 0} aria-describedby={wallCount > 0 ? 'wall-generation-hint' : undefined}
+                    title={wallCount > 0 ? 'Clear walls to generate' : 'Generate a puzzle'}>Generate</button>
             </div>
-            {mode === 'standard' && wallCount > 0 && <span id="wall-generation-hint" className="sr-only">Clear walls to generate.</span>}
+            {wallCount > 0 && <span id="wall-generation-hint" className="sr-only">Clear walls to generate.</span>}
             {!showingSolution && <div className="editor-toolbar">
                 <div className="edit-tools" role="group" aria-label="Editing tool">
                     {tools.map(tool => <button key={tool} type="button" className="control-button" aria-pressed={editTool === tool}

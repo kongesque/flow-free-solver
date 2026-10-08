@@ -8,8 +8,8 @@ import StatusIndicator from './StatusIndicator';
 import SolverControls from './SolverControls';
 import { GAME_MODES, type GameMode } from '../logic/game-modes';
 import { normalizeTopology, seamKey, type Bridge, type WarpSeam, type PuzzleTopology } from '../logic/topology';
-import { boardToSolution, type PuzzleSolution } from '../logic/solution';
-import type { GeneratedPuzzle } from '../logic/puzzle-generator';
+import { boardToSolution, solutionBoard, validateSolution, type PuzzleSolution } from '../logic/solution';
+import type { GeneratedModePuzzle } from '../logic/variant-generator';
 import { type Wall, type EditTool } from '../logic/walls';
 
 type EditorSnapshot = { board: number[][]; walls: Wall[]; bridges: Bridge[]; warps: WarpSeam[]; activeColor: number; isPlacingSecond: boolean };
@@ -39,6 +39,7 @@ const FlowSolver = () => {
     const [board, setBoard] = useState<number[][]>(() => initializeBoard(DEFAULT_SIZE));
     const [solvedBoard, setSolvedBoard] = useState<number[][] | null>(null);
     const [generatedSolution, setGeneratedSolution] = useState<number[][] | null>(null);
+    const [generatedPathSolution, setGeneratedPathSolution] = useState<PuzzleSolution | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
 
     // UX: Track current color being placed and whether we're placing first or second endpoint
@@ -58,12 +59,13 @@ const FlowSolver = () => {
     const saveTimeoutRef = useRef<number | null>(null);
     const workerRef = useRef<Worker | null>(null);
 
-    const currentDraft = (): PuzzleDraft => ({ width, height, board, walls, bridges, warps, solverType, activeColor, isPlacingSecond, generatedSolution });
+    const currentDraft = (): PuzzleDraft => ({ width, height, board, walls, bridges, warps, solverType, activeColor, isPlacingSecond, generatedSolution, generatedPathSolution });
     const restoreDraft = (draft: PuzzleDraft, draftMode: GameMode) => {
         setWidth(draft.width); setHeight(draft.height); setBoard(draft.board);
         setWalls(draft.walls); setBridges(draft.bridges.map(bridge => ({ ...bridge, over: 'horizontal' }))); setWarps(draft.warps);
         setActiveColor(draft.activeColor); setIsPlacingSecond(draft.isPlacingSecond);
         setGeneratedSolution(draft.generatedSolution);
+        setGeneratedPathSolution(draft.generatedPathSolution ?? null);
         setSolverType(draftMode !== 'standard' || draft.width !== draft.height || draft.walls.length ? 'heuristic_bfs' : draft.solverType);
     };
 
@@ -84,6 +86,7 @@ const FlowSolver = () => {
                         warps: legacy ? [] : saved.warps ?? [], solverType: saved.solverType,
                         activeColor: saved.activeColor, isPlacingSecond: saved.isPlacingSecond,
                         generatedSolution: saved.generatedSolution ?? null,
+                        generatedPathSolution: saved.generatedPathSolution ?? null,
                     };
                     const drafts = legacy ? { standard: initial } : { ...saved.drafts, [currentMode]: initial };
                     for (const [key, draft] of Object.entries(drafts)) {
@@ -95,11 +98,16 @@ const FlowSolver = () => {
                             typeof draft.isPlacingSecond !== 'boolean') throw new Error('Invalid saved editor state');
                         const topology = normalizeTopology(draft, draft.board, key as GameMode);
                         Object.assign(draft, topology);
-                        if (key !== 'standard' || topology.walls.length) draft.generatedSolution = null;
-                        if (draft.generatedSolution) boardToSolution(draft.board, draft.generatedSolution, topology);
+                        if (topology.walls.length || (key !== 'standard' && !draft.generatedPathSolution)) {
+                            draft.generatedSolution = null; draft.generatedPathSolution = null;
+                        }
+                        if (draft.generatedPathSolution) {
+                            validateSolution(draft.board, topology, draft.generatedPathSolution);
+                            if (JSON.stringify(solutionBoard(draft.board, draft.generatedPathSolution)) !== JSON.stringify(draft.generatedSolution)) throw new Error('Invalid generated solution');
+                        } else if (draft.generatedSolution) boardToSolution(draft.board, draft.generatedSolution, topology);
                     }
                     draftsRef.current = drafts;
-                    const draft = drafts[currentMode] ?? { ...initial, board: initializeBoard(initial.width, initial.height), walls: [], bridges: [], warps: [], generatedSolution: null, activeColor: 1, isPlacingSecond: false };
+                    const draft = drafts[currentMode] ?? { ...initial, board: initializeBoard(initial.width, initial.height), walls: [], bridges: [], warps: [], generatedSolution: null, generatedPathSolution: null, activeColor: 1, isPlacingSecond: false };
                     restoreDraft(draft, currentMode);
                     setMode(currentMode);
                 } catch (error) {
@@ -126,7 +134,7 @@ const FlowSolver = () => {
         return () => {
             if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
         };
-    }, [width, height, mode, board, walls, bridges, warps, solverType, activeColor, isPlacingSecond, generatedSolution, isLoaded, invalidSavedWalls]);
+    }, [width, height, mode, board, walls, bridges, warps, solverType, activeColor, isPlacingSecond, generatedSolution, generatedPathSolution, isLoaded, invalidSavedWalls]);
 
     // Cleanup worker on unmount
     useEffect(() => {
@@ -150,7 +158,7 @@ const FlowSolver = () => {
         setEditHistory([]);
         setInvalidSavedWalls(false);
         setSolvedBoard(null); setPathSolution(null);
-        setGeneratedSolution(null);
+        setGeneratedSolution(null); setGeneratedPathSolution(null);
         setActiveColor(1);
         setIsPlacingSecond(false);
         setError(null);
@@ -274,7 +282,7 @@ const FlowSolver = () => {
 
         recordEdit();
         setBoard(newBoard);
-        setGeneratedSolution(null);
+        setGeneratedSolution(null); setGeneratedPathSolution(null);
         setError(null);
         setSolveTime(null);
     }, [board, solvedBoard, isSolving, isGenerating, isLoaded, isAvailable, bridges, activeColor, editTool, invalidSavedWalls, recordEdit]);
@@ -286,7 +294,7 @@ const FlowSolver = () => {
         catch (error) { setError(error instanceof Error ? error.message : 'Invalid topology'); return; }
         if (JSON.stringify(next) === JSON.stringify({ walls, bridges, warps })) return;
         recordEdit(); setWalls(next.walls); setBridges(next.bridges); setWarps(next.warps);
-        setGeneratedSolution(null); setSolvedBoard(null); setPathSolution(null); setSolveTime(null); setError(null);
+        setGeneratedSolution(null); setGeneratedPathSolution(null); setSolvedBoard(null); setPathSolution(null); setSolveTime(null); setError(null);
         if (mode !== 'standard' || next.walls.length) setSolverType('heuristic_bfs');
     };
     const applyWalls = (next: Wall[]) => applyTopology({ walls: next, bridges, warps });
@@ -303,7 +311,7 @@ const FlowSolver = () => {
         setWalls(previous.walls); setBridges(previous.bridges); setWarps(previous.warps);
         setActiveColor(previous.activeColor);
         setIsPlacingSecond(previous.isPlacingSecond);
-        setGeneratedSolution(null);
+        setGeneratedSolution(null); setGeneratedPathSolution(null);
         setError(null);
         setSolveTime(null);
         if (previous.walls.length) setSolverType('heuristic_bfs');
@@ -311,9 +319,9 @@ const FlowSolver = () => {
     };
 
     const generateBoard = () => {
-        if (invalidSavedWalls || walls.length || isSolving || isGenerating || !isLoaded || !isStandard) return;
-        if (!generatedSolution && board.some(column => column.some(color => color !== 0)) &&
-            !window.confirm('Replace your endpoints with a generated puzzle?')) return;
+        if (invalidSavedWalls || walls.length || isSolving || isGenerating || !isLoaded || !isAvailable) return;
+        if (!generatedSolution && (board.flat().some(Boolean) || bridges.length || warps.length) &&
+            !window.confirm(isStandard ? 'Replace your endpoints with a generated puzzle?' : 'Replace your puzzle with a generated puzzle?')) return;
         setError(null);
         setIsGenerating(true);
         const worker = new Worker(
@@ -321,7 +329,7 @@ const FlowSolver = () => {
             { type: 'module' }
         );
         workerRef.current = worker;
-        worker.onmessage = (event: MessageEvent<{ puzzle?: GeneratedPuzzle; error?: string }>) => {
+        worker.onmessage = (event: MessageEvent<{ puzzle?: GeneratedModePuzzle; error?: string }>) => {
             if (workerRef.current !== worker) return;
             workerRef.current = null;
             worker.terminate();
@@ -331,9 +339,20 @@ const FlowSolver = () => {
                 setError(generationError || 'Could not generate puzzle. Please try again.');
                 return;
             }
+            try {
+                if (puzzle.mode !== mode || puzzle.width !== width || puzzle.height !== height) throw new Error('Generator returned a different puzzle mode or size');
+                normalizeTopology(puzzle.topology, puzzle.board, mode);
+                validateSolution(puzzle.board, puzzle.topology, puzzle.pathSolution);
+            } catch (error) {
+                setError(error instanceof Error ? error.message : 'Invalid generated puzzle');
+                return;
+            }
             setBoard(puzzle.board);
+            setBridges(puzzle.topology.bridges); setWarps(puzzle.topology.warps);
             setEditHistory([]);
             setGeneratedSolution(puzzle.solution);
+            setGeneratedPathSolution(puzzle.pathSolution);
+            setEditTool('dots');
             setSolvedBoard(null); setPathSolution(null);
             setSolveTime(null);
             setActiveColor(puzzle.pairCount + 1);
@@ -398,9 +417,10 @@ const FlowSolver = () => {
             if (result.board) {
                 setSolveTime(performance.now() - startTime);
                 setSolvedBoard(result.board); setPathSolution(result.solution ?? null);
-            } else if (isStandard && !walls.length && generatedSolution && (result.timedOut || /result code 2/.test(result.error ?? ''))) {
+            } else if (generatedSolution && (result.timedOut || /result code 2/.test(result.error ?? ''))) {
                 // Generated puzzles already have a valid solution if search reaches its budget.
                 setSolvedBoard(generatedSolution);
+                setPathSolution(generatedPathSolution);
                 setSolveTime(null);
             } else if (result.timedOut) {
                 setError(mode !== 'standard' ? 'Search limit reached. Your puzzle is preserved.' : solverType === 'astar' ? 'Timed out. Try Heuristic BFS.' : 'Timed out (15s limit)');

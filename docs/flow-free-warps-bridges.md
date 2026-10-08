@@ -225,7 +225,7 @@ An example of the open options, not a new application screen:
 
 ```text
 Mode [Bridges ▾]                   Size [5 × 5]
-[ Solve                                     ]
+[ Solve                  ] [ Generate       ]
 Edit: Dots   Walls   Bridges
 Board options ▾                  [Undo][Reset]
   Width [5]                         Height [5]
@@ -313,8 +313,8 @@ without announcing every pointer move or shifting focus. Use messages such as
 “Bridge added, column 3, row 2” and “Row 3 warp opened, left to right.”
 [W3C status-message guidance](https://www.w3.org/WAI/WCAG22/Understanding/status-messages.html).
 
-Omit unavailable Generate and fixed algorithm choices. Explain disabled
-Standard Generate with “Clear walls to generate.” Native engine details do
+Keep Generate beside Solve in all implemented modes and omit fixed algorithm
+choices. Explain disabled Generate with “Clear walls to generate.” Native engine details do
 not belong in the main task instructions. If search reaches its budget, say
 “Search limit reached. Your puzzle is preserved.” Offer cancellation that
 preserves the puzzle during long work; keep Reset's existing destructive-action
@@ -348,7 +348,8 @@ Reset/resize also clear them. Edit preserves all topology. A bridge top-axis
 change is visual only. Associate each computed/generated result with the exact
 draft revision and mode; verify that association before display or fallback.
 Add worker identity/revision guards so late messages cannot replace newer work.
-Generate must be rejected for variants in both UI and generator worker.
+Generate constructs and validates mode-specific topology and ordered paths in
+the worker. Reject unavailable modes and generation against an existing wall layout.
 
 ## Delivery sequence and touchpoints
 
@@ -466,12 +467,20 @@ The release makes these concrete UI choices:
   current tool does not silently return to Dots. Board options holds custom
   dimensions, applicable solver choices, and contextual bulk edits. Endpoint
   numbers supplement color.
-- Solve, Cancel, and Edit share one primary action position. Standard Solve and
+- Solve, Cancel, and Edit share one primary action position. Solve and
   Generate share an equal-width row. Undo and Reset sit beside Board options and
   use labeled icons with 44px targets. Tool tabs use a thin active underline
-  instead of filled toggle blocks. Generate is omitted for variants; fixed
+  instead of filled toggle blocks. Generate is available in all implemented modes; fixed
   C/Wasm solver choices and editing-only controls are omitted where inapplicable.
   Short landscape layouts preserve touch target size.
+- Variant generation retains a validated ordered cover with its topology.
+  Warps translate a Standard cover across borders, opening every used seam.
+  Bridges seed independent crossing routes and transfer ordinary endpoint cells
+  without turning inside a crossing or ending on a bridge lane. Both generators
+  support every 5–15 width/height combination, deterministic seeds, and the 16
+  color limit. Saves retain both lanes; editing invalidates the retained cover.
+  Native search-limit fallback uses those paths rather than inferring lanes from
+  a color matrix. Cancellation and failed generation preserve the active draft.
 - Bridges use two continuous horizontal rails with arched centers and straight
   side stubs. Editing and solved crossings share the same shape. The upper pipe
   fills the raised deck between the rails, which masks the lower route at the

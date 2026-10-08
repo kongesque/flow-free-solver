@@ -98,7 +98,7 @@ for (const width of [390, 1280]) {
         for (const [mode, tool] of [['bridges', 'Bridges'], ['warps', 'Warps']] as const) {
             await page.getByRole('combobox', { name: 'Game Mode' }).selectOption(mode);
             await expect(options).not.toHaveAttribute('open', '');
-            await expect(page.getByRole('button', { name: 'Generate', exact: true })).toHaveCount(0);
+            await expect(page.getByRole('button', { name: 'Generate', exact: true })).toBeVisible();
             await expect(page.getByRole('combobox', { name: 'Solver Algorithm' })).toHaveCount(0);
             await page.getByRole('button', { name: tool, exact: true }).click();
             await expect(page.getByRole('button', { name: tool, exact: true })).toHaveAttribute('aria-pressed', 'true');

@@ -42,7 +42,7 @@ Try it online: **[https://flow.kongesque.com](https://flow.kongesque.com)**
 
 - **Instant AI Solutions**: Solves complex Number Link puzzles in milliseconds using the Z3 SMT Solver (compiled to Wasm).
 - **Interactive Editor**: Draw your own puzzles or test specific configurations on grids up to 15x15.
-- **Puzzle Generator**: Create random solvable puzzles from 5×5 to 15×15, with one color pair per initial row or column. Reveal or hide the complete solution, or independently solve the generated endpoints with any solver.
+- **Puzzle Generator**: Create random solvable Standard, Bridges, and Warps puzzles from 5×5 to 15×15, including rectangular boards. Each generated puzzle retains a validated complete solution.
 - **Multiple Algorithms**: Compare the performance of heuristic search (A*), constraint satisfaction (SAT), and optimized C BFS.
 
 ---
@@ -58,11 +58,14 @@ Try it online: **[https://flow.kongesque.com](https://flow.kongesque.com)**
 
 Generation runs in a dedicated Web Worker. It starts with a complete path cover
 and randomly transfers cells between path endpoints while preserving full-board
-coverage, connectivity, and path degree. Each color retains at least three cells.
+coverage, connectivity, and path degree. Standard colors retain at least three cells.
 The remaining endpoints therefore always have a valid solution. Puzzles may have
 multiple solutions; the generator does not certify uniqueness or difficulty.
-Some large puzzles can exceed an independent solver's search budget. **Show
-solution** always reveals the solution retained during construction.
+Warps shift a complete cover across board borders and open the seams its paths
+use. Bridges construct independent crossing lanes, then transfer endpoint cells
+through the topology graph; up to 16 pairs cover both lanes at every crossing.
+Some large puzzles can exceed an independent solver's search budget. **Solve**
+then displays the validated solution retained during construction.
 
 The tool panel sits beside the board on desktop and below it on mobile. Mode and
 Size stay visible above the primary actions. Compact Undo and Reset buttons sit
@@ -72,7 +75,7 @@ Dots/Walls and the active variant's tool are directly accessible during editing,
 as quiet text tabs with an active underline. Selecting a tool keeps it selected; choose Dots
 to return to endpoint placement. Editing tools disappear when viewing a solution.
 Board options start collapsed and contain custom dimensions, applicable solver
-choices, and contextual bulk edits. Generate appears only for Standard; variants,
+choices, and contextual bulk edits. Generate appears in all implemented modes; variants,
 walls, and rectangles select the C/Wasm engine automatically. The board keeps its
 size and position as tools change; on phones, the footer can scroll when browser
 bars leave less room.
@@ -112,8 +115,9 @@ Solved crossings retain both rails and a raised deck separating the pipes.
 Walls and warp openings use the same thin, neutral rails; warp openings have
 straight dashed lines at both connected borders and highlight together on focus.
 
-Variant solving uses the C/Wasm engine. **Generate** remains available only for
-Standard without walls. **Cancel** stops active work while preserving the puzzle.
+Variant solving uses the C/Wasm engine. **Generate** creates a new puzzle with
+its mode's topology, replacing manual endpoints and crossings/seams only after
+confirmation. Clear walls before generation. **Cancel** preserves the puzzle.
 The graph search has a 2,000,000-visit / 10-second CPU budget; reaching it is
 reported as a search limit, so difficult puzzles can remain unresolved. Mixed
 Warps + Bridges boards and exact official-pack compatibility are outside this release.
@@ -139,8 +143,10 @@ for the data model, solver design, fixtures, and verification results.
 
 Rectangular and variant solving use the C/Wasm backend only. The generator
 remains TypeScript in a dedicated worker; it constructs solutions without search.
-Worker requests carry the mode and reject unsupported algorithms and generator
-requests instead of silently applying Standard rules. See [issue #2](https://github.com/kongesque/flow-free-solver/issues/2).
+Worker requests carry the mode and reject unsupported algorithms and unavailable
+modes instead of silently applying Standard rules. Generated ordered paths and
+topology survive reload and mode switching; endpoint/topology edits discard the
+retained solution. See [issue #2](https://github.com/kongesque/flow-free-solver/issues/2).
 
 ## 🧠 Technical Architecture
 
@@ -282,8 +288,9 @@ and repeated calls. CI runs these checks for production, development, and subpat
 hosting. Z3 uses shared memory and requires cross-origin isolation; preserve the
 COOP/COEP headers in `vite.config.js` and `vercel.json`.
 
-Generator tests independently validate 330 square and 330 rectangular seeded boards
-across every supported dimension combination. Browser tests generate, independently solve, and reveal every size through real workers, solve
+Generator tests independently validate 330 square and 330 rectangular Standard
+boards, plus 726 seeded variant covers across all supported dimension pairs.
+Browser tests generate and independently solve through real workers, solve
 generated puzzles with all three algorithms, and check reload, editing,
 cancellation, worker failure recovery, mobile controls, rectangular C/Wasm solving,
 legacy saves, and separate mode drafts. Variant tests validate ordered paths

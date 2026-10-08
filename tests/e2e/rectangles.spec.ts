@@ -152,7 +152,7 @@ test('implemented modes restore their drafts and Hexes remains unavailable', asy
     for (const mode of ['bridges', 'warps']) {
         await page.getByRole('combobox', { name: 'Game Mode' }).selectOption(mode);
         await expect(page.getByRole('button', { name: 'Solve', exact: true })).toBeEnabled();
-        await expect(page.getByRole('button', { name: 'Generate', exact: true })).toHaveCount(0);
+        await expect(page.getByRole('button', { name: 'Generate', exact: true })).toBeVisible();
         await expect(page.getByRole('button', { name: 'Cell 4,7 Empty', exact: true })).toBeEnabled();
     }
     await expect(page.getByRole('combobox', { name: 'Game Mode' }).locator('option[value="hexes"]')).toHaveJSProperty('disabled', true);

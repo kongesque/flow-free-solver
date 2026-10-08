@@ -1,6 +1,7 @@
 import type { GameMode } from '../solver/logic/game-modes';
 import type { Bridge, WarpSeam } from '../solver/logic/topology';
 import type { Wall } from '../solver/logic/walls';
+import type { PuzzleSolution } from '../solver/logic/solution';
 
 /**
  * IndexedDB Storage Hook for Flow Free Solver
@@ -23,6 +24,7 @@ export interface PuzzleDraft {
     activeColor: number;
     isPlacingSecond: boolean;
     generatedSolution: number[][] | null;
+    generatedPathSolution?: PuzzleSolution | null;
 }
 
 export interface PuzzleState {
@@ -41,6 +43,7 @@ export interface PuzzleState {
     activeColor: number;
     isPlacingSecond: boolean;
     generatedSolution?: number[][] | null;
+    generatedPathSolution?: PuzzleSolution | null;
     savedAt: number;
 }
 

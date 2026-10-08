@@ -176,7 +176,6 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
 .select-wrap select:hover:not(:disabled) { border-color: var(--color-stoic-block-border); }
 .select-wrap svg { position: absolute; right: 10px; top: calc(65% - 6px); width: 12px; height: 12px; pointer-events: none; }
 .control-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-.control-actions.without-generation { grid-template-columns: minmax(0, 1fr); }
 .control-button {
   min-height: 44px;
   display: flex; align-items: center; justify-content: center; gap: 6px;
