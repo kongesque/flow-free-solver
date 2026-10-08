@@ -109,6 +109,7 @@ test('rectangular dimensions and generated solution survive reload; square prese
     await page.getByRole('button', { name: 'Solve', exact: true }).click();
     await expect(page.getByRole('status')).toContainText('Solved');
     validate(input, await rows(page, 5, 8));
+    page.once('dialog', dialog => dialog.accept());
     await page.getByRole('combobox', { name: 'Grid Size' }).selectOption('8');
     await expect(page.getByRole('combobox', { name: 'Grid Width' })).toHaveValue('8');
     await expect(page.getByRole('combobox', { name: 'Grid Height' })).toHaveValue('8');
@@ -145,26 +146,20 @@ test('legacy square saves load with independent dimensions', async ({ page }) =>
     await expect(page.getByRole('button', { name: 'Cell 5,0 Color 1', exact: true })).toBeVisible();
 });
 
-test('future mode placeholders block puzzle actions, persist, and return safely to Standard', async ({ page }) => {
-    let workers = 0;
-    page.on('worker', () => { workers++; });
-    await page.goto('./');
-    await openBoardOptions(page);
+test('implemented modes restore their drafts and Hexes remains unavailable', async ({ page }) => {
+    await page.goto('./'); await openBoardOptions(page);
     await dimensions(page, 5, 8);
     await page.getByRole('button', { name: 'Cell 4,7 Empty', exact: true }).click();
-    for (const mode of ['bridges', 'hexes', 'warps']) {
+    for (const mode of ['bridges', 'warps']) {
         await page.getByRole('combobox', { name: 'Game Mode' }).selectOption(mode);
-        await expect(page.getByRole('status')).toContainText('coming soon');
-        await expect(page.getByRole('button', { name: 'Solve', exact: true })).toBeDisabled();
+        await expect(page.getByRole('button', { name: 'Solve', exact: true })).toBeEnabled();
         await expect(page.getByRole('button', { name: 'Generate', exact: true })).toBeDisabled();
-        await expect(page.getByRole('button', { name: 'Cell 4,7 Color 1', exact: true })).toBeDisabled();
+        await expect(page.getByRole('button', { name: 'Cell 4,7 Empty', exact: true })).toBeEnabled();
     }
-    expect(workers).toBe(0);
+    await expect(page.getByRole('combobox', { name: 'Game Mode' }).locator('option[value="hexes"]')).toHaveJSProperty('disabled', true);
     await expect.poll(async () => (await savedState(page))?.mode).toBe('warps');
-    await page.reload();
-    await openBoardOptions(page);
+    await page.reload(); await openBoardOptions(page);
     await expect(page.getByRole('combobox', { name: 'Game Mode' })).toHaveValue('warps');
-    await expect(page.getByRole('status')).toContainText('coming soon');
     await page.getByRole('combobox', { name: 'Game Mode' }).selectOption('standard');
     await expect(page.getByRole('button', { name: 'Generate', exact: true })).toBeEnabled();
     await expect(page.getByRole('button', { name: 'Cell 4,7 Color 1', exact: true })).toBeEnabled();

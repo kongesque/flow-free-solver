@@ -1,4 +1,5 @@
 import { Loader2, X, Check } from 'lucide-react';
+import type { EditTool } from '../logic/walls';
 import { COLORS } from './constants';
 
 interface StatusIndicatorProps {
@@ -13,6 +14,7 @@ interface StatusIndicatorProps {
     isPlacingSecond: boolean;
     editingWalls: boolean;
     wallCount: number;
+    editTool: EditTool; bridgeCount: number; warpCount: number;
 }
 
 const StatusIndicator = ({
@@ -26,7 +28,7 @@ const StatusIndicator = ({
     activeColor,
     isPlacingSecond,
     editingWalls,
-    wallCount,
+    wallCount, editTool, bridgeCount, warpCount,
 }: StatusIndicatorProps) => (
     <div role="status" className="solver-status selectable-text" aria-live="polite" aria-atomic="true">
         {unavailableMode ? (
@@ -54,6 +56,10 @@ const StatusIndicator = ({
                     </span>
                 )}
             </span>
+        ) : editTool === 'bridges' ? (
+            <span className="text-stoic-primary text-xs">Bridges · {bridgeCount} · Tap an interior cell</span>
+        ) : editTool === 'warps' ? (
+            <span className="text-stoic-primary text-xs">Warps · {warpCount} · Tap a border</span>
         ) : editingWalls ? (
             <span className="text-stoic-primary text-xs">Walls · {wallCount} · Tap a boundary</span>
         ) : generatedPairCount !== null ? (

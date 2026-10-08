@@ -4,7 +4,7 @@ test('Standard is available; future modes cannot use the Standard solver pipelin
     expect(() => requireStandardMode()).not.toThrow();
     expect(GAME_MODES.standard.available).toBe(true);
     for (const mode of ['bridges', 'hexes', 'warps'] as const) {
-        expect(GAME_MODES[mode].available).toBe(false);
+        expect(GAME_MODES[mode].available).toBe(mode !== 'hexes');
         expect(() => requireStandardMode(mode)).toThrow('not available yet');
     }
 });

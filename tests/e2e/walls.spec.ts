@@ -150,6 +150,7 @@ test('pointer strokes add/remove once per edge, with undo and center/outer-borde
     await page.getByRole('button', { name: 'Walls', exact: true }).click();
     await cell(page, 1, 0).click();
     await expect(cell(page, 1, 0)).toHaveAttribute('aria-label', 'Cell 1,0 Color 1');
+    page.once('dialog', dialog => dialog.accept());
     await page.getByRole('combobox', { name: 'Grid Size' }).selectOption('6');
     await expect(page.locator('[data-wall]')).toHaveCount(0);
 });
@@ -223,7 +224,7 @@ test('invalid saved walls pause editing and autosave until an explicit Reset', a
         db.close();
     });
     await page.reload();
-    await expect(page.getByRole('status')).toContainText('Saved walls are invalid');
+    await expect(page.getByRole('status')).toContainText('Saved puzzle is invalid');
     await expect(page.getByRole('button', { name: 'Solve', exact: true })).toBeDisabled();
     await expect(cell(page, 0, 0)).toBeDisabled();
     await expect(page.getByRole('button', { name: 'Reset', exact: true })).toBeEnabled();
@@ -232,7 +233,7 @@ test('invalid saved walls pause editing and autosave until an explicit Reset', a
     expect((await saved(page))?.walls?.[0].x).toBe(999);
     page.once('dialog', dialog => dialog.dismiss());
     await page.getByRole('button', { name: 'Reset', exact: true }).click();
-    await expect(page.getByRole('status')).toContainText('Saved walls are invalid');
+    await expect(page.getByRole('status')).toContainText('Saved puzzle is invalid');
     expect((await saved(page))?.walls?.[0].x).toBe(999);
     page.once('dialog', dialog => dialog.accept());
     await page.getByRole('button', { name: 'Reset', exact: true }).click();

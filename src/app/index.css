@@ -306,3 +306,19 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+/* Selected path edges are distinct from original endpoint dots. */
+.pipe-overlay, .warp-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
+.endpoint-dot { position: relative; z-index: 2; }
+.warp-overlay { z-index: 4; }
+.warp-overlay line { stroke: #e6e4df; stroke-width: .1; stroke-dasharray: .12 .08; }
+.edit-tools { display: flex; gap: 6px; }
+.edit-tools button { flex: 1; min-width: 0; }
+.edit-tools button[aria-pressed="true"] { border-color: var(--color-stoic-accent); background: #203638; }
+.warp-actions { display: flex; flex-direction: column; gap: 6px; }
+.seam-target { position: absolute !important; z-index: 5; padding: 0; border: 1px dashed #697773; background: #252b29; opacity: .8; }
+.seam-target.open { border-color: #e6e4df; background: #385154; }
+.seam-target.paired { outline: 2px solid var(--color-stoic-accent); outline-offset: -2px; }
+
+.pair-symbol { display: grid; place-items: center; height: 100%; font-size: clamp(8px, 1.5vw, 13px); color: white; text-shadow: 0 1px 2px black, 0 0 3px black; }
+.panning button { touch-action: pan-x pan-y !important; cursor: grab; }

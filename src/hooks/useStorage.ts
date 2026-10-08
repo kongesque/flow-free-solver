@@ -1,4 +1,5 @@
 import type { GameMode } from '../solver/logic/game-modes';
+import type { Bridge, WarpSeam } from '../solver/logic/topology';
 import type { Wall } from '../solver/logic/walls';
 
 /**
@@ -11,13 +12,30 @@ const DB_VERSION = 1;
 const STORE_NAME = 'puzzle-state';
 const STATE_KEY = 'current';
 
+export interface PuzzleDraft {
+    width: number;
+    height: number;
+    board: number[][];
+    walls: Wall[];
+    bridges: Bridge[];
+    warps: WarpSeam[];
+    solverType: 'astar' | 'z3' | 'heuristic_bfs';
+    activeColor: number;
+    isPlacingSecond: boolean;
+    generatedSolution: number[][] | null;
+}
+
 export interface PuzzleState {
+    schemaVersion?: 2;
+    drafts?: Partial<Record<GameMode, PuzzleDraft>>;
     /** Legacy square saves use size; new saves store independent dimensions. */
     size?: number;
     width?: number;
     height?: number;
     mode?: GameMode;
     walls?: Wall[];
+    bridges?: Bridge[];
+    warps?: WarpSeam[];
     board: number[][];
     solverType: 'astar' | 'z3' | 'heuristic_bfs';
     activeColor: number;

@@ -86,6 +86,7 @@ test('Undo restores removed endpoints and leaves form shortcuts alone; Reset and
     await expect(undo(page)).toBeDisabled();
     await cell(page, 1, 1).click();
     await expect(undo(page)).toBeEnabled();
+    page.once('dialog', dialog => dialog.accept());
     await page.getByRole('combobox', { name: 'Grid Size' }).selectOption('6');
     await expect(undo(page)).toBeDisabled();
     await expect(page.getByRole('button', { name: /Cell .* Empty$/ })).toHaveCount(36);

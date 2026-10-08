@@ -20,7 +20,13 @@ function validateSolution(input: number[][], solution: number[][]) {
 }
 
 async function generate(page: Page, size: number) {
+    if (await page.getByRole('combobox', { name: 'Grid Size' }).inputValue() !== String(size) && await page.locator('.endpoint-dot').count()) {
+        page.once('dialog', dialog => dialog.accept());
+    }
     await page.getByRole('combobox', { name: 'Grid Size' }).selectOption(String(size));
+    if (await page.locator('.endpoint-dot').count() && await page.getByRole('button', { name: 'Edit', exact: true }).count() === 0) {
+        page.once('dialog', dialog => dialog.accept());
+    }
     await page.getByRole('button', { name: 'Generate', exact: true }).click();
     await expect(page.getByRole('status')).toContainText(`Generated · ${size} pairs`);
     const board = await readGrid(page, size);

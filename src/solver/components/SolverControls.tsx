@@ -2,6 +2,7 @@ import React from 'react';
 import { ChevronDown } from 'lucide-react';
 import { GAME_MODES, type GameMode } from '../logic/game-modes';
 import { SIZE_OPTIONS, RESTRICT_Z3_TO_LARGE_GRIDS, SolverType } from './constants';
+import type { Bridge, WarpSeam } from '../logic/topology';
 import type { EditTool } from '../logic/walls';
 
 interface SolverControlsProps {
@@ -21,6 +22,7 @@ interface SolverControlsProps {
     onSizeChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
     onSolverTypeChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
     onSolve: () => void;
+    onCancel: () => void;
     onReset: () => void;
     onGenerate: () => void;
     wallCount: number;
@@ -31,6 +33,11 @@ interface SolverControlsProps {
     onClearWalls: () => void;
     zoomWalls: boolean;
     onZoomWalls: () => void;
+    panning: boolean; onPan: () => void;
+    bridges: Bridge[]; warps: WarpSeam[];
+    bridgeOver: Bridge['over']; onBridgeOver: (over: Bridge['over']) => void;
+    onClearBridges: () => void; onRotateBridges: () => void;
+    onWarpsChange: (warps: WarpSeam[]) => void;
 }
 
 const SolverControls = ({
@@ -49,14 +56,14 @@ const SolverControls = ({
     showingSolution,
     onSizeChange,
     onSolverTypeChange,
-    onSolve,
+    onSolve, onCancel,
     onReset,
     onGenerate,
-    wallCount, editTool, onEditToolChange, canUndo, onUndo, onClearWalls, zoomWalls, onZoomWalls,
+    wallCount, editTool, onEditToolChange, canUndo, onUndo, onClearWalls, zoomWalls, onZoomWalls, bridges, warps, bridgeOver, onBridgeOver, onClearBridges, onRotateBridges, onWarpsChange, panning, onPan,
 }: SolverControlsProps) => {
     const isBusy = isSolving || isGenerating || !isLoaded || invalidSavedWalls;
     const unavailable = !GAME_MODES[mode].available;
-    const wasmOnly = width !== height || unavailable || wallCount > 0;
+    const wasmOnly = width !== height || mode !== 'standard' || wallCount > 0;
     const editingDisabled = isBusy || unavailable || showingSolution;
     return (
         <div className="solver-controls">
@@ -79,17 +86,19 @@ const SolverControls = ({
                 <button className="control-button primary-action" onClick={showingSolution ? onEdit : onSolve} disabled={isBusy || unavailable}>
                     {showingSolution ? 'Edit' : 'Solve'}
                 </button>
-                <button className="control-button" onClick={onGenerate} disabled={isBusy || unavailable || wallCount > 0}
-                    aria-describedby={wallCount > 0 ? 'wall-generation-hint' : undefined}>
+                <button className="control-button" onClick={onGenerate} disabled={isBusy || unavailable || mode !== 'standard' || wallCount > 0}
+                    aria-describedby={mode !== 'standard' ? 'variant-generation-hint' : wallCount > 0 ? 'wall-generation-hint' : undefined}>
                     Generate
                 </button>
                 <button className="control-button reset-action" onClick={onReset} disabled={!isLoaded || unavailable}>
                     Reset
                 </button>
             </div>
-            {wallCount > 0 && <p id="wall-generation-hint" className="panel-notice">Clear walls to generate.</p>}
+            {(isSolving || isGenerating) && <button type="button" className="control-button" onClick={onCancel}>Cancel</button>}
+            {mode !== 'standard' && <p id="variant-generation-hint" className="panel-notice">Generation is available in Standard mode.</p>}
+            {wallCount > 0 && mode === 'standard' && <p id="wall-generation-hint" className="panel-notice">Clear walls to generate.</p>}
             <details className="board-options">
-                <summary>Board options{editTool === 'walls' && <span className="active-tool"> · Walls</span>} <ChevronDown aria-hidden="true" /></summary>
+                <summary>Board options{editTool !== 'dots' && <span className="active-tool"> · {editTool[0].toUpperCase() + editTool.slice(1)}</span>} <ChevronDown aria-hidden="true" /></summary>
                 <fieldset disabled={isBusy} className="custom-settings">
                     <legend className="sr-only">Board options</legend>
                     <div className="settings-grid">
@@ -122,7 +131,7 @@ const SolverControls = ({
                             <span className="select-wrap">
                                 <select aria-label="Game Mode" value={mode} onChange={onModeChange}>
                                     {Object.entries(GAME_MODES).map(([value, config]) => (
-                                        <option key={value} value={value}>{config.label}{config.available ? '' : ' (coming soon)'}</option>
+                                        <option key={value} value={value} disabled={!config.available}>{config.label}{config.available ? '' : ' (coming soon)'}</option>
                                     ))}
                                 </select>
                                 <ChevronDown aria-hidden="true" />
@@ -130,11 +139,36 @@ const SolverControls = ({
                         </label>
                     </div>
                     <p className="control-hint">Resizing clears the puzzle.</p>
-                    <button type="button" className="control-button wall-toggle" aria-label="Walls" aria-pressed={editTool === 'walls'}
-                        disabled={editingDisabled} onClick={() => onEditToolChange(editTool === 'walls' ? 'dots' : 'walls')}>
-                        <span>Draw walls{wallCount > 0 && <span className="wall-count"> · {wallCount}</span>}</span>
-                        <span className="wall-toggle-indicator" aria-hidden="true" />
-                    </button>
+                    <div className="edit-tools" role="group" aria-label="Editing tool">
+                        {(['dots', 'walls', ...(mode === 'bridges' ? ['bridges'] : mode === 'warps' ? ['warps'] : [])] as EditTool[]).map(tool =>
+                            <button key={tool} type="button" className="control-button" aria-pressed={editTool === tool}
+                                disabled={editingDisabled} onClick={() => onEditToolChange(editTool === tool && tool !== 'dots' ? 'dots' : tool)}>
+                                {tool[0].toUpperCase() + tool.slice(1)}
+                                {tool === 'walls' && wallCount > 0 && <span aria-hidden="true" className="wall-count"> · {wallCount}</span>}
+                            </button>)}
+                    </div>
+                    {editTool === 'bridges' && <div className="wall-context">
+                        <label className="control-field"><span>Bridge on top</span><span className="select-wrap">
+                            <select aria-label="Bridge on top" value={bridgeOver} disabled={editingDisabled} onChange={event => onBridgeOver(event.target.value as Bridge['over'])}>
+                                <option value="horizontal">Horizontal</option><option value="vertical">Vertical</option>
+                            </select><ChevronDown aria-hidden="true" />
+                        </span></label>
+                        {bridges.length > 0 && <div className="wall-actions">
+                            <button type="button" className="control-button" disabled={editingDisabled} onClick={onRotateBridges}>Rotate bridges</button>
+                            <button type="button" className="control-button" disabled={editingDisabled} onClick={onClearBridges}>Clear bridges</button>
+                        </div>}
+                        <p className="wall-help">Tap an empty interior cell to add or remove a bridge.</p>
+                    </div>}
+                    {editTool === 'warps' && <div className="wall-context">
+                        <div className="warp-actions">
+                            <button type="button" className="control-button" disabled={editingDisabled} onClick={() => onWarpsChange([
+                                ...warps.filter(w => w.axis !== 'horizontal'), ...Array.from({ length: height }, (_, index) => ({ axis: 'horizontal' as const, index }))])}>Open all left/right</button>
+                            <button type="button" className="control-button" disabled={editingDisabled} onClick={() => onWarpsChange([
+                                ...warps.filter(w => w.axis !== 'vertical'), ...Array.from({ length: width }, (_, index) => ({ axis: 'vertical' as const, index }))])}>Open all top/bottom</button>
+                            {warps.length > 0 && <button type="button" className="control-button" disabled={editingDisabled} onClick={() => onWarpsChange([])}>Clear warps</button>}
+                        </div>
+                        <p className="wall-help">Tap a border to connect its row or column to the opposite edge.</p>
+                    </div>}
                     {editTool === 'walls' && !showingSolution && <div className="wall-context">
                         <div className="wall-actions" role="group" aria-label="Wall tools">
                             {wallCount > 0 && <button type="button" className="control-button" disabled={editingDisabled} onClick={onClearWalls}>Clear walls</button>}
@@ -143,6 +177,10 @@ const SolverControls = ({
                         </div>
                         <p className="wall-help">{zoomWalls ? 'Swipe from a cell center to pan.' : 'Tap or drag a boundary.'}</p>
                     </div>}
+                    {editTool !== 'walls' && !showingSolution && <button type="button" className="control-button" disabled={editingDisabled}
+                        aria-pressed={zoomWalls} onClick={onZoomWalls}>{zoomWalls ? 'Fit board' : 'Zoom in'}</button>}
+                    {zoomWalls && !showingSolution && <button type="button" className="control-button" aria-pressed={panning}
+                        disabled={editingDisabled} onClick={onPan}>{panning ? 'Resume editing' : 'Pan board'}</button>}
                 </fieldset>
             </details>
             <div className="solver-about selectable-text">

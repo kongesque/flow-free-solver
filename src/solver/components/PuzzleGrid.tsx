@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
+import PipeOverlay from './PipeOverlay';
+import type { PuzzleSolution } from '../logic/solution';
+import { seamKey, type Bridge, type WarpSeam } from '../logic/topology';
 import { COLORS } from './constants';
 import { wallAtPoint, wallBetween, wallKey, type Wall, type EditTool } from '../logic/walls';
 
@@ -15,6 +18,13 @@ interface PuzzleGridProps {
     editTool: EditTool;
     zoomed: boolean;
     onWallsChange: (walls: Wall[]) => void;
+    panning: boolean;
+    endpointBoard: number[][];
+    solution: PuzzleSolution | null;
+    bridges: Bridge[];
+    warps: WarpSeam[];
+    onBridgeClick: (x: number, y: number) => void;
+    onSeamClick: (seam: WarpSeam) => void;
 }
 
 const PuzzleGrid = ({
@@ -26,15 +36,16 @@ const PuzzleGrid = ({
     activeColor,
     isResetting,
     onCellClick,
-    walls, editTool, zoomed, onWallsChange,
+    walls, editTool, zoomed, onWallsChange, panning, endpointBoard, solution, bridges, warps, onBridgeClick, onSeamClick,
 }: PuzzleGridProps) => {
     const gridRef = useRef<HTMLElement>(null);
+    const [highlightSeam, setHighlightSeam] = useState<string | null>(null);
     const [focusedCell, setFocusedCell] = useState(0);
     const [preview, setPreview] = useState<Wall | null>(null);
     const [draft, setDraft] = useState<Wall[] | null>(null);
     const [announcement, setAnnouncement] = useState('');
     const stroke = useRef<{ pointerId: number; adding: boolean; walls: Wall[]; seen: Set<string>; point: [number, number]; side: Wall['side'] } | null>(null);
-    const editingWalls = editTool === 'walls' && !isSolving && !solvedBoard;
+    const editingWalls = editTool === 'walls' && !panning && !isSolving && !solvedBoard;
     const visibleWalls = draft ?? walls;
     // Cancel an in-flight stroke if Reset, resizing, mode changes, or solving replaces the board.
     useEffect(() => {
@@ -100,7 +111,7 @@ const PuzzleGrid = ({
     };
     // Grid lines belong to the nearest cell, so small touch targets have no dead gaps.
     const handleGridClick = (event: MouseEvent<HTMLElement>) => {
-        if (editTool !== 'dots' || event.target !== event.currentTarget || isSolving || solvedBoard) return;
+        if (panning || editTool !== 'dots' || event.target !== event.currentTarget || isSolving || solvedBoard) return;
         const bounds = event.currentTarget.getBoundingClientRect();
         const x = Math.min(width - 1, Math.floor((event.clientX - bounds.left) / bounds.width * width));
         const y = Math.min(height - 1, Math.floor((event.clientY - bounds.top) / bounds.height * height));
@@ -123,6 +134,15 @@ const PuzzleGrid = ({
             default: return;
         }
         event.preventDefault();
+        if (editTool === 'warps' && event.shiftKey && !panning && !isSolving && !solvedBoard) {
+            const axis = event.key === 'ArrowLeft' || event.key === 'ArrowRight' ? 'horizontal' : 'vertical';
+            if ((event.key === 'ArrowLeft' && x === 0) || (event.key === 'ArrowRight' && x === width - 1) ||
+                (event.key === 'ArrowUp' && y === 0) || (event.key === 'ArrowDown' && y === height - 1)) {
+                const seam: WarpSeam = { axis, index: axis === 'horizontal' ? y : x };
+                onSeamClick(seam); setAnnouncement(`${axis === 'horizontal' ? 'Row' : 'Column'} ${seam.index + 1} warp toggled.`);
+            }
+            return;
+        }
         if (editingWalls && event.shiftKey && event.key.startsWith('Arrow')) {
             const wall = wallBetween([x, y], [nextX, nextY]);
             if (!wall) return;
@@ -133,14 +153,15 @@ const PuzzleGrid = ({
         }
         const index = nextY * width + nextX;
         setFocusedCell(index);
-        gridRef.current?.querySelectorAll('button')[index]?.focus();
+        gridRef.current?.querySelectorAll<HTMLButtonElement>('[data-cell]')[index]?.focus();
     };
     return (
     <article
         ref={gridRef}
         aria-label="Puzzle Grid Board"
         aria-describedby="board-instructions board-keyboard-help"
-        className={`puzzle-grid ${editingWalls ? 'editing-walls' : ''}`}
+        data-solution={solution ? JSON.stringify(solution) : undefined}
+        className={`puzzle-grid ${panning ? 'panning' : ''} ${editingWalls ? 'editing-walls' : ''}`}
         onClick={handleGridClick}
         onPointerDown={startStroke}
         onPointerMove={movePointer}
@@ -160,10 +181,14 @@ const PuzzleGrid = ({
             Array.from({ length: width }).map((_, x) => {
                 const cellValue = currentBoard[x]?.[y] ?? 0;
                 const hasColor = cellValue !== 0;
+                const endpoint = endpointBoard[x]?.[y] ?? 0;
+                const bridge = bridges.find(b => b.x === x && b.y === y);
+                const laneColors = solution?.paths.filter(path => path.nodes.some(node => node.x === x && node.y === y)) ?? [];
 
                 return (
                     <button
                         key={`${x}-${y}`}
+                        data-cell={`${x},${y}`}
                         type="button"
                         disabled={isSolving || solvedBoard !== null}
                         tabIndex={y * width + x === Math.min(focusedCell, width * height - 1) ? 0 : -1}
@@ -180,15 +205,19 @@ const PuzzleGrid = ({
                             select-none
                             ${solvedBoard ? 'cursor-default' : 'hover:bg-stoic-block-hover active:bg-stoic-block-hover'}
                         `}
-                        onClick={() => editTool === 'dots' && !solvedBoard && onCellClick(x, y)}
-                        aria-label={`Cell ${x},${y} ${hasColor ? `Color ${cellValue}` : 'Empty'}`}
+                        onClick={() => {
+                            if (panning || isSolving || solvedBoard) return;
+                            if (editTool === 'dots') onCellClick(x, y);
+                            if (editTool === 'bridges') { onBridgeClick(x, y); setAnnouncement(`Bridge toggled, column ${x + 1}, row ${y + 1}.`); }
+                        }}
+                        aria-label={`Cell ${x},${y} ${bridge ? `Bridge ${bridge.over} on top${laneColors.map(p => `; ${p.nodes.find(n => n.x === x && n.y === y)?.lane} Color ${p.color}`).join('')}` : hasColor ? `Color ${cellValue}` : 'Empty'}`}
                     >
-                        {hasColor ? (
+                        {endpoint ? (
                             <span
                                 className="endpoint-dot rounded-full w-[70%] h-[70%]"
-                                style={{ backgroundColor: COLORS[cellValue] || '#888' }}
-                            />
-                        ) : editTool === 'dots' && !solvedBoard && !isResetting && (
+                                style={{ backgroundColor: COLORS[endpoint] || '#888' }}
+                            ><span className="pair-symbol">{endpoint}</span></span>
+                        ) : !bridge && editTool === 'dots' && !solvedBoard && !isResetting && (
                             <span
                                 className="endpoint-preview rounded-full w-[70%] h-[70%] transition-opacity duration-75"
                                 style={{ backgroundColor: COLORS[activeColor] || '#888' }}
@@ -198,6 +227,24 @@ const PuzzleGrid = ({
                 );
             })
         )}
+        <PipeOverlay width={width} height={height} solution={solution} bridges={bridges} />
+        {editTool === 'warps' && !panning && !solvedBoard && !isSolving && (['left', 'right', 'top', 'bottom'] as const).flatMap(side =>
+            Array.from({ length: side === 'left' || side === 'right' ? height : width }, (_, index) => {
+                const axis = side === 'left' || side === 'right' ? 'horizontal' : 'vertical';
+                const seam: WarpSeam = { axis, index }, key = seamKey(seam);
+                const open = warps.some(s => seamKey(s) === key);
+                const style: CSSProperties = axis === 'horizontal'
+                    ? { [side]: 0, top: `${index / height * 100}%`, height: `${100 / height}%`, width: '12px' }
+                    : { [side]: 0, left: `${index / width * 100}%`, width: `${100 / width}%`, height: '12px' };
+                return <button key={`${side}-${index}`} className={`seam-target ${open ? 'open' : ''} ${highlightSeam === key ? 'paired' : ''}`} style={style}
+                    type="button" aria-label={`${axis === 'horizontal' ? 'Row' : 'Column'} ${index + 1} warp, ${side}`} aria-pressed={open}
+                    onMouseEnter={() => setHighlightSeam(key)} onMouseLeave={() => setHighlightSeam(null)} onFocus={() => setHighlightSeam(key)} onBlur={() => setHighlightSeam(null)}
+                    onClick={event => { event.stopPropagation(); onSeamClick(seam); setAnnouncement(`${axis === 'horizontal' ? 'Row' : 'Column'} ${index + 1} warp ${open ? 'closed' : 'opened'}.`); }} />;
+            }))}
+        <svg className="warp-overlay" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-hidden="true">
+            {warps.flatMap(({ axis, index }) => axis === 'horizontal' ? [0, width].map(x => <line key={`H-${index}-${x}`} x1={x} x2={x} y1={index + .22} y2={index + .78} />)
+                : [0, height].map(y => <line key={`V-${index}-${y}`} y1={y} y2={y} x1={index + .22} x2={index + .78} />))}
+        </svg>
         {editingWalls && Array.from({ length: height }, (_, y) =>
             Array.from({ length: width }, (_, x) => (['right', 'down'] as const).map(side => {
                 if (side === 'right' ? x === width - 1 : y === height - 1) return null;
