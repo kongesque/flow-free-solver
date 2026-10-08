@@ -1,3 +1,4 @@
+import { optIntoGenerator } from './board-options';
 import { expect, test, type Page } from '@playwright/test';
 import { openBoardOptions } from './board-options';
 import { warpRows, bridgeCross, type TopologyFixture } from '../fixtures/topology-puzzles.mjs';
@@ -47,7 +48,7 @@ async function state(page: Page) {
 }
 
 for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 }]) {
-    test(`wall and warp markers match bridge rails at ${viewport.width}px`, async ({ page }) => {
+    test(`wall and warp markers share rail color with thicker lines at ${viewport.width}px`, async ({ page }) => {
         await page.setViewportSize(viewport);
         await page.goto('./');
         await page.getByRole('combobox', { name: 'Game Mode' }).selectOption('bridges');
@@ -64,7 +65,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
             const style = getComputedStyle(element);
             return { stroke: style.stroke, width: style.strokeWidth, dash: style.strokeDasharray };
         });
-        expect(await markerStyle('.puzzle-wall')).toEqual(railStyle);
+        expect(await markerStyle('.puzzle-wall')).toEqual({ ...railStyle, width: '0.055px' });
         await page.getByRole('button', { name: 'Dots', exact: true }).click();
         await page.screenshot({ path: test.info().outputPath('bridge-walls.png'), fullPage: true });
         await page.getByRole('combobox', { name: 'Game Mode' }).selectOption('warps');
@@ -81,7 +82,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
         await expect(page.locator('[data-warp="horizontal-2"].paired')).toHaveCount(2);
         await page.getByRole('button', { name: 'Dots', exact: true }).click();
         await expect(page.locator('.warp-marker')).toHaveCount(4);
-        expect(await markerStyle('.warp-marker')).toEqual({ ...railStyle, dash: '0.1px, 0.08px' });
+        expect(await markerStyle('.warp-marker')).toEqual({ ...railStyle, width: '0.055px', dash: '0.1px, 0.08px' });
         const warpLines = await page.locator('.warp-marker').evaluateAll(elements => elements.map(element => {
             const path = element as SVGPathElement;
             const length = path.getTotalLength();
@@ -96,7 +97,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
             expect(points[0][1]).toBeCloseTo(0);
             expect(points[4][1]).toBeCloseTo(1);
         }
-        expect(await markerStyle('.puzzle-wall')).toEqual(railStyle);
+        expect(await markerStyle('.puzzle-wall')).toEqual({ ...railStyle, width: '0.055px' });
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
         await page.screenshot({ path: test.info().outputPath('warp-walls.png'), fullPage: true });
     });
@@ -220,7 +221,7 @@ test('warp pairs, keyboard edits, bulk Undo and mode histories preserve separate
     await expect(left).toHaveAttribute('aria-pressed', 'true');
 });
 
-test('horizontal bridge conflicts, clearing, Undo and reset/resize cancellation are reversible', async ({ page }) => {
+test('horizontal bridge conflicts, removal, Undo and reset/resize cancellation are reversible', async ({ page }) => {
     await page.goto('./'); await openBoardOptions(page);
     await page.getByRole('combobox', { name: 'Game Mode' }).selectOption('bridges');
     await cell(page, 1, 1).click();
@@ -228,7 +229,7 @@ test('horizontal bridge conflicts, clearing, Undo and reset/resize cancellation 
     await cell(page, 1, 1).click(); await expect(page.getByRole('status')).toContainText('Remove this dot');
     await cell(page, 2, 2).focus(); await page.keyboard.press('Enter');
     await expect(page.locator('[data-bridge="2,2"]')).toHaveCount(1);
-    await page.getByRole('button', { name: 'Clear bridges', exact: true }).click();
+    await cell(page, 2, 2).click();
     await expect(page.locator('[data-bridge]')).toHaveCount(0);
     await page.getByRole('button', { name: 'Undo', exact: true }).click();
     await expect(cell(page, 2, 2)).toHaveAttribute('aria-label', /horizontal on top/);
@@ -325,3 +326,5 @@ test('legacy Warps placeholder preserves its old puzzle as the Standard draft', 
     await expect(page.locator('.endpoint-dot')).toHaveCount(2);
     await expect(cell(page, 4, 0)).toHaveAttribute('aria-label', 'Cell 4,0 Color 1');
 });
+
+test.beforeEach(async ({ page }) => { await optIntoGenerator(page); });

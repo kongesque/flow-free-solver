@@ -1,3 +1,4 @@
+import { optIntoGenerator } from './board-options';
 import { test, expect, type Page } from '@playwright/test';
 import { openBoardOptions } from './board-options';
 import { assertTopologySolution } from '../fixtures/assert-topology-solution.mjs';
@@ -130,3 +131,5 @@ for (const mode of ['bridges', 'warps'] as const) {
             topology: { walls: draft.walls, bridges: draft.bridges, warps: draft.warps } }, paths);
     });
 }
+
+test.beforeEach(async ({ page }) => { await optIntoGenerator(page); });

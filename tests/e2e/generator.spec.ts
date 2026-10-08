@@ -1,3 +1,4 @@
+import { optIntoGenerator } from './board-options';
 import { openBoardOptions } from './board-options';
 import { test, expect, type Page } from '@playwright/test';
 import { assertSolution } from '../fixtures/assert-solution.mjs';
@@ -264,3 +265,5 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
         });
     }
 }
+
+test.beforeEach(async ({ page }) => { await optIntoGenerator(page); });

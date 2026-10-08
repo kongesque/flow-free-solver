@@ -1,3 +1,4 @@
+import { optIntoGenerator } from './board-options';
 import { openBoardOptions, selectWallTool } from './board-options';
 import { expect, test, type Locator } from '@playwright/test';
 import { assertSolution } from '../fixtures/assert-solution.mjs';
@@ -117,3 +118,5 @@ for (const width of [390, 1280]) {
         await page.screenshot({ path: test.info().outputPath('refined-picker.png'), fullPage: true });
     });
 }
+
+test.beforeEach(async ({ page }) => { await optIntoGenerator(page); });

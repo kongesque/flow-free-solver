@@ -1,3 +1,4 @@
+import { optIntoGenerator } from './board-options';
 import { expect, test } from '@playwright/test';
 import { openBoardOptions } from './board-options';
 
@@ -35,3 +36,5 @@ for (const width of [390, 1280]) {
         await expect(dots).toHaveText(endpointLabels.map(() => ''));
     });
 }
+
+test.beforeEach(async ({ page }) => { await optIntoGenerator(page); });

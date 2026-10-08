@@ -140,7 +140,8 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
 }
 .wall-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3; }
 .puzzle-wall, .bridge-rail, .warp-marker { stroke: var(--color-topology-rail); stroke-width: .04; stroke-linecap: butt; fill: none; }
-.wall-preview { stroke: var(--color-stoic-accent); stroke-width: .04; stroke-linecap: butt; opacity: .7; }
+.puzzle-wall, .warp-marker { stroke-width: .055; }
+.wall-preview { stroke: var(--color-stoic-accent); stroke-width: .055; stroke-linecap: butt; opacity: .7; }
 .wall-target { position: absolute; z-index: 2; touch-action: none; cursor: crosshair; }
 .editing-walls button { touch-action: pan-x pan-y; }
 .wall-count { font-size: 10px; color: var(--color-stoic-secondary); }
@@ -174,6 +175,7 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
 }
 .select-wrap select:hover:not(:disabled) { border-color: var(--color-stoic-block-border); }
 .select-wrap svg { position: absolute; right: 10px; top: calc(65% - 6px); width: 12px; height: 12px; pointer-events: none; }
+.control-actions.single-action { grid-template-columns: minmax(0, 1fr); }
 .control-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .control-button {
   min-height: 44px;
@@ -301,11 +303,10 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
 /* Selected path edges are distinct from original endpoint dots. */
 .pipe-overlay, .warp-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
 .endpoint-dot { position: relative; z-index: 2; display: flex; align-items: center; justify-content: center; font-size: calc(var(--cell-size) * .3); font-weight: 600; line-height: 1; }
-.label-hint { font-size: 10px; color: var(--color-stoic-secondary); line-height: 1.5; }
 .warp-overlay { z-index: 4; }
 .warp-marker { stroke-dasharray: .1 .08; }
 .warp-marker.paired { stroke: var(--color-stoic-accent); }
-.editor-toolbar { display: flex; align-items: center; gap: 6px; }
+.editor-toolbar { min-height: 54px; display: flex; align-items: center; gap: 6px; }
 /* A single tool tray keeps the editor choices distinct from puzzle actions. */
 .edit-tools { display: flex; flex: 1; min-width: 0; gap: 4px; padding: 4px; border: 1px solid var(--color-stoic-line); border-radius: 9px; background: #191c1b; }
 .edit-tools button { flex: 1; min-width: 0; min-height: 44px; gap: 7px; border: 1px solid transparent; border-radius: 5px; background: transparent; padding-inline: 8px; color: var(--color-stoic-secondary); transition: color .15s, background-color .15s, box-shadow .15s; }
@@ -332,7 +333,6 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
 
 .label-setting { text-align: left; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; cursor: pointer; }
 .label-setting-title { display: block; font-size: 12px; color: var(--color-stoic-primary); }
-.label-setting .label-hint { display: block; margin-top: 4px; }
 .label-setting input { appearance: none; flex-shrink: 0; width: 32px; height: 18px; margin: 0; padding: 2px; border: 1px solid var(--color-stoic-block-border); border-radius: 10px; background: var(--color-stoic-block-bg); cursor: pointer; transition: background-color .15s, border-color .15s; }
 .label-setting input::before { content: ''; display: block; width: 12px; height: 12px; border-radius: 50%; background: var(--color-stoic-secondary); transition: transform .15s, background-color .15s; }
 .label-setting input:checked { background: var(--color-stoic-accent); border-color: var(--color-stoic-accent); }

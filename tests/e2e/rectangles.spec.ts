@@ -1,3 +1,4 @@
+import { optIntoGenerator } from './board-options';
 import { test, expect, type Page } from '@playwright/test';
 import { assertSolution } from '../fixtures/assert-solution.mjs';
 import { openBoardOptions } from './board-options';
@@ -164,3 +165,5 @@ test('implemented modes restore their drafts and Hexes remains unavailable', asy
     await expect(page.getByRole('button', { name: 'Cell 4,7 Color 1', exact: true })).toBeEnabled();
     await expect(page.getByRole('combobox', { name: 'Grid Height' })).toHaveValue('8');
 });
+
+test.beforeEach(async ({ page }) => { await optIntoGenerator(page); });

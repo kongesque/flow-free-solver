@@ -2,7 +2,7 @@ import React from 'react';
 import { ChevronDown, Undo2, Trash2 } from 'lucide-react';
 import { GAME_MODES, type GameMode } from '../logic/game-modes';
 import { SIZE_OPTIONS, RESTRICT_Z3_TO_LARGE_GRIDS, SolverType, type DotLabels } from './constants';
-import type { Bridge, WarpSeam } from '../logic/topology';
+import type { WarpSeam } from '../logic/topology';
 import type { EditTool } from '../logic/walls';
 
 const toolGlyphs: Record<EditTool, React.ReactNode> = {
@@ -13,6 +13,8 @@ const toolGlyphs: Record<EditTool, React.ReactNode> = {
 };
 
 interface SolverControlsProps {
+    showGenerator: boolean;
+    onShowGeneratorChange: (value: boolean) => void;
     dotLabels: DotLabels;
     onDotLabelsChange: (value: DotLabels) => void;
     onEdit: () => void;
@@ -39,14 +41,12 @@ interface SolverControlsProps {
     onEditToolChange: (tool: EditTool) => void;
     canUndo: boolean;
     onUndo: () => void;
-    onClearWalls: () => void;
-    bridges: Bridge[]; warps: WarpSeam[];
-    onClearBridges: () => void;
+    warps: WarpSeam[];
     onWarpsChange: (warps: WarpSeam[]) => void;
 }
 
 const SolverControls = ({
-    dotLabels, onDotLabelsChange,
+    dotLabels, onDotLabelsChange, showGenerator, onShowGeneratorChange,
     onEdit,
     width,
     height,
@@ -65,7 +65,7 @@ const SolverControls = ({
     onSolve, onCancel,
     onReset,
     onGenerate,
-    wallCount, editTool, onEditToolChange, canUndo, onUndo, onClearWalls, bridges, warps, onClearBridges, onWarpsChange,
+    wallCount, editTool, onEditToolChange, canUndo, onUndo, warps, onWarpsChange,
 }: SolverControlsProps) => {
     const isBusy = isSolving || isGenerating || !isLoaded || invalidSavedWalls;
     const unavailable = !GAME_MODES[mode].available;
@@ -95,28 +95,29 @@ const SolverControls = ({
                     </span>
                 </label>
             </div>
-            <div className="control-actions" aria-label="Puzzle actions">
-                <button type="button" className="control-button primary-action" onClick={working ? onCancel : showingSolution ? onEdit : onSolve}
-                    disabled={!working && (isBusy || unavailable)}>
-                    {working ? 'Cancel' : showingSolution ? 'Edit' : 'Solve'}
-                </button>
-                <button type="button" className="control-button generate-action" onClick={onGenerate}
-                    disabled={isBusy || unavailable || wallCount > 0} aria-describedby={wallCount > 0 ? 'wall-generation-hint' : undefined}
-                    title={wallCount > 0 ? 'Clear walls to generate' : 'Generate a puzzle'}>Generate</button>
-            </div>
-            {wallCount > 0 && <span id="wall-generation-hint" className="sr-only">Clear walls to generate.</span>}
-            {!showingSolution && <div className="editor-toolbar">
+            <div className="editor-toolbar">
+                {!showingSolution &&
                 <div className="edit-tools" role="group" aria-label="Editing tool">
                     {tools.map(tool => <button key={tool} type="button" className="control-button" aria-pressed={editTool === tool}
                         disabled={editingDisabled} onClick={() => onEditToolChange(tool)}>
-                        <svg className="tool-glyph" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true" focusable="false">
+                        <svg className="tool-glyph" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth={tool === 'walls' || tool === 'warps' ? 1.5 : 1.2} aria-hidden="true" focusable="false">
                             {toolGlyphs[tool]}
                         </svg>
                         {tool[0].toUpperCase() + tool.slice(1)}
                         {tool === 'walls' && wallCount > 0 && <span aria-hidden="true" className="wall-count">{wallCount}</span>}
                     </button>)}
-                </div>
-            </div>}
+                </div>}
+            </div>
+            <div className={`control-actions ${showGenerator ? '' : 'single-action'}`} aria-label="Puzzle actions">
+                <button type="button" className="control-button primary-action" onClick={working ? onCancel : showingSolution ? onEdit : onSolve}
+                    disabled={!working && (isBusy || unavailable)}>
+                    {working ? 'Cancel' : showingSolution ? 'Edit' : 'Solve'}
+                </button>
+                {showGenerator && <button type="button" className="control-button generate-action" onClick={onGenerate}
+                    disabled={isBusy || unavailable || wallCount > 0} aria-describedby={wallCount > 0 ? 'wall-generation-hint' : undefined}
+                    title={wallCount > 0 ? 'Clear walls to generate' : 'Generate a puzzle'}>Generate</button>}
+            </div>
+            {wallCount > 0 && <span id="wall-generation-hint" className="sr-only">Clear walls to generate.</span>}
             <div className="board-settings">
                 <details className="board-options">
                     <summary>Board options <ChevronDown aria-hidden="true" /></summary>
@@ -134,10 +135,6 @@ const SolverControls = ({
                                 </label>
                             ))}
                         </div>
-                        <label className="label-setting">
-                            <span><span className="label-setting-title">Color label</span><span className="label-hint">A for red, B for blue, and so on.</span></span>
-                            <input type="checkbox" role="switch" aria-label="Color label" checked={dotLabels === 'letters'} onChange={event => onDotLabelsChange(event.target.checked ? 'letters' : 'none')} />
-                        </label>
                         {!wasmOnly && <label className="control-field">
                             <span>Solver</span><span className="select-wrap">
                                 <select value={solverType} onChange={onSolverTypeChange} aria-label="Solver Algorithm"
@@ -146,8 +143,6 @@ const SolverControls = ({
                                 </select><ChevronDown aria-hidden="true" />
                             </span>
                         </label>}
-                        {!showingSolution && editTool === 'bridges' && bridges.length > 0 &&
-                            <button type="button" className="control-button quiet-action" disabled={editingDisabled} onClick={onClearBridges}>Clear bridges</button>}
                         {!showingSolution && editTool === 'warps' && <div className="wall-context">
                             <div className="warp-actions">
                                 <button type="button" className="control-button" disabled={editingDisabled} onClick={() => onWarpsChange([
@@ -155,9 +150,15 @@ const SolverControls = ({
                                 <button type="button" className="control-button" disabled={editingDisabled} onClick={() => onWarpsChange([
                                     ...warps.filter(w => w.axis !== 'vertical'), ...Array.from({ length: width }, (_, index) => ({ axis: 'vertical' as const, index }))])}>Open all top/bottom</button>
                             </div>
-                            {warps.length > 0 && <button type="button" className="control-button quiet-action" disabled={editingDisabled} onClick={() => onWarpsChange([])}>Clear warps</button>}
                         </div>}
-                        {!showingSolution && editTool === 'walls' && wallCount > 0 && <button type="button" className="control-button quiet-action" disabled={editingDisabled} onClick={onClearWalls}>Clear walls</button>}
+                        <label className="label-setting">
+                            <span className="label-setting-title">Color label</span>
+                            <input type="checkbox" role="switch" aria-label="Color label" checked={dotLabels === 'letters'} onChange={event => onDotLabelsChange(event.target.checked ? 'letters' : 'none')} />
+                        </label>
+                        <label className="label-setting">
+                            <span className="label-setting-title">Puzzle generator</span>
+                            <input type="checkbox" role="switch" aria-label="Puzzle generator" checked={showGenerator} onChange={event => onShowGeneratorChange(event.target.checked)} />
+                        </label>
                     </fieldset>
                 </details>
                 <div className="edit-history" role="group" aria-label="Edit history">

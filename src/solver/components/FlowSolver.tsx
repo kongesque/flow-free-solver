@@ -40,6 +40,13 @@ const FlowSolver = () => {
         setDotLabels(value);
         try { localStorage.setItem('flow-dot-labels', value); } catch { /* Keep the preference for this session when storage is unavailable. */ }
     };
+    const [showGenerator, setShowGenerator] = useState(() => {
+        try { return localStorage.getItem('flow-show-generator') === 'true'; } catch { return false; }
+    });
+    const changeShowGenerator = (value: boolean) => {
+        setShowGenerator(value);
+        try { localStorage.setItem('flow-show-generator', String(value)); } catch { /* Retain the session preference. */ }
+    };
     const [editTool, setEditTool] = useState<EditTool>('dots');
     const isStandard = mode === 'standard';
     const isAvailable = GAME_MODES[mode].available;
@@ -486,7 +493,7 @@ const FlowSolver = () => {
                         <PuzzleGrid
                             width={width}
                             height={height}
-                            dotLabels={dotLabels}
+                        dotLabels={dotLabels}
                             activeColor={activeColor}
                             currentBoard={currentBoard}
                             solvedBoard={solvedBoard}
@@ -505,6 +512,7 @@ const FlowSolver = () => {
                 </section>
                 <section aria-label="Game Controls" className="game-controls">
                     <SolverControls
+                        showGenerator={showGenerator} onShowGeneratorChange={changeShowGenerator}
                         dotLabels={dotLabels} onDotLabelsChange={changeDotLabels}
                         onEdit={() => { setSolvedBoard(null); setPathSolution(null); setSolveTime(null); setError(null); }}
                         width={width}
@@ -530,9 +538,7 @@ const FlowSolver = () => {
                         onEditToolChange={setEditTool}
                         canUndo={canUndo}
                         onUndo={undoEdit}
-                        onClearWalls={() => applyWalls([])}
-                        bridges={bridges} warps={warps}
-                        onClearBridges={() => applyTopology({ walls, warps, bridges: [] })}
+                        warps={warps}
                         onWarpsChange={next => applyTopology({ walls, bridges, warps: next })}
                     />
                 </section>

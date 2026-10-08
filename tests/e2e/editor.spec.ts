@@ -1,3 +1,4 @@
+import { optIntoGenerator } from './board-options';
 import { test, expect, type Locator } from '@playwright/test';
 import { assertSolution } from '../fixtures/assert-solution.mjs';
 import { openBoardOptions } from './board-options';
@@ -370,3 +371,5 @@ for (const viewport of [
         await expectStable();
     });
 }
+
+test.beforeEach(async ({ page }) => { await optIntoGenerator(page); });

@@ -1,3 +1,4 @@
+import { optIntoGenerator } from './board-options';
 import { test, expect, type Page } from '@playwright/test';
 import { assertSolution } from '../fixtures/assert-solution.mjs';
 import { wallCorridor, wallDetour } from '../fixtures/wall-puzzles.mjs';
@@ -116,7 +117,7 @@ test('pointer strokes add/remove once per edge, with undo and center/outer-borde
     await page.mouse.move(start.x, start.y, { steps: 12 });
     await page.mouse.up();
     await expect(page.locator('[data-wall]')).toHaveCount(4);
-    for (let x = 0; x < 4; x++) await expect(page.locator(`[data-wall="${x},0,down"]`)).toHaveCSS('stroke-width', '0.04px');
+    for (let x = 0; x < 4; x++) await expect(page.locator(`[data-wall="${x},0,down"]`)).toHaveCSS('stroke-width', '0.055px');
     await expect(cell(page, 0, 0)).toHaveAttribute('aria-label', 'Cell 0,0 Color 1');
     await cell(page, 2, 2).click();
     const outside = point(0, 2.5);
@@ -135,7 +136,8 @@ test('pointer strokes add/remove once per edge, with undo and center/outer-borde
     await expect(page.locator('[data-wall]')).toHaveCount(0);
     await page.getByRole('button', { name: 'Undo', exact: true }).click();
     await expect(page.locator('[data-wall]')).toHaveCount(1);
-    await page.getByRole('button', { name: 'Clear walls', exact: true }).click();
+    await cell(page, 0, 0).focus();
+    await page.keyboard.press('Shift+ArrowDown');
     await expect(page.locator('[data-wall]')).toHaveCount(0);
     await page.getByRole('button', { name: 'Undo', exact: true }).click();
     await expect(page.locator('[data-wall]')).toHaveCount(1);
@@ -284,3 +286,5 @@ test.describe('mobile wall editing', () => {
         await page.screenshot({ path: test.info().outputPath('walls-mobile.png'), fullPage: true });
     });
 });
+
+test.beforeEach(async ({ page }) => { await optIntoGenerator(page); });

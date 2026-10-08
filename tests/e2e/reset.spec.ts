@@ -1,3 +1,4 @@
+import { optIntoGenerator } from './board-options';
 import { selectWallTool } from './board-options';
 import { test, expect, type Page } from '@playwright/test';
 
@@ -102,3 +103,5 @@ test('Reset Cancel preserves a solved generated puzzle; confirmation clears its 
     await expect(page.getByRole('button', { name: /Cell .* Empty/ })).toHaveCount(25);
     await expect(page.getByRole('status')).not.toContainText('Generated');
 });
+
+test.beforeEach(async ({ page }) => { await optIntoGenerator(page); });

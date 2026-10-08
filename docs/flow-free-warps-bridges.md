@@ -461,15 +461,17 @@ The release makes these concrete UI choices:
 - Bridges toggle on empty interior cells. The horizontal route always passes
   above the vertical one; there is no orientation selector or rotation control.
   Older saved bridges retain their routes and adopt the horizontal presentation.
-  Clear bridges is one Undo step. There is no
+  Individual removals are reversible with Undo. There is no
   separate selected-bridge inspector or hover-placement preview in this release.
 - Mode and Size stay visible; Dots/Walls and the active variant's tool are
   directly accessible during editing. Selection is explicit, so selecting the
   current tool does not silently return to Dots. Board options holds custom
   dimensions, applicable solver choices, and contextual bulk edits. Endpoint
-  cells retain descriptive accessible labels; visible dots have no numbers or outlines.
-- Solve, Cancel, and Edit share one primary action position. Solve and
-  Generate share an equal-width row. Undo and Reset sit beside Board options and
+  cells retain descriptive accessible labels; Color label optionally adds A–P to endpoints.
+- The component picker sits above the shared Solve, Cancel, and Edit position.
+  Puzzle generator is off by default; enabling it reveals Generate beside Solve.
+  Warp bulk-opening buttons sit above Color label and Puzzle generator in Board options.
+  Separate Clear walls/bridges/warps buttons are omitted. Undo and Reset sit beside Board options and
   use labeled icons with 44px targets. Equal-width tool buttons share a single tray, pair labels with small glyphs
   matching the board marks, and use a softly filled selected state. Generate is available in all implemented modes; fixed
   C/Wasm solver choices and editing-only controls are omitted where inapplicable.

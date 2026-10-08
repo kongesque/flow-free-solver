@@ -1,3 +1,4 @@
+import { optIntoGenerator } from './board-options';
 import { expect, test, type Page } from '@playwright/test';
 import { openBoardOptions, selectWallTool } from './board-options';
 
@@ -33,11 +34,11 @@ for (const width of [390, 1280]) {
         await selectWallTool(page);
         await cell(page, 0, 0).focus();
         await page.keyboard.press('Shift+ArrowRight');
-        await page.getByRole('button', { name: 'Clear walls', exact: true }).click();
+        await page.keyboard.press('Shift+ArrowRight');
         await expect(page.locator('[data-wall]')).toHaveCount(0);
         await page.locator('.board-options summary').click();
 
-        await undo(page).click(); // Clear walls.
+        await undo(page).click(); // Removed wall.
         await expect(page.locator('[data-wall]')).toHaveCount(1);
         await undo(page).click(); // Wall stroke.
         await expect(page.locator('[data-wall]')).toHaveCount(0);
@@ -107,3 +108,5 @@ test('generation starts a fresh history; Undo does not revive a discarded genera
     await expect(page.getByRole('status')).not.toContainText('Generated');
     await expect.poll(async () => (await saved(page))?.generatedSolution).toBeNull();
 });
+
+test.beforeEach(async ({ page }) => { await optIntoGenerator(page); });
