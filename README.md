@@ -87,6 +87,11 @@ disabled in these modes; switching back to Standard preserves the current puzzle
 Mode, dimensions, endpoints, and the generated solution are saved locally. Legacy
 square saves with a single size continue to load.
 
+See the [Warps and Bridges research and implementation plan](docs/flow-free-warps-bridges.md)
+for verified rule evidence, the proposed C/Wasm topology model, editor interactions,
+delivery milestones, and regression criteria. These variants remain unavailable
+until their implementation is complete.
+
 **Walls** can be added to Standard square or rectangular boards. Open **Board
 options** and turn on **Draw walls**, then tap or drag along the lines between
 cells to add or remove boundaries. Turn it off to place endpoints again. Both
