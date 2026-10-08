@@ -56,8 +56,9 @@ for (const viewport of [
         await expect(readMore).toBeVisible();
         await expect(readMore).toHaveAttribute('href', 'https://www.kongesque.com/blog/flow-free-solver');
         await expect(readMore).toHaveAttribute('target', '_blank');
-        await expect(page.locator('.solver-about > p')).toHaveText('Runs locally. Read more');
-        await expect(page.locator('.solver-methods')).toHaveText('Runs locally.');
+        await expect(page.locator('.solver-about > p')).toHaveText('Solve Flow Free puzzles locally. Read more');
+        await expect(page.locator('.solver-methods')).toHaveText('Solve Flow Free puzzles locally.');
+        expect(await page.locator('.solver-about p').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
         expect(await readMore.evaluate(element => getComputedStyle(element).color)).toBe('rgb(138, 142, 140)');
         expect(await page.locator('.solver-about').evaluate(element => getComputedStyle(element).textAlign))
             .toBe(viewport.width >= 960 ? 'left' : 'center');

@@ -96,17 +96,16 @@ const SolverControls = ({
                 </label>
             </div>
             <div className="editor-toolbar">
-                {!showingSolution &&
                 <div className="edit-tools" role="group" aria-label="Editing tool">
                     {tools.map(tool => <button key={tool} type="button" className="control-button" aria-pressed={editTool === tool}
-                        disabled={editingDisabled} onClick={() => onEditToolChange(tool)}>
+                        disabled={isBusy || unavailable} onClick={() => { if (showingSolution) onEdit(); onEditToolChange(tool); }}>
                         <svg className="tool-glyph" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth={tool === 'walls' || tool === 'warps' ? 1.5 : 1.2} aria-hidden="true" focusable="false">
                             {toolGlyphs[tool]}
                         </svg>
                         {tool[0].toUpperCase() + tool.slice(1)}
                         {tool === 'walls' && wallCount > 0 && <span aria-hidden="true" className="wall-count">{wallCount}</span>}
                     </button>)}
-                </div>}
+                </div>
             </div>
             <div className={`control-actions ${showGenerator ? '' : 'single-action'}`} aria-label="Puzzle actions">
                 <button type="button" className="control-button primary-action" onClick={working ? onCancel : showingSolution ? onEdit : onSolve}
@@ -168,8 +167,9 @@ const SolverControls = ({
                         aria-label="Reset" title="Reset puzzle"><Trash2 aria-hidden="true" /></button>
                 </div>
             </div>
-            <div className="solver-about selectable-text"><p>
-                <span className="solver-methods">Runs locally. </span>
+            <div className="solver-about selectable-text">
+                <p>
+                <span className="solver-methods">Solve Flow Free puzzles locally. </span>
                 <a href="https://www.kongesque.com/blog/flow-free-solver" target="_blank" rel="noreferrer"
                     aria-label="Read more about this solver (opens in a new tab)">Read more</a>
             </p></div>

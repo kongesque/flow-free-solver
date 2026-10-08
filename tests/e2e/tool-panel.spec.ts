@@ -79,9 +79,12 @@ for (const viewport of [
             colors.slice(y * 5, y * 5 + 5).map(color => '.RBYGOCMmPAWgTbcp'.charCodeAt(color))), fixture.walls);
         await expectStable();
         await expect(page.getByRole('button', { name: 'Undo', exact: true })).toBeDisabled();
-        await expect(page.getByRole('group', { name: 'Editing tool' })).toHaveCount(0);
+        await expect(page.getByRole('group', { name: 'Editing tool' })).toBeVisible();
+        await expect(page.getByRole('button', { name: 'Walls', exact: true })).toBeEnabled();
+        await page.screenshot({ path: test.info().outputPath('solved-picker.png'), fullPage: true });
         await expect(page.getByRole('button', { name: 'Clear walls', exact: true })).toHaveCount(0);
-        await page.getByRole('button', { name: 'Edit', exact: true }).click();
+        await page.getByRole('button', { name: 'Walls', exact: true }).click();
+        await expect(page.getByRole('button', { name: 'Solve', exact: true })).toBeEnabled();
         await expectStable();
         await expect(page.getByRole('button', { name: 'Walls', exact: true })).toHaveAttribute('aria-pressed', 'true');
         await openBoardOptions(page);

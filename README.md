@@ -324,3 +324,5 @@ Created by **[Kongesque](https://www.kongesque.com/)**.
 Board options includes **Color label**, an optional switch that shows letters A–P (starting with red). It is off by default. The display preference is remembered on this device and applies to endpoints in the editor and solved board.
 
 The component picker sits above Solve. Enable **Puzzle generator** in Board options to reveal Generate; this preference is off by default and remembered on this device. Warp bulk-opening actions appear above the display switches. Remove individual walls, bridges, and warps on the board, or use Undo/Reset.
+
+The component picker stays visible after solving. Selecting a tool returns to the editor with the same puzzle.

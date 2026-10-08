@@ -203,7 +203,7 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
 .board-options[open] summary svg { transform: rotate(180deg); }
 .custom-settings { display: flex; flex-direction: column; gap: 8px; border: 0; padding: 8px 0 0; margin: 0; min-width: 0; }
 .solver-about { color: var(--color-stoic-secondary); font-size: 11px; line-height: 1.6; text-align: center; }
-.solver-about p { margin: 0; }
+.solver-about p { margin: 0; white-space: nowrap; }
 .solver-about a { position: relative; color: inherit; text-decoration: underline; text-underline-offset: 4px; }
 .solver-about a::after { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 44px; }
 .solver-about a:hover { color: var(--color-stoic-primary); }
@@ -257,8 +257,9 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
   .game-controls { position: relative; grid-column: 2; grid-row: 1 / span 3; padding-top: 48px; }
   .solver-controls { gap: 4px; min-height: 0; }
   .board-options summary { font-size: 10px; }
-  .solver-about { position: absolute; top: 0; left: 0; right: 48px; height: 44px; display: flex; align-items: center; justify-content: center; padding-top: 0; font-size: 9px; line-height: 1.4; }
-  .solver-about p { display: flex; align-items: center; gap: .3em; }
+  .solver-about { position: absolute; top: 0; left: 0; right: 48px; height: 44px; display: flex; align-items: center; justify-content: center; padding-top: 0; font-size: 8px; line-height: 1.4; }
+  .solver-about p { line-height: 1.4; }
+  .solver-methods { display: inline; }
   .solver-about a { display: inline-flex; align-items: center; min-height: 44px; }
   .solver-about a::after { content: none; }
 }
@@ -308,11 +309,13 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
 .warp-marker.paired { stroke: var(--color-stoic-accent); }
 .editor-toolbar { min-height: 54px; display: flex; align-items: center; gap: 6px; }
 /* A single tool tray keeps the editor choices distinct from puzzle actions. */
-.edit-tools { display: flex; flex: 1; min-width: 0; gap: 4px; padding: 4px; border: 1px solid var(--color-stoic-line); border-radius: 9px; background: #191c1b; }
-.edit-tools button { flex: 1; min-width: 0; min-height: 44px; gap: 7px; border: 1px solid transparent; border-radius: 5px; background: transparent; padding-inline: 8px; color: var(--color-stoic-secondary); transition: color .15s, background-color .15s, box-shadow .15s; }
-.edit-tools .tool-glyph { width: 14px; height: 14px; flex-shrink: 0; }
+.edit-tools { display: flex; flex: 1; min-width: 0; gap: 2px; padding: 4px; border: 1px solid var(--color-stoic-line); border-radius: 10px; background: #191c1b; }
+.edit-tools button { flex: 1; min-width: 0; min-height: 44px; gap: 6px; border: 1px solid transparent; border-radius: 6px; background: transparent; padding-inline: 8px; color: var(--color-stoic-secondary); transition: color .15s, background-color .15s, box-shadow .15s; }
+.edit-tools .tool-glyph { width: 16px; height: 16px; flex-shrink: 0; }
 .edit-tools button:hover:not(:disabled) { background: #232826; border-color: transparent; color: var(--color-stoic-primary); }
-.edit-tools button[aria-pressed="true"], .edit-tools button[aria-pressed="true"]:hover:not(:disabled) { background: #303937; border-color: transparent; color: var(--color-stoic-primary); box-shadow: inset 0 1px 0 rgb(255 255 255 / .05), 0 1px 3px rgb(0 0 0 / .2); }
+.edit-tools button[aria-pressed="true"], .edit-tools button[aria-pressed="true"]:hover:not(:disabled) { background: #303937; border-color: transparent; color: var(--color-stoic-primary); box-shadow: inset 0 0 0 1px rgb(255 255 255 / .04), 0 1px 2px rgb(0 0 0 / .15); }
+.edit-tools button:focus-visible { outline-offset: -2px; }
+.edit-tools button { font-weight: 500; }
 .edit-tools button[aria-pressed="true"] .tool-glyph { color: #64bcc2; }
 .working-label { display: inline-flex; }
 .working-dots { display: inline-flex; width: 3ch; }
