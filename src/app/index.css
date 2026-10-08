@@ -306,11 +306,12 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
 .warp-marker.paired { stroke: var(--color-stoic-accent); }
 .editor-toolbar { display: flex; align-items: center; gap: 6px; }
 /* A single tool tray keeps the editor choices distinct from puzzle actions. */
-.edit-tools { display: flex; flex: 1; min-width: 0; gap: 3px; padding: 3px; border: 1px solid var(--color-stoic-block-border); border-radius: 8px; background: var(--color-stoic-block-bg); }
-.edit-tools button { flex: 1; min-width: 0; min-height: 44px; gap: 7px; border: 1px solid transparent; border-radius: 5px; background: transparent; padding-inline: 8px; color: var(--color-stoic-secondary); transition: color .15s, background-color .15s, border-color .15s; }
+.edit-tools { display: flex; flex: 1; min-width: 0; gap: 4px; padding: 4px; border: 1px solid var(--color-stoic-line); border-radius: 9px; background: #191c1b; }
+.edit-tools button { flex: 1; min-width: 0; min-height: 44px; gap: 7px; border: 1px solid transparent; border-radius: 5px; background: transparent; padding-inline: 8px; color: var(--color-stoic-secondary); transition: color .15s, background-color .15s, box-shadow .15s; }
 .edit-tools .tool-glyph { width: 14px; height: 14px; flex-shrink: 0; }
-.edit-tools button:hover:not(:disabled) { background: var(--color-stoic-block-hover); color: var(--color-stoic-primary); }
-.edit-tools button[aria-pressed="true"], .edit-tools button[aria-pressed="true"]:hover:not(:disabled) { background: rgb(43 158 168 / .14); border-color: rgb(43 158 168 / .3); color: var(--color-stoic-primary); }
+.edit-tools button:hover:not(:disabled) { background: #232826; border-color: transparent; color: var(--color-stoic-primary); }
+.edit-tools button[aria-pressed="true"], .edit-tools button[aria-pressed="true"]:hover:not(:disabled) { background: #303937; border-color: transparent; color: var(--color-stoic-primary); box-shadow: inset 0 1px 0 rgb(255 255 255 / .05), 0 1px 3px rgb(0 0 0 / .2); }
+.edit-tools button[aria-pressed="true"] .tool-glyph { color: #64bcc2; }
 .working-label { display: inline-flex; }
 .working-dots { display: inline-flex; width: 3ch; }
 .working-dots span { width: 1ch; animation: working-dot 1.2s ease-in-out infinite; }
