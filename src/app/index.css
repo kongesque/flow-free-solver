@@ -304,7 +304,7 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
 .pipe-overlay, .warp-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
 .endpoint-dot { position: relative; z-index: 2; }
 .warp-overlay { z-index: 4; }
-.warp-marker { stroke-dasharray: .07 .05; }
+.warp-marker { stroke-dasharray: .1 .08; }
 .warp-marker.paired { stroke: var(--color-stoic-accent); }
 .editor-toolbar { display: flex; align-items: center; gap: 6px; }
 .edit-tools { display: flex; flex: 1; min-width: 0; gap: 8px; }

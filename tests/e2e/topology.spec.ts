@@ -81,7 +81,21 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
         await expect(page.locator('[data-warp="horizontal-2"].paired')).toHaveCount(2);
         await page.getByRole('button', { name: 'Dots', exact: true }).click();
         await expect(page.locator('.warp-marker')).toHaveCount(4);
-        expect(await markerStyle('.warp-marker')).toEqual({ ...railStyle, dash: '0.07px, 0.05px' });
+        expect(await markerStyle('.warp-marker')).toEqual({ ...railStyle, dash: '0.1px, 0.08px' });
+        const warpLines = await page.locator('.warp-marker').evaluateAll(elements => elements.map(element => {
+            const path = element as SVGPathElement;
+            const length = path.getTotalLength();
+            return [0, .25, .5, .75, 1].map(fraction => {
+                const point = path.getPointAtLength(length * fraction);
+                return [point.x, point.y];
+            });
+        }));
+        for (const points of warpLines) {
+            // A warp follows the full cell edge as one straight dashed line.
+            for (const [x] of points) expect(x).toBeCloseTo(points[0][0]);
+            expect(points[0][1]).toBeCloseTo(0);
+            expect(points[4][1]).toBeCloseTo(1);
+        }
         expect(await markerStyle('.puzzle-wall')).toEqual(railStyle);
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
         await page.screenshot({ path: test.info().outputPath('warp-walls.png'), fullPage: true });

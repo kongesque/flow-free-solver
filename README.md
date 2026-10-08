@@ -110,7 +110,7 @@ rotation control is needed. **Clear bridges** in Board options is undoable.
 Bridges cannot replace dots or touch a wall that blocks any of their four ports.
 Solved crossings retain both rails and a raised deck separating the pipes.
 Walls and warp openings use the same thin, neutral rails; warp openings have
-curved dashed brackets at both connected borders and highlight together on focus.
+straight dashed lines at both connected borders and highlight together on focus.
 
 Variant solving uses the C/Wasm engine. **Generate** remains available only for
 Standard without walls. **Cancel** stops active work while preserving the puzzle.

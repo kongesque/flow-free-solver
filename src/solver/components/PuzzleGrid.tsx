@@ -246,7 +246,7 @@ const PuzzleGrid = ({
                     : `translate(${index} ${atStart ? 0 : height}) matrix(0 ${atStart ? 1 : -1} 1 0 0 0)`;
                 return <path key={`${axis}-${index}-${end}`} data-warp={`${axis}-${index}`} transform={transform}
                     className={`warp-marker ${highlightSeam === seamKey({ axis, index }) ? 'paired' : ''}`}
-                    d="M.04,.22 V.26 Q.04,.32 .1,.32 H.24 M.04,.78 V.74 Q.04,.68 .1,.68 H.24" />;
+                    d="M.02,0 V1" />;
             }))}
         </svg>
         {editingWalls && Array.from({ length: height }, (_, y) =>
