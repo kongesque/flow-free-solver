@@ -320,3 +320,5 @@ This project is open source under the [MIT License](LICENSE).
 If you use this project for commercial purposes, you must exclude the Heuristic BFS solver module or obtain a separate license from the original author.
 
 Created by **[Kongesque](https://www.kongesque.com/)**.
+
+Board options includes **Color label**, an optional switch that shows letters A–P (starting with red). It is off by default. The display preference is remembered on this device and applies to endpoints in the editor and solved board.

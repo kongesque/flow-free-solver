@@ -2,10 +2,11 @@ import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, ty
 import PipeOverlay from './PipeOverlay';
 import type { PuzzleSolution } from '../logic/solution';
 import { seamKey, type Bridge, type WarpSeam } from '../logic/topology';
-import { COLORS } from './constants';
+import { COLORS, dotLabel, dotLabelColor, type DotLabels } from './constants';
 import { wallAtPoint, wallBetween, wallKey, type Wall, type EditTool } from '../logic/walls';
 
 interface PuzzleGridProps {
+    dotLabels: DotLabels;
     width: number;
     height: number;
     currentBoard: number[][];
@@ -26,6 +27,7 @@ interface PuzzleGridProps {
 }
 
 const PuzzleGrid = ({
+    dotLabels,
     width,
     height,
     currentBoard,
@@ -170,6 +172,7 @@ const PuzzleGrid = ({
         style={{
             gridTemplateColumns: `repeat(${width}, minmax(0, 1fr))`,
             gridTemplateRows: `repeat(${height}, minmax(0, 1fr))`,
+            '--cell-size': `calc(var(--play-area-size) / ${Math.max(width, height)})`,
             '--grid-width': `${100 * width / Math.max(width, height)}%`,
             aspectRatio: `${width} / ${height}`,
         } as CSSProperties}
@@ -212,8 +215,9 @@ const PuzzleGrid = ({
                         {endpoint ? (
                             <span
                                 className="endpoint-dot rounded-full w-[70%] h-[70%]"
-                                style={{ backgroundColor: COLORS[endpoint] || '#888' }}
-                            />
+                                style={{ backgroundColor: COLORS[endpoint] || '#888', color: dotLabelColor(endpoint) }}
+                                aria-hidden="true"
+                            >{dotLabel(endpoint, dotLabels)}</span>
                         ) : !bridge && editTool === 'dots' && !solvedBoard && !isResetting && (
                             <span
                                 className="endpoint-preview rounded-full w-[70%] h-[70%] transition-opacity duration-75"

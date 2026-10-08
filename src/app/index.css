@@ -300,7 +300,8 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
 
 /* Selected path edges are distinct from original endpoint dots. */
 .pipe-overlay, .warp-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
-.endpoint-dot { position: relative; z-index: 2; }
+.endpoint-dot { position: relative; z-index: 2; display: flex; align-items: center; justify-content: center; font-size: calc(var(--cell-size) * .3); font-weight: 600; line-height: 1; }
+.label-hint { font-size: 10px; color: var(--color-stoic-secondary); line-height: 1.5; }
 .warp-overlay { z-index: 4; }
 .warp-marker { stroke-dasharray: .1 .08; }
 .warp-marker.paired { stroke: var(--color-stoic-accent); }
@@ -328,3 +329,12 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
 .seam-target[data-axis="horizontal"]::after { top: 32%; bottom: 32%; width: 1px; left: 50%; }
 .seam-target[data-axis="vertical"]::after { left: 32%; right: 32%; height: 1px; top: 50%; }
 .seam-target.paired { background: rgb(43 158 168 / .1); outline: 1px solid var(--color-stoic-accent); outline-offset: -1px; }
+
+.label-setting { text-align: left; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; cursor: pointer; }
+.label-setting-title { display: block; font-size: 12px; color: var(--color-stoic-primary); }
+.label-setting .label-hint { display: block; margin-top: 4px; }
+.label-setting input { appearance: none; flex-shrink: 0; width: 32px; height: 18px; margin: 0; padding: 2px; border: 1px solid var(--color-stoic-block-border); border-radius: 10px; background: var(--color-stoic-block-bg); cursor: pointer; transition: background-color .15s, border-color .15s; }
+.label-setting input::before { content: ''; display: block; width: 12px; height: 12px; border-radius: 50%; background: var(--color-stoic-secondary); transition: transform .15s, background-color .15s; }
+.label-setting input:checked { background: var(--color-stoic-accent); border-color: var(--color-stoic-accent); }
+.label-setting input:checked::before { transform: translateX(14px); background: #E6E4DF; }
+.label-setting:has(input:disabled) { cursor: not-allowed; opacity: .45; }

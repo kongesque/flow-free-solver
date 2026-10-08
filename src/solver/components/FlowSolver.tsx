@@ -1,3 +1,4 @@
+import { isDotLabels, type DotLabels } from './constants';
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { savePuzzleState, loadPuzzleState, type PuzzleDraft } from '@/hooks/useStorage';
 
@@ -32,6 +33,13 @@ const FlowSolver = () => {
     const historiesRef = useRef<Partial<Record<GameMode, EditorSnapshot[]>>>({});
     const [walls, setWalls] = useState<Wall[]>([]);
     const [editHistory, setEditHistory] = useState<EditorSnapshot[]>([]);
+    const [dotLabels, setDotLabels] = useState<DotLabels>(() => {
+        try { const saved = localStorage.getItem('flow-dot-labels'); return isDotLabels(saved) ? saved : 'none'; } catch { return 'none'; }
+    });
+    const changeDotLabels = (value: DotLabels) => {
+        setDotLabels(value);
+        try { localStorage.setItem('flow-dot-labels', value); } catch { /* Keep the preference for this session when storage is unavailable. */ }
+    };
     const [editTool, setEditTool] = useState<EditTool>('dots');
     const isStandard = mode === 'standard';
     const isAvailable = GAME_MODES[mode].available;
@@ -478,6 +486,7 @@ const FlowSolver = () => {
                         <PuzzleGrid
                             width={width}
                             height={height}
+                            dotLabels={dotLabels}
                             activeColor={activeColor}
                             currentBoard={currentBoard}
                             solvedBoard={solvedBoard}
@@ -496,6 +505,7 @@ const FlowSolver = () => {
                 </section>
                 <section aria-label="Game Controls" className="game-controls">
                     <SolverControls
+                        dotLabels={dotLabels} onDotLabelsChange={changeDotLabels}
                         onEdit={() => { setSolvedBoard(null); setPathSolution(null); setSolveTime(null); setError(null); }}
                         width={width}
                         height={height}

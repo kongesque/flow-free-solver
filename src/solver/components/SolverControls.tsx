@@ -1,7 +1,7 @@
 import React from 'react';
 import { ChevronDown, Undo2, Trash2 } from 'lucide-react';
 import { GAME_MODES, type GameMode } from '../logic/game-modes';
-import { SIZE_OPTIONS, RESTRICT_Z3_TO_LARGE_GRIDS, SolverType } from './constants';
+import { SIZE_OPTIONS, RESTRICT_Z3_TO_LARGE_GRIDS, SolverType, type DotLabels } from './constants';
 import type { Bridge, WarpSeam } from '../logic/topology';
 import type { EditTool } from '../logic/walls';
 
@@ -13,6 +13,8 @@ const toolGlyphs: Record<EditTool, React.ReactNode> = {
 };
 
 interface SolverControlsProps {
+    dotLabels: DotLabels;
+    onDotLabelsChange: (value: DotLabels) => void;
     onEdit: () => void;
     width: number;
     height: number;
@@ -44,6 +46,7 @@ interface SolverControlsProps {
 }
 
 const SolverControls = ({
+    dotLabels, onDotLabelsChange,
     onEdit,
     width,
     height,
@@ -131,6 +134,10 @@ const SolverControls = ({
                                 </label>
                             ))}
                         </div>
+                        <label className="label-setting">
+                            <span><span className="label-setting-title">Color label</span><span className="label-hint">A for red, B for blue, and so on.</span></span>
+                            <input type="checkbox" role="switch" aria-label="Color label" checked={dotLabels === 'letters'} onChange={event => onDotLabelsChange(event.target.checked ? 'letters' : 'none')} />
+                        </label>
                         {!wasmOnly && <label className="control-field">
                             <span>Solver</span><span className="select-wrap">
                                 <select value={solverType} onChange={onSolverTypeChange} aria-label="Solver Algorithm"
