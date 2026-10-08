@@ -478,7 +478,7 @@ The release makes these concrete UI choices:
   crossing. Straight upper-lane SVG segments stop at the cell boundary so they
   do not draw through the arch.
 - Walls and warp openings share the bridge rail color and weight. Warp openings
-  use curved brackets at matching borders, with transparent editing targets and
+  use curved dashed brackets at matching borders, with transparent editing targets and
   paired focus highlights. Closed seams have subtle solid border ticks.
 - Solution rendering uses explicit SVG path steps, split warp stubs, and an
   outlined gap at crossings. Only the original endpoint cells retain dots.
