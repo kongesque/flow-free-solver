@@ -55,8 +55,13 @@ function openDB(): Promise<IDBDatabase> {
     dbPromise = new Promise((resolve, reject) => {
         const request = indexedDB.open(DB_NAME, DB_VERSION);
 
-        request.onerror = () => reject(request.error);
-        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => { dbPromise = null; reject(request.error); };
+        request.onsuccess = () => {
+            const db = request.result;
+            db.onversionchange = () => { db.close(); dbPromise = null; };
+            db.onclose = () => { dbPromise = null; };
+            resolve(db);
+        };
 
         request.onupgradeneeded = (event) => {
             const db = (event.target as IDBOpenDBRequest).result;
@@ -82,9 +87,10 @@ export async function savePuzzleState(state: Omit<PuzzleState, 'savedAt'>): Prom
 
         store.put(stateWithTimestamp, STATE_KEY);
 
-        return new Promise((resolve, reject) => {
+        return await new Promise<void>((resolve, reject) => {
             tx.oncomplete = () => resolve();
             tx.onerror = () => reject(tx.error);
+            tx.onabort = () => reject(tx.error ?? new Error('Storage transaction aborted'));
         });
     } catch (error) {
         console.warn('Failed to save puzzle state:', error);
@@ -92,20 +98,26 @@ export async function savePuzzleState(state: Omit<PuzzleState, 'savedAt'>): Prom
 }
 
 export async function loadPuzzleState(): Promise<PuzzleState | null> {
-    try {
-        const db = await openDB();
-        const tx = db.transaction(STORE_NAME, 'readonly');
-        const store = tx.objectStore(STORE_NAME);
-        const request = store.get(STATE_KEY);
-
-        return new Promise((resolve, reject) => {
-            request.onsuccess = () => resolve(request.result || null);
-            request.onerror = () => reject(request.error);
-        });
-    } catch (error) {
-        console.warn('Failed to load puzzle state:', error);
-        return null;
+    // Retry interrupted transactions once with a fresh connection. Await the
+    // request inside try so an asynchronous rejection cannot bypass recovery.
+    for (let attempt = 0; attempt < 2; attempt++) {
+        let db: IDBDatabase | null = null;
+        try {
+            db = await openDB();
+            const tx = db.transaction(STORE_NAME, 'readonly');
+            const request = tx.objectStore(STORE_NAME).get(STATE_KEY);
+            return await new Promise<PuzzleState | null>((resolve, reject) => {
+                request.onsuccess = () => resolve(request.result || null);
+                request.onerror = () => reject(request.error);
+                tx.onabort = () => reject(tx.error ?? new Error('Storage transaction aborted'));
+            });
+        } catch (error) {
+            db?.close();
+            dbPromise = null;
+            if (attempt === 1) console.warn('Failed to load puzzle state:', error);
+        }
     }
+    return null;
 }
 
 export async function clearPuzzleState(): Promise<void> {
@@ -115,9 +127,10 @@ export async function clearPuzzleState(): Promise<void> {
         const store = tx.objectStore(STORE_NAME);
         store.delete(STATE_KEY);
 
-        return new Promise((resolve, reject) => {
+        return await new Promise<void>((resolve, reject) => {
             tx.oncomplete = () => resolve();
             tx.onerror = () => reject(tx.error);
+            tx.onabort = () => reject(tx.error ?? new Error('Storage transaction aborted'));
         });
     } catch (error) {
         console.warn('Failed to clear puzzle state:', error);

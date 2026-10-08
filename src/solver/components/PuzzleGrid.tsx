@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
 import PipeOverlay from './PipeOverlay';
 import type { PuzzleSolution } from '../logic/solution';
 import { seamKey, type Bridge, type WarpSeam } from '../logic/topology';
@@ -47,12 +47,31 @@ const PuzzleGrid = ({
     const stroke = useRef<{ pointerId: number; adding: boolean; walls: Wall[]; seen: Set<string>; point: [number, number]; side: Wall['side'] } | null>(null);
     const editingWalls = editTool === 'walls' && !isSolving && !solvedBoard;
     const visibleWalls = draft ?? walls;
-    // Cancel an in-flight stroke if Reset, resizing, mode changes, or solving replaces the board.
-    useEffect(() => {
+    const cancelStroke = useCallback(() => {
+        const pointerId = stroke.current?.pointerId;
         stroke.current = null;
+        if (pointerId !== undefined && gridRef.current?.hasPointerCapture(pointerId)) {
+            gridRef.current.releasePointerCapture(pointerId);
+        }
         setDraft(null);
         setPreview(null);
-    }, [walls, width, height, editTool, isSolving, solvedBoard]);
+    }, []);
+    // Cancel an in-flight stroke when the board or its screen geometry changes.
+    useEffect(() => {
+        cancelStroke();
+        setHighlightSeam(null);
+    }, [cancelStroke, walls, width, height, editTool, isSolving, solvedBoard]);
+    useEffect(() => {
+        const grid = gridRef.current;
+        if (!grid) return;
+        window.addEventListener('resize', cancelStroke);
+        const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(cancelStroke);
+        observer?.observe(grid);
+        return () => {
+            window.removeEventListener('resize', cancelStroke);
+            observer?.disconnect();
+        };
+    }, [cancelStroke]);
     const announce = (wall: Wall, adding: boolean) => {
         const nx = wall.x + (wall.side === 'right' ? 1 : 0), ny = wall.y + (wall.side === 'down' ? 1 : 0);
         setAnnouncement(`Wall ${adding ? 'added' : 'removed'} between column ${wall.x + 1}, row ${wall.y + 1} and column ${nx + 1}, row ${ny + 1}.`);

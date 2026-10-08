@@ -1,5 +1,5 @@
 import { isDotLabels, type DotLabels } from './constants';
-import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { savePuzzleState, loadPuzzleState, type PuzzleDraft } from '@/hooks/useStorage';
 
 import { DEFAULT_SIZE, RESTRICT_Z3_TO_LARGE_GRIDS, SolverType } from './constants';
@@ -8,7 +8,7 @@ import PuzzleGrid from './PuzzleGrid';
 import StatusIndicator from './StatusIndicator';
 import SolverControls from './SolverControls';
 import { GAME_MODES, type GameMode } from '../logic/game-modes';
-import { normalizeTopology, seamKey, type Bridge, type WarpSeam, type PuzzleTopology } from '../logic/topology';
+import { normalizeTopology, validateBoard, seamKey, type Bridge, type WarpSeam, type PuzzleTopology } from '../logic/topology';
 import { boardToSolution, solutionBoard, validateSolution, type PuzzleSolution } from '../logic/solution';
 import type { GeneratedModePuzzle } from '../logic/variant-generator';
 import { type Wall, type EditTool } from '../logic/walls';
@@ -38,13 +38,15 @@ const FlowSolver = () => {
     });
     const changeDotLabels = (value: DotLabels) => {
         setDotLabels(value);
+        setError(null);
         try { localStorage.setItem('flow-dot-labels', value); } catch { /* Keep the preference for this session when storage is unavailable. */ }
     };
     const [showGenerator, setShowGenerator] = useState(() => {
-        try { return localStorage.getItem('flow-show-generator') === 'true'; } catch { return false; }
+        try { return localStorage.getItem('flow-show-generator') !== 'false'; } catch { return true; }
     });
     const changeShowGenerator = (value: boolean) => {
         setShowGenerator(value);
+        setError(null);
         try { localStorage.setItem('flow-show-generator', String(value)); } catch { /* Retain the session preference. */ }
     };
     const [editTool, setEditTool] = useState<EditTool>('dots');
@@ -84,9 +86,11 @@ const FlowSolver = () => {
         setSolverType(draftMode !== 'standard' || draft.width !== draft.height || draft.walls.length ? 'heuristic_bfs' : draft.solverType);
     };
 
-    // Load saved state on mount
+    // Ignore loads from an earlier mount, including the development StrictMode probe.
     useEffect(() => {
+        let active = true;
         loadPuzzleState().then((saved) => {
+            if (!active) return;
             if (saved) {
                 try {
                     if (saved.schemaVersion !== undefined && saved.schemaVersion !== 2) throw new Error('Unknown saved puzzle version');
@@ -132,6 +136,7 @@ const FlowSolver = () => {
             }
             setIsLoaded(true);
         });
+        return () => { active = false; };
     }, []);
 
     // Auto-save state on changes (debounced 500ms)
@@ -154,7 +159,8 @@ const FlowSolver = () => {
     // Cleanup worker on unmount
     useEffect(() => {
         return () => {
-            if (workerRef.current) workerRef.current.terminate();
+            workerRef.current?.terminate();
+            workerRef.current = null;
         };
     }, []);
 
@@ -333,54 +339,63 @@ const FlowSolver = () => {
         setEditHistory(history => history.slice(0, -1));
     };
 
+    // Every exit releases the worker and busy state. Late events from a cancelled
+    // mode are ignored, and invalid responses never reach React's render path.
+    // Factories keep Vite's required new Worker(new URL(...)) pattern intact.
+    const runWorker = <T,>(createWorker: () => Worker, request: unknown, operation: 'solve' | 'generate', onResult: (result: T) => void) => {
+        workerRef.current?.terminate();
+        workerRef.current = null;
+        let worker: Worker | null = null;
+        const finish = () => {
+            if (worker && workerRef.current !== worker) return false;
+            workerRef.current = null;
+            if (worker) {
+                worker.onmessage = null; worker.onerror = null; worker.onmessageerror = null;
+                worker.terminate();
+            }
+            setIsSolving(false); setIsGenerating(false);
+            return true;
+        };
+        const fail = () => {
+            if (finish()) setError(operation === 'solve' ? 'Could not run the solver. Try Solve again.' : 'Could not generate puzzle. Try Generate again.');
+        };
+        setIsSolving(operation === 'solve'); setIsGenerating(operation === 'generate');
+        try {
+            worker = createWorker();
+            workerRef.current = worker;
+            worker.onmessage = event => {
+                if (!finish()) return;
+                try { onResult(event.data); }
+                catch { setError(operation === 'solve' ? 'Solver returned an invalid solution. Try Solve again.' : 'Invalid generated puzzle. Try Generate again.'); }
+            };
+            worker.onerror = event => { event.preventDefault(); fail(); };
+            worker.onmessageerror = fail;
+            worker.postMessage(request);
+        } catch { fail(); }
+    };
+
     const generateBoard = () => {
         if (invalidSavedWalls || walls.length || isSolving || isGenerating || !isLoaded || !isAvailable) return;
         if (!generatedSolution && (board.flat().some(Boolean) || bridges.length || warps.length) &&
             !window.confirm(isStandard ? 'Replace your endpoints with a generated puzzle?' : 'Replace your puzzle with a generated puzzle?')) return;
         setError(null);
-        setIsGenerating(true);
-        const worker = new Worker(
-            new URL('../workers/generator.worker.ts', import.meta.url),
-            { type: 'module' }
-        );
-        workerRef.current = worker;
-        worker.onmessage = (event: MessageEvent<{ puzzle?: GeneratedModePuzzle; error?: string }>) => {
-            if (workerRef.current !== worker) return;
-            workerRef.current = null;
-            worker.terminate();
-            setIsGenerating(false);
-            const { puzzle, error: generationError } = event.data;
-            if (!puzzle) {
-                setError(generationError || 'Could not generate puzzle. Please try again.');
-                return;
-            }
-            try {
+        runWorker(() => new Worker(new URL('../workers/generator.worker.ts', import.meta.url), { type: 'module' }),
+            { width, height, mode, walls, seed: crypto.getRandomValues(new Uint32Array(1))[0] }, 'generate',
+            ({ puzzle, error: generationError }: { puzzle?: GeneratedModePuzzle; error?: string }) => {
+                if (!puzzle) { setError(generationError || 'Could not generate puzzle. Try Generate again.'); return; }
                 if (puzzle.mode !== mode || puzzle.width !== width || puzzle.height !== height) throw new Error('Generator returned a different puzzle mode or size');
-                normalizeTopology(puzzle.topology, puzzle.board, mode);
-                validateSolution(puzzle.board, puzzle.topology, puzzle.pathSolution);
-            } catch (error) {
-                setError(error instanceof Error ? error.message : 'Invalid generated puzzle');
-                return;
-            }
-            setBoard(puzzle.board);
-            setBridges(puzzle.topology.bridges); setWarps(puzzle.topology.warps);
-            setEditHistory([]);
-            setGeneratedSolution(puzzle.solution);
-            setGeneratedPathSolution(puzzle.pathSolution);
-            setEditTool('dots');
-            setSolvedBoard(null); setPathSolution(null);
-            setSolveTime(null);
-            setActiveColor(puzzle.pairCount + 1);
-            setIsPlacingSecond(false);
-        };
-        worker.onerror = () => {
-            if (workerRef.current !== worker) return;
-            workerRef.current = null;
-            worker.terminate();
-            setIsGenerating(false);
-            setError('Could not generate puzzle. Please try again.');
-        };
-        worker.postMessage({ width, height, mode, walls, seed: crypto.getRandomValues(new Uint32Array(1))[0] });
+                const topology = normalizeTopology(puzzle.topology, puzzle.board, mode);
+                validateSolution(puzzle.board, topology, puzzle.pathSolution);
+                validateBoard(puzzle.solution);
+                if (JSON.stringify(solutionBoard(puzzle.board, puzzle.pathSolution)) !== JSON.stringify(puzzle.solution) ||
+                    puzzle.pairCount !== puzzle.pathSolution.paths.length) throw new Error('Invalid generated solution');
+                setBoard(puzzle.board); setWalls(topology.walls);
+                setBridges(topology.bridges); setWarps(topology.warps);
+                setEditHistory([]);
+                setGeneratedSolution(puzzle.solution); setGeneratedPathSolution(puzzle.pathSolution);
+                setEditTool('dots'); setSolvedBoard(null); setPathSolution(null); setSolveTime(null);
+                setActiveColor(puzzle.pairCount + 1); setIsPlacingSecond(false);
+            });
     };
 
     const cancelWork = () => {
@@ -408,59 +423,33 @@ const FlowSolver = () => {
             }
         }
 
-        // ── Start Solver ────────────────────────────────────────────────────────
-        setIsSolving(true);
-
-        if (workerRef.current) workerRef.current.terminate();
-
-        const worker = new Worker(
-            new URL('../workers/solver.worker.ts', import.meta.url),
-            { type: 'module' }
-        );
-        workerRef.current = worker;
-
         const startTime = performance.now();
-        worker.postMessage({ board, type: solverType, mode, walls, bridges, warps });
-
-        worker.onmessage = (event) => {
-            if (workerRef.current !== worker) return;
-            const result = event.data;
-            setIsSolving(false);
-            workerRef.current = null;
-            worker.terminate();
-
-            if (result.board) {
-                setSolveTime(performance.now() - startTime);
-                setSolvedBoard(result.board); setPathSolution(result.solution ?? null);
-            } else if (generatedSolution && (result.timedOut || /result code 2/.test(result.error ?? ''))) {
-                // Generated puzzles already have a valid solution if search reaches its budget.
-                setSolvedBoard(generatedSolution);
-                setPathSolution(generatedPathSolution);
-                setSolveTime(performance.now() - startTime);
-            } else if (result.timedOut) {
-                setError(mode !== 'standard' ? 'Search limit reached. Your puzzle is preserved.' : solverType === 'astar' ? 'Timed out. Try Heuristic BFS.' : 'Timed out (15s limit)');
-            } else if (result.error) {
-                setError('Solver error: ' + result.error);
-            } else {
-                setError(isStandard && !walls.length && solverType === 'heuristic_bfs' && width === 15 && height === 15 ? 'No solution. Try Z3.' : 'No solution found');
-            }
+        const acceptSolution = (resultBoard: number[][], paths?: PuzzleSolution | null) => {
+            validateBoard(resultBoard);
+            const topology = { walls, bridges, warps };
+            const solution = paths ?? boardToSolution(board, resultBoard, topology);
+            validateSolution(board, topology, solution);
+            if (JSON.stringify(solutionBoard(board, solution)) !== JSON.stringify(resultBoard)) throw new Error('Invalid solution matrix');
+            setSolvedBoard(resultBoard); setPathSolution(solution); setSolveTime(performance.now() - startTime);
         };
-
-        worker.onerror = (err) => {
-            if (workerRef.current !== worker) return;
-            console.error('Worker error:', err);
-            setIsSolving(false);
-            setError('Solver error. Please try again.');
-            workerRef.current = null;
-            worker.terminate();
-        };
+        runWorker(() => new Worker(new URL('../workers/solver.worker.ts', import.meta.url), { type: 'module' }),
+            { board, type: solverType, mode, walls, bridges, warps }, 'solve',
+            (result: { board: number[][] | null; solution?: PuzzleSolution | null; timedOut?: boolean; error?: string }) => {
+                if (!result || typeof result !== 'object' || !('board' in result)) throw new Error('Invalid solver response');
+                if (result.board) acceptSolution(result.board, result.solution);
+                else if (generatedSolution && (result.timedOut || /result code 2/.test(result.error ?? ''))) {
+                    acceptSolution(generatedSolution, generatedPathSolution);
+                } else if (result.timedOut) {
+                    setError(mode !== 'standard' ? 'Search limit reached. Your puzzle is preserved.' : solverType === 'astar' ? 'Timed out. Try Heuristic BFS.' : 'Timed out (15s limit)');
+                } else if (result.error) setError('Solver error: ' + result.error);
+                else setError(isStandard && !walls.length && solverType === 'heuristic_bfs' && width === 15 && height === 15 ? 'No solution. Try Z3.' : 'No solution found');
+            });
     };
 
     // ── Render ────────────────────────────────────────────────────────────────
 
     const currentBoard = solvedBoard || board;
-    const visibleSolution = useMemo(() => solvedBoard ? pathSolution ?? boardToSolution(board, solvedBoard, { walls, bridges, warps }) : null,
-        [board, solvedBoard, pathSolution, walls, bridges, warps]);
+    const visibleSolution = solvedBoard ? pathSolution : null;
 
     return (
         <main className="solver-shell touch-manipulation" onKeyDown={event => {
@@ -493,7 +482,7 @@ const FlowSolver = () => {
                         <PuzzleGrid
                             width={width}
                             height={height}
-                        dotLabels={dotLabels}
+                            dotLabels={dotLabels}
                             activeColor={activeColor}
                             currentBoard={currentBoard}
                             solvedBoard={solvedBoard}
@@ -535,7 +524,7 @@ const FlowSolver = () => {
                         onGenerate={generateBoard}
                         wallCount={walls.length}
                         editTool={editTool}
-                        onEditToolChange={setEditTool}
+                        onEditToolChange={tool => { setEditTool(tool); setError(null); }}
                         canUndo={canUndo}
                         onUndo={undoEdit}
                         warps={warps}

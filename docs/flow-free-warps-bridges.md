@@ -469,7 +469,7 @@ The release makes these concrete UI choices:
   dimensions, applicable solver choices, and contextual bulk edits. Endpoint
   cells retain descriptive accessible labels; Color label optionally adds A–P to endpoints.
 - The component picker sits above the shared Solve, Cancel, and Edit position.
-  Puzzle generator is off by default; enabling it reveals Generate beside Solve.
+  Puzzle generator is on by default; its switch shows or hides Generate beside Solve.
   Warp bulk-opening buttons sit above Color label and Puzzle generator in Board options.
   Separate Clear walls/bridges/warps buttons are omitted. Undo and Reset sit beside Board options and
   use labeled icons with 44px targets. Equal-width tool buttons share a single tray, pair labels with small glyphs

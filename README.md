@@ -73,7 +73,7 @@ beside Board options, separated from Solve and Generate.
 Solve becomes Cancel while working and Edit after solving, in the same position.
 Dots/Walls and the active variant's tool are directly accessible during editing,
 in one full-width tray with matching glyphs and a softly filled selected button. Selecting a tool keeps it selected; choose Dots
-to return to endpoint placement. Editing tools disappear when viewing a solution.
+to return to endpoint placement. Editing tools stay visible when viewing a solution; selecting one returns to editing.
 Board options start collapsed and contain custom dimensions, applicable solver
 choices, and contextual bulk edits. Generate appears in all implemented modes; variants,
 walls, and rectangles select the C/Wasm engine automatically. The board keeps its
@@ -323,6 +323,8 @@ Created by **[Kongesque](https://www.kongesque.com/)**.
 
 Board options includes **Color label**, an optional switch that shows letters A–P (starting with red). It is off by default. The display preference is remembered on this device and applies to endpoints in the editor and solved board.
 
-The component picker sits above Solve. Enable **Puzzle generator** in Board options to reveal Generate; this preference is off by default and remembered on this device. Warp bulk-opening actions appear above the display switches. Remove individual walls, bridges, and warps on the board, or use Undo/Reset.
+The component picker sits above Solve. **Puzzle generator** is on by default; its Board options switch controls Generate and remembers your choice on this device. Warp bulk-opening actions appear above the display switches. Remove individual walls, bridges, and warps on the board, or use Undo/Reset.
 
 The component picker stays visible after solving. Selecting a tool returns to the editor with the same puzzle.
+
+Switching modes cancels active solving or generation and restores that mode's draft. Display switches remain available while working. Worker startup, request, and response failures release the busy state so you can retry without refreshing; invalid results leave the current puzzle intact. Interrupted saved-state reads retry once, and screen resizing cancels unfinished wall strokes.

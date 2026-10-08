@@ -78,7 +78,7 @@ const SolverControls = ({
             <div className="primary-settings">
                 <label className="control-field">
                     <span>Mode</span><span className="select-wrap">
-                        <select aria-label="Game Mode" value={mode} onChange={onModeChange} disabled={isBusy}>
+                        <select aria-label="Game Mode" value={mode} onChange={onModeChange} disabled={!isLoaded || invalidSavedWalls}>
                             {Object.entries(GAME_MODES).filter(([, config]) => config.available).map(([value, config]) => (
                                 <option key={value} value={value}>{config.label}</option>
                             ))}
@@ -119,14 +119,14 @@ const SolverControls = ({
             <div className="board-settings">
                 <details className="board-options">
                     <summary>Board options <ChevronDown aria-hidden="true" /></summary>
-                    <fieldset disabled={isBusy} className="custom-settings">
+                    <fieldset disabled={!isLoaded || invalidSavedWalls} className="custom-settings">
                         <legend className="sr-only">Board options</legend>
                         <div className="settings-grid">
                             {(['Width', 'Height'] as const).map(label => (
                                 <label key={label} className="control-field">
                                     <span>{label}</span><span className="select-wrap">
                                         <select aria-label={`Grid ${label}`} value={label === 'Width' ? width : height}
-                                            onChange={label === 'Width' ? onWidthChange : onHeightChange} disabled={unavailable}>
+                                            onChange={label === 'Width' ? onWidthChange : onHeightChange} disabled={isBusy || unavailable}>
                                             {SIZE_OPTIONS.map(dimension => <option key={dimension} value={dimension}>{dimension}</option>)}
                                         </select><ChevronDown aria-hidden="true" />
                                     </span>
