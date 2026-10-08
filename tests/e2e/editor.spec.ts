@@ -29,8 +29,8 @@ for (const viewport of [
     test(`editor fits ${viewport.width}×${viewport.height} with square and rectangular boards`, async ({ page }) => {
         await page.setViewportSize(viewport);
         await page.goto('./');
-        await expect(page.locator('.control-actions button')).toHaveCount(3);
-        await expect(page.getByRole('combobox')).toHaveCount(1);
+        await expect(page.locator('.control-actions button')).toHaveCount(4);
+        await expect(page.getByRole('combobox')).toHaveCount(2);
         await expect(page.getByText('Size', { exact: true })).toBeVisible();
         await expect(page.getByRole('combobox', { name: 'Solver Algorithm' })).toBeHidden();
         const source = page.getByRole('link', { name: /View source on GitHub/ });
@@ -62,7 +62,12 @@ for (const viewport of [
             .toBe(viewport.width >= 960 ? 'left' : 'center');
         const about = await layoutBounds(page.locator('.solver-about'));
         const actionButtons = await layoutBounds(page.locator('.control-actions'));
-        expect(about.y).toBeGreaterThan(actionButtons.y + actionButtons.height);
+        const compactLandscape = viewport.width < 960 && viewport.width > viewport.height && viewport.height <= 600;
+        if (compactLandscape) {
+            expect(about.y + about.height).toBeLessThanOrEqual(actionButtons.y);
+        } else {
+            expect(about.y).toBeGreaterThan(actionButtons.y + actionButtons.height);
+        }
         const initialBoard = await page.getByRole('article', { name: 'Puzzle Grid Board' }).boundingBox();
         const initialHeader = await layoutBounds(page.getByRole('heading', { name: /Flow Free Solver/i }));
         const status = await layoutBounds(page.getByRole('status'));
@@ -109,7 +114,7 @@ for (const viewport of [
         } else {
             await expect(page.locator('.solver-methods')).toBeVisible();
             const options = await layoutBounds(page.locator('.board-options'));
-            expect(about.y).toBeGreaterThan(options.y + options.height);
+            if (!phoneLandscape) expect(about.y).toBeGreaterThan(options.y + options.height);
             await expect(page.locator('.solver-header p')).toBeVisible();
             await expect(page.locator('.board-options')).not.toHaveAttribute('open', '');
             await expect(page.locator('.board-options summary')).toBeVisible();
@@ -223,6 +228,8 @@ test('keyboard editing uses a single grid tab stop and respects rectangular boun
     await expect(page.getByRole('button', { name: 'Cell 0,1 Empty', exact: true })).toBeFocused();
     await expect(page.locator('.puzzle-grid button[tabindex="0"]')).toHaveCount(1);
     await page.keyboard.press('Tab');
+    await expect(page.getByRole('combobox', { name: 'Game Mode' })).toBeFocused();
+    await page.keyboard.press('Tab');
     await expect(page.getByRole('combobox', { name: 'Grid Size' })).toBeFocused();
 });
 
@@ -292,9 +299,8 @@ for (const viewport of [
             page.getByRole('heading', { name: /Flow Free Solver/i }),
             page.getByRole('status'),
             grid,
-            page.getByRole('region', { name: 'Game Controls' }),
             page.locator('.control-actions button').first(),
-            page.locator('.board-options:visible'),
+            page.locator('.control-actions'),
         ];
         const initialBounds = await Promise.all(landmarks.map(layoutBounds));
         const expectStable = async () => {

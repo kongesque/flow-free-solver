@@ -52,8 +52,7 @@ for (const [width, height] of [[5, 8], [8, 5], [7, 10], [10, 7]]) {
         await openBoardOptions(page);
         await page.getByRole('combobox', { name: 'Solver Algorithm' }).selectOption('astar');
         await dimensions(page, width, height);
-        await expect(page.getByRole('combobox', { name: 'Solver Algorithm' })).toHaveValue('heuristic_bfs');
-        await expect(page.getByRole('combobox', { name: 'Solver Algorithm' })).toBeDisabled();
+        await expect(page.getByRole('combobox', { name: 'Solver Algorithm' })).toHaveCount(0);
         const grid = page.getByRole('article', { name: 'Puzzle Grid Board' });
         const bounds = await grid.boundingBox();
         expect(bounds).not.toBeNull();
@@ -153,7 +152,7 @@ test('implemented modes restore their drafts and Hexes remains unavailable', asy
     for (const mode of ['bridges', 'warps']) {
         await page.getByRole('combobox', { name: 'Game Mode' }).selectOption(mode);
         await expect(page.getByRole('button', { name: 'Solve', exact: true })).toBeEnabled();
-        await expect(page.getByRole('button', { name: 'Generate', exact: true })).toBeDisabled();
+        await expect(page.getByRole('button', { name: 'Generate', exact: true })).toHaveCount(0);
         await expect(page.getByRole('button', { name: 'Cell 4,7 Empty', exact: true })).toBeEnabled();
     }
     await expect(page.getByRole('combobox', { name: 'Game Mode' }).locator('option[value="hexes"]')).toHaveJSProperty('disabled', true);

@@ -57,11 +57,11 @@ const StatusIndicator = ({
                 )}
             </span>
         ) : editTool === 'bridges' ? (
-            <span className="text-stoic-primary text-xs">Bridges · {bridgeCount} · Tap an interior cell</span>
+            <span className="text-stoic-primary text-xs">Bridges · {bridgeCount}</span>
         ) : editTool === 'warps' ? (
-            <span className="text-stoic-primary text-xs">Warps · {warpCount} · Tap a border</span>
+            <span className="text-stoic-primary text-xs">Warps · {warpCount}</span>
         ) : editingWalls ? (
-            <span className="text-stoic-primary text-xs">Walls · {wallCount} · Tap a boundary</span>
+            <span className="text-stoic-primary text-xs">Walls · {wallCount}</span>
         ) : generatedPairCount !== null ? (
             <span className="text-stoic-accent text-xs">
                 Generated · {generatedPairCount} pairs

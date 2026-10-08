@@ -118,6 +118,38 @@ test('generated endpoints and solution survive reload; editing invalidates the s
     await expect(page.getByRole('button', { name: /Cell .* Empty/ })).toHaveCount(64);
 });
 
+test('primary Cancel stops generation without moving the action or changing endpoints', async ({ page }) => {
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    await page.route(/generator\.worker/, async route => {
+        await gate;
+        await route.continue().catch(() => {});
+    });
+    try {
+        await page.goto('./');
+        await page.getByRole('button', { name: 'Cell 0,0 Empty', exact: true }).click();
+        await page.getByRole('button', { name: 'Cell 4,0 Empty', exact: true }).click();
+        const action = page.locator('.primary-action');
+        const originalBounds = await action.boundingBox();
+        page.once('dialog', dialog => dialog.accept());
+        const request = page.waitForRequest(/generator\.worker/);
+        await page.getByRole('button', { name: 'Generate', exact: true }).click();
+        await request;
+        const cancel = page.getByRole('button', { name: 'Cancel', exact: true });
+        await expect(cancel).toBeEnabled();
+        expect(await cancel.boundingBox()).toEqual(originalBounds);
+        await cancel.click();
+        await expect(page.getByRole('button', { name: 'Solve', exact: true })).toBeEnabled();
+        expect(await action.boundingBox()).toEqual(originalBounds);
+        await expect(page.getByRole('button', { name: /Cell .* Color 1$/ })).toHaveCount(2);
+        release();
+        await page.unroute(/generator\.worker/);
+        const input = await generate(page, 5);
+        await solve(page);
+        validateSolution(input, await readGrid(page, 5));
+    } finally { release(); }
+});
+
 test('Reset cancels generation and a fresh generation succeeds', async ({ page }) => {
     let release!: () => void;
     const gate = new Promise<void>(resolve => { release = resolve; });
@@ -131,7 +163,7 @@ test('Reset cancels generation and a fresh generation succeeds', async ({ page }
         await page.getByRole('button', { name: 'Generate', exact: true }).click();
         await request;
         await expect(page.getByRole('status')).toContainText('Generating');
-        await expect(page.getByRole('button', { name: 'Solve', exact: true })).toBeDisabled();
+        await expect(page.getByRole('button', { name: 'Cancel', exact: true })).toBeEnabled();
         await expect(page.getByRole('combobox', { name: 'Grid Size' })).toBeDisabled();
         await expect(page.getByRole('button', { name: 'Cell 0,0 Empty', exact: true })).toBeDisabled();
         page.once('dialog', dialog => dialog.dismiss());

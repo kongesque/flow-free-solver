@@ -214,24 +214,23 @@ the pinned Emscripten compiler, and the Matt Zucker attribution/license exceptio
 
 ## Editor and UI/UX specification
 
-Keep the desktop panel beside the board and mobile panel below it. Retain
-Size, Undo, Solve/Edit, Generate, and Reset in their current positions. Add no
-permanent toolbar. Place mode, dimensions, algorithm, and specialist tools in
-the existing Board options disclosure. Show only implemented modes as usable
-choices; selecting a mode must lead to a working editor.
+Keep the desktop panel beside the board and mobile panel below it. Make Mode,
+Size, and editing tools directly accessible. Keep Solve/Cancel/Edit in one
+position, with compact Undo and Reset actions alongside it. Use Board options
+for custom dimensions, applicable algorithm choices, and contextual bulk edits.
+Show only implemented modes as usable choices; selecting a mode must lead to a
+working editor. Omit Generate in variants and hide editing tools on solutions.
 
 An example of the open options, not a new application screen:
 
 ```text
-Size [5 × 5]                             [Undo]
-[ Solve ]             [ Generate ]      [Reset]
+Mode [Bridges ▾]                   Size [5 × 5]
+[ Solve                         ] [Undo][Reset]
+Edit: [Dots] [Walls] [Bridges]         [Zoom in]
 Board options                                ▾
-  Mode [Bridges ▾]   Width [5]   Height [5]
-  Algorithm: Heuristic BFS
-  Edit: [Dots] [Walls] [Bridges]
+  Width [5]                         Height [5]
   Bridge on top: [Horizontal ▾]
-  [Clear bridges]              [Zoom in / Fit]
-  Tap an empty cell to add or remove a bridge.
+  [Rotate bridges]              [Clear bridges]
 ```
 
 Use one segmented tool selector when multiple topology tools are available:
@@ -318,8 +317,8 @@ without announcing every pointer move or shifting focus. Use messages such as
 “Bridge added, column 3, row 2” and “Row 3 warp opened, left to right.”
 [W3C status-message guidance](https://www.w3.org/WAI/WCAG22/Understanding/status-messages.html).
 
-Explain disabled Generate: “Generation is available in Standard mode.” A fixed
-algorithm can show “Heuristic BFS” in Board options; native engine details do
+Omit unavailable Generate and fixed algorithm choices. Explain disabled
+Standard Generate with “Clear walls to generate.” Native engine details do
 not belong in the main task instructions. If search reaches its budget, say
 “Search limit reached. Your puzzle is preserved.” Offer cancellation that
 preserves the puzzle during long work; keep Reset's existing destructive-action
@@ -466,8 +465,15 @@ The release makes these concrete UI choices:
   Rotate bridges changes all current crossings in one Undo step. Individual
   crossings can be removed and added with the other top axis. There is no
   separate selected-bridge inspector or hover-placement preview in this release.
-- Contextual tools live in Board options. The collapsed summary names the active
-  tool; reopening options provides Dots. Endpoint numbers supplement color.
+- Mode and Size stay visible; Dots/Walls and the active variant's tool are
+  directly accessible during editing. Selection is explicit, so selecting the
+  current tool does not silently return to Dots. Board options holds custom
+  dimensions, applicable solver choices, and contextual bulk edits. Endpoint
+  numbers supplement color.
+- Solve, Cancel, and Edit share one primary action position. Undo and Reset use
+  labeled icons with 44px targets. Generate is omitted for variants; fixed
+  C/Wasm solver choices and editing-only controls are omitted where inapplicable.
+  Short landscape layouts reduce spacing while preserving touch target size.
 - Solution rendering uses explicit SVG path steps, split warp stubs, and an
   outlined gap at crossings. Only the original endpoint cells retain dots.
 - Saves use schema version 2 and keep flat active-draft fields for existing

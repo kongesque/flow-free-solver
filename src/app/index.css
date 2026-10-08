@@ -143,18 +143,10 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
 .wall-preview { stroke: var(--color-stoic-accent); stroke-width: 7px; stroke-linecap: round; opacity: .7; stroke-dasharray: 4 3; }
 .wall-target { position: absolute; z-index: 2; touch-action: none; cursor: crosshair; }
 .editing-walls button { touch-action: pan-x pan-y; }
-/* Advanced controls live inside the board disclosure. */
-.control-button.wall-toggle { justify-content: space-between; text-align: left; }
-.wall-toggle-indicator { width: 28px; height: 16px; padding: 2px; border-radius: 10px; background: var(--color-stoic-line); }
-.wall-toggle-indicator::before { content: ''; display: block; width: 12px; height: 12px; border-radius: 50%; background: var(--color-stoic-secondary); }
-.wall-toggle[aria-pressed="true"] .wall-toggle-indicator { background: #455050; }
-.wall-toggle[aria-pressed="true"] .wall-toggle-indicator::before { transform: translateX(12px); background: var(--color-stoic-primary); }
-.wall-count, .active-tool { font-size: 10px; color: var(--color-stoic-secondary); }
+.wall-count { font-size: 10px; color: var(--color-stoic-secondary); }
 .wall-context { display: flex; flex-direction: column; gap: 6px; }
 .wall-actions { display: flex; gap: 6px; }
 .wall-actions button { flex: 1; font-size: 11px; padding-inline: 4px; white-space: nowrap; }
-.wall-zoom-action:not(.large-board) { display: none; }
-.wall-help, .panel-notice { margin: 0; color: var(--color-stoic-secondary); font-size: 10px; line-height: 1.6; text-align: left; }
 .puzzle-grid button { position: relative; }
 .puzzle-grid button:active:not(:disabled) { background: #252b29; }
 .puzzle-grid button:focus-visible { outline-offset: -3px; z-index: 1; }
@@ -185,7 +177,8 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
 }
 .select-wrap select:hover:not(:disabled) { border-color: var(--color-stoic-block-border); }
 .select-wrap svg { position: absolute; right: 10px; top: calc(65% - 6px); width: 12px; height: 12px; pointer-events: none; }
-.control-actions { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, .8fr); gap: 8px; }
+.control-actions { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) 44px 44px; gap: 6px; }
+.control-actions.without-generation { grid-template-columns: minmax(0, 1fr) 44px 44px; }
 .control-button {
   min-height: 44px;
   display: flex; align-items: center; justify-content: center; gap: 6px;
@@ -209,7 +202,6 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
 .board-options summary svg { width: 12px; height: 12px; }
 .board-options[open] summary svg { transform: rotate(180deg); }
 .custom-settings { display: flex; flex-direction: column; gap: 8px; border: 0; padding: 8px 0 0; margin: 0; min-width: 0; }
-.control-hint { margin: 0; font-size: 10px; color: var(--color-stoic-secondary); line-height: 1.6; }
 .solver-about { color: var(--color-stoic-secondary); font-size: 11px; line-height: 1.6; text-align: center; }
 .solver-about p { margin: 0; }
 .solver-about a { position: relative; color: inherit; text-decoration: underline; text-underline-offset: 4px; }
@@ -218,7 +210,6 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
 
 @media (max-width: 959px) {
   .solver-controls { gap: 8px; }
-  .wall-zoom-action:not(.large-board) { display: flex; }
   .solver-about { padding-top: 4px; }
 }
 
@@ -263,10 +254,13 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
   .solver-header p { font-size: clamp(8px, 1.6vw, 10px); }
   .board-area { grid-column: 1; grid-row: 2; margin-inline: auto; }
   .solver-status { grid-column: 1; grid-row: 3; }
-  .game-controls { grid-column: 2; grid-row: 1 / span 3; padding-top: 48px; }
+  .game-controls { position: relative; grid-column: 2; grid-row: 1 / span 3; padding-top: 48px; }
   .solver-controls { gap: 4px; min-height: 0; }
   .board-options summary { font-size: 10px; }
-  .solver-about { font-size: 9px; line-height: 1.4; }
+  .solver-about { position: absolute; top: 0; left: 0; right: 48px; height: 44px; display: flex; align-items: center; justify-content: center; padding-top: 0; font-size: 9px; line-height: 1.4; }
+  .solver-about p { display: flex; align-items: center; gap: .3em; }
+  .solver-about a { display: inline-flex; align-items: center; min-height: 44px; }
+  .solver-about a::after { content: none; }
 }
 
 @media (min-width: 960px) {
@@ -312,10 +306,16 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
 .endpoint-dot { position: relative; z-index: 2; }
 .warp-overlay { z-index: 4; }
 .warp-overlay line { stroke: #e6e4df; stroke-width: .1; stroke-dasharray: .12 .08; }
-.edit-tools { display: flex; gap: 6px; }
-.edit-tools button { flex: 1; min-width: 0; }
-.edit-tools button[aria-pressed="true"] { border-color: var(--color-stoic-accent); background: #203638; }
-.warp-actions { display: flex; flex-direction: column; gap: 6px; }
+.editor-toolbar { display: flex; align-items: center; gap: 6px; }
+.edit-tools { display: flex; flex: 1; min-width: 0; padding: 2px; border-radius: 8px; background: var(--color-stoic-block-bg); }
+.edit-tools button { flex: 1; min-width: 0; border: 0; padding-inline: 4px; color: var(--color-stoic-secondary); }
+.edit-tools button[aria-pressed="true"] { background: #303a39; color: var(--color-stoic-primary); }
+.control-button.icon-action { width: 44px; flex: none; padding: 0; border-color: transparent; }
+.control-button.icon-action svg { width: 17px; height: 17px; }
+.control-button.icon-action[aria-pressed="true"] { color: var(--color-stoic-accent); background: #203638; }
+.control-button.quiet-action { border-color: transparent; color: var(--color-stoic-secondary); }
+.warp-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.warp-actions button { font-size: 10px; padding-inline: 4px; }
 .seam-target { position: absolute !important; z-index: 5; padding: 0; border: 1px dashed #697773; background: #252b29; opacity: .8; }
 .seam-target.open { border-color: #e6e4df; background: #385154; }
 .seam-target.paired { outline: 2px solid var(--color-stoic-accent); outline-offset: -2px; }

@@ -64,12 +64,17 @@ multiple solutions; the generator does not certify uniqueness or difficulty.
 Some large puzzles can exceed an independent solver's search budget. **Show
 solution** always reveals the solution retained during construction.
 
-The tool panel sits beside the board on desktop and below it on mobile. Size,
-Undo, Solve, Generate, and Reset stay visible. Solve becomes Edit in the same
-position. Board options start collapsed on both layouts and contain dimensions,
-algorithm, mode, and Dots/Walls plus the active variant's tool. Contextual controls appear while
-editing that tool. The board keeps its size and position as tools change; on phones,
-the footer can scroll when browser bars leave less room.
+The tool panel sits beside the board on desktop and below it on mobile. Mode and
+Size stay visible above the primary action, with compact Undo and Reset buttons.
+Solve becomes Cancel while working and Edit after solving, in the same position.
+Dots/Walls and the active variant's tool are directly accessible during editing,
+alongside Zoom and optional Pan. Selecting a tool keeps it selected; choose Dots
+to return to endpoint placement. Editing tools disappear when viewing a solution.
+Board options start collapsed and contain custom dimensions, applicable solver
+choices, and contextual bulk edits. Generate appears only for Standard; variants,
+walls, and rectangles select the C/Wasm engine automatically. The board keeps its
+size and position as tools change; on phones, the footer can scroll when browser
+bars leave less room.
 
 **Undo** reverses endpoint placement/removal, wall strokes, bridge/seam edits, and bulk changes in
 order, restoring the endpoint color and placement state. **Ctrl+Z** or **⌘Z**
@@ -88,9 +93,9 @@ dimensions, endpoints, and topology. Reset and confirmed resizing clear only the
 active draft. Legacy square saves still load; an old variant placeholder's
 endpoint puzzle becomes its Standard draft, with an empty variant draft.
 
-In **Warps**, choose **Warps** under Board options and tap the border of a row or
+In **Warps**, choose the **Warps** editing tool and tap the border of a row or
 column to connect it to the opposite edge. Both matching border controls open or
-close together and highlight together on focus/hover. Use **Open all left/right**,
+close together and highlight together on focus/hover. Open **Board options** for **Open all left/right**,
 **Open all top/bottom**, or **Clear warps** for bulk edits. With keyboard focus on
 a boundary cell, **Shift + an outward Arrow** toggles that seam; regular arrows
 move focus without wrapping. Available seams are optional route choices, and

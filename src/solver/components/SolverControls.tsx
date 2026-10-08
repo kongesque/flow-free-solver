@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Undo2, Trash2, ZoomIn, ZoomOut, Hand } from 'lucide-react';
 import { GAME_MODES, type GameMode } from '../logic/game-modes';
 import { SIZE_OPTIONS, RESTRICT_Z3_TO_LARGE_GRIDS, SolverType } from './constants';
 import type { Bridge, WarpSeam } from '../logic/topology';
@@ -65,131 +65,111 @@ const SolverControls = ({
     const unavailable = !GAME_MODES[mode].available;
     const wasmOnly = width !== height || mode !== 'standard' || wallCount > 0;
     const editingDisabled = isBusy || unavailable || showingSolution;
+    const working = isSolving || isGenerating;
+    const tools: EditTool[] = ['dots', 'walls', ...(mode === 'bridges' ? ['bridges' as const] : mode === 'warps' ? ['warps' as const] : [])];
     return (
         <div className="solver-controls">
             <div className="primary-settings">
                 <label className="control-field">
-                    <span>Size</span>
-                    <span className="select-wrap">
+                    <span>Mode</span><span className="select-wrap">
+                        <select aria-label="Game Mode" value={mode} onChange={onModeChange} disabled={isBusy}>
+                            {Object.entries(GAME_MODES).map(([value, config]) => (
+                                <option key={value} value={value} disabled={!config.available}>{config.label}{config.available ? '' : ' (coming soon)'}</option>
+                            ))}
+                        </select><ChevronDown aria-hidden="true" />
+                    </span>
+                </label>
+                <label className="control-field">
+                    <span>Size</span><span className="select-wrap">
                         <select value={width === height ? width : 'custom'} onChange={onSizeChange}
                             aria-label="Grid Size" disabled={isBusy || unavailable}>
                             {width !== height && <option value="custom">{width} × {height}</option>}
                             {SIZE_OPTIONS.map(option => <option key={option} value={option}>{option} × {option}</option>)}
-                        </select>
-                        <ChevronDown aria-hidden="true" />
+                        </select><ChevronDown aria-hidden="true" />
                     </span>
                 </label>
-                <button type="button" className="control-button undo-action" disabled={!canUndo || editingDisabled} onClick={onUndo}
-                    aria-keyshortcuts="Control+Z Meta+Z" title="Undo last edit (Ctrl+Z / ⌘Z)">Undo</button>
             </div>
-            <div className="control-actions" aria-label="Puzzle actions">
-                <button className="control-button primary-action" onClick={showingSolution ? onEdit : onSolve} disabled={isBusy || unavailable}>
-                    {showingSolution ? 'Edit' : 'Solve'}
+            <div className={`control-actions ${mode !== 'standard' ? 'without-generation' : ''}`} aria-label="Puzzle actions">
+                <button type="button" className="control-button primary-action" onClick={working ? onCancel : showingSolution ? onEdit : onSolve}
+                    disabled={!working && (isBusy || unavailable)}>
+                    {working ? 'Cancel' : showingSolution ? 'Edit' : 'Solve'}
                 </button>
-                <button className="control-button" onClick={onGenerate} disabled={isBusy || unavailable || mode !== 'standard' || wallCount > 0}
-                    aria-describedby={mode !== 'standard' ? 'variant-generation-hint' : wallCount > 0 ? 'wall-generation-hint' : undefined}>
-                    Generate
-                </button>
-                <button className="control-button reset-action" onClick={onReset} disabled={!isLoaded || unavailable}>
-                    Reset
-                </button>
+                {mode === 'standard' && <button type="button" className="control-button generate-action" onClick={onGenerate}
+                    disabled={isBusy || wallCount > 0} aria-describedby={wallCount > 0 ? 'wall-generation-hint' : undefined}
+                    title={wallCount > 0 ? 'Clear walls to generate' : 'Generate a puzzle'}>Generate</button>}
+                <button type="button" className="control-button icon-action undo-action" disabled={!canUndo || editingDisabled} onClick={onUndo}
+                    aria-label="Undo" aria-keyshortcuts="Control+Z Meta+Z" title="Undo last edit (Ctrl+Z / ⌘Z)"><Undo2 aria-hidden="true" /></button>
+                <button type="button" className="control-button icon-action reset-action" onClick={onReset} disabled={!isLoaded || unavailable}
+                    aria-label="Reset" title="Reset puzzle"><Trash2 aria-hidden="true" /></button>
             </div>
-            {(isSolving || isGenerating) && <button type="button" className="control-button" onClick={onCancel}>Cancel</button>}
-            {mode !== 'standard' && <p id="variant-generation-hint" className="panel-notice">Generation is available in Standard mode.</p>}
-            {wallCount > 0 && mode === 'standard' && <p id="wall-generation-hint" className="panel-notice">Clear walls to generate.</p>}
+            {mode === 'standard' && wallCount > 0 && <span id="wall-generation-hint" className="sr-only">Clear walls to generate.</span>}
+            {!showingSolution && <div className="editor-toolbar">
+                <div className="edit-tools" role="group" aria-label="Editing tool">
+                    {tools.map(tool => <button key={tool} type="button" className="control-button" aria-pressed={editTool === tool}
+                        disabled={editingDisabled} onClick={() => onEditToolChange(tool)}>
+                        {tool[0].toUpperCase() + tool.slice(1)}
+                        {tool === 'walls' && wallCount > 0 && <span aria-hidden="true" className="wall-count">{wallCount}</span>}
+                    </button>)}
+                </div>
+                <button type="button" className="control-button icon-action" disabled={editingDisabled} aria-pressed={zoomWalls}
+                    aria-label={zoomWalls ? 'Fit board' : 'Zoom in'} title={zoomWalls ? 'Fit board' : 'Zoom in'} onClick={onZoomWalls}>
+                    {zoomWalls ? <ZoomOut aria-hidden="true" /> : <ZoomIn aria-hidden="true" />}
+                </button>
+                {zoomWalls && <button type="button" className="control-button icon-action" aria-pressed={panning} disabled={editingDisabled}
+                    aria-label={panning ? 'Resume editing' : 'Pan board'} title={panning ? 'Resume editing' : 'Pan board'} onClick={onPan}><Hand aria-hidden="true" /></button>}
+            </div>}
             <details className="board-options">
-                <summary>Board options{editTool !== 'dots' && <span className="active-tool"> · {editTool[0].toUpperCase() + editTool.slice(1)}</span>} <ChevronDown aria-hidden="true" /></summary>
+                <summary>Board options <ChevronDown aria-hidden="true" /></summary>
                 <fieldset disabled={isBusy} className="custom-settings">
                     <legend className="sr-only">Board options</legend>
                     <div className="settings-grid">
                         {(['Width', 'Height'] as const).map(label => (
                             <label key={label} className="control-field">
-                                <span>{label}</span>
-                                <span className="select-wrap">
+                                <span>{label}</span><span className="select-wrap">
                                     <select aria-label={`Grid ${label}`} value={label === 'Width' ? width : height}
                                         onChange={label === 'Width' ? onWidthChange : onHeightChange} disabled={unavailable}>
                                         {SIZE_OPTIONS.map(dimension => <option key={dimension} value={dimension}>{dimension}</option>)}
-                                    </select>
-                                    <ChevronDown aria-hidden="true" />
+                                    </select><ChevronDown aria-hidden="true" />
                                 </span>
                             </label>
                         ))}
-                        <label className="control-field">
-                            <span>Algorithm</span>
-                            <span className="select-wrap">
-                                <select value={solverType} onChange={onSolverTypeChange} aria-label="Solver Algorithm"
-                                    disabled={isBusy || wasmOnly || (RESTRICT_Z3_TO_LARGE_GRIDS && (width !== 15 || height !== 15))}>
-                                    <option value="heuristic_bfs">Heuristic BFS</option>
-                                    <option value="astar" disabled={wasmOnly}>A*</option>
-                                    <option value="z3" disabled={wasmOnly}>SAT (Z3)</option>
-                                </select>
-                                <ChevronDown aria-hidden="true" />
-                            </span>
-                        </label>
-                        <label className="control-field">
-                            <span>Mode</span>
-                            <span className="select-wrap">
-                                <select aria-label="Game Mode" value={mode} onChange={onModeChange}>
-                                    {Object.entries(GAME_MODES).map(([value, config]) => (
-                                        <option key={value} value={value} disabled={!config.available}>{config.label}{config.available ? '' : ' (coming soon)'}</option>
-                                    ))}
-                                </select>
-                                <ChevronDown aria-hidden="true" />
-                            </span>
-                        </label>
                     </div>
-                    <p className="control-hint">Resizing clears the puzzle.</p>
-                    <div className="edit-tools" role="group" aria-label="Editing tool">
-                        {(['dots', 'walls', ...(mode === 'bridges' ? ['bridges'] : mode === 'warps' ? ['warps'] : [])] as EditTool[]).map(tool =>
-                            <button key={tool} type="button" className="control-button" aria-pressed={editTool === tool}
-                                disabled={editingDisabled} onClick={() => onEditToolChange(editTool === tool && tool !== 'dots' ? 'dots' : tool)}>
-                                {tool[0].toUpperCase() + tool.slice(1)}
-                                {tool === 'walls' && wallCount > 0 && <span aria-hidden="true" className="wall-count"> · {wallCount}</span>}
-                            </button>)}
-                    </div>
-                    {editTool === 'bridges' && <div className="wall-context">
+                    {!wasmOnly && <label className="control-field">
+                        <span>Solver</span><span className="select-wrap">
+                            <select value={solverType} onChange={onSolverTypeChange} aria-label="Solver Algorithm"
+                                disabled={isBusy || (RESTRICT_Z3_TO_LARGE_GRIDS && width !== 15)}>
+                                <option value="heuristic_bfs">Heuristic BFS</option><option value="astar">A*</option><option value="z3">SAT (Z3)</option>
+                            </select><ChevronDown aria-hidden="true" />
+                        </span>
+                    </label>}
+                    {!showingSolution && editTool === 'bridges' && <div className="wall-context">
                         <label className="control-field"><span>Bridge on top</span><span className="select-wrap">
                             <select aria-label="Bridge on top" value={bridgeOver} disabled={editingDisabled} onChange={event => onBridgeOver(event.target.value as Bridge['over'])}>
                                 <option value="horizontal">Horizontal</option><option value="vertical">Vertical</option>
                             </select><ChevronDown aria-hidden="true" />
                         </span></label>
                         {bridges.length > 0 && <div className="wall-actions">
-                            <button type="button" className="control-button" disabled={editingDisabled} onClick={onRotateBridges}>Rotate bridges</button>
-                            <button type="button" className="control-button" disabled={editingDisabled} onClick={onClearBridges}>Clear bridges</button>
+                            <button type="button" className="control-button quiet-action" disabled={editingDisabled} onClick={onRotateBridges}>Rotate bridges</button>
+                            <button type="button" className="control-button quiet-action" disabled={editingDisabled} onClick={onClearBridges}>Clear bridges</button>
                         </div>}
-                        <p className="wall-help">Tap an empty interior cell to add or remove a bridge.</p>
                     </div>}
-                    {editTool === 'warps' && <div className="wall-context">
+                    {!showingSolution && editTool === 'warps' && <div className="wall-context">
                         <div className="warp-actions">
                             <button type="button" className="control-button" disabled={editingDisabled} onClick={() => onWarpsChange([
                                 ...warps.filter(w => w.axis !== 'horizontal'), ...Array.from({ length: height }, (_, index) => ({ axis: 'horizontal' as const, index }))])}>Open all left/right</button>
                             <button type="button" className="control-button" disabled={editingDisabled} onClick={() => onWarpsChange([
                                 ...warps.filter(w => w.axis !== 'vertical'), ...Array.from({ length: width }, (_, index) => ({ axis: 'vertical' as const, index }))])}>Open all top/bottom</button>
-                            {warps.length > 0 && <button type="button" className="control-button" disabled={editingDisabled} onClick={() => onWarpsChange([])}>Clear warps</button>}
                         </div>
-                        <p className="wall-help">Tap a border to connect its row or column to the opposite edge.</p>
+                        {warps.length > 0 && <button type="button" className="control-button quiet-action" disabled={editingDisabled} onClick={() => onWarpsChange([])}>Clear warps</button>}
                     </div>}
-                    {editTool === 'walls' && !showingSolution && <div className="wall-context">
-                        <div className="wall-actions" role="group" aria-label="Wall tools">
-                            {wallCount > 0 && <button type="button" className="control-button" disabled={editingDisabled} onClick={onClearWalls}>Clear walls</button>}
-                            <button type="button" className={`control-button wall-zoom-action ${Math.max(width, height) >= 10 ? 'large-board' : ''}`}
-                                disabled={editingDisabled} aria-pressed={zoomWalls} onClick={onZoomWalls}>{zoomWalls ? 'Fit board' : 'Zoom in'}</button>
-                        </div>
-                        <p className="wall-help">{zoomWalls ? 'Swipe from a cell center to pan.' : 'Tap or drag a boundary.'}</p>
-                    </div>}
-                    {editTool !== 'walls' && !showingSolution && <button type="button" className="control-button" disabled={editingDisabled}
-                        aria-pressed={zoomWalls} onClick={onZoomWalls}>{zoomWalls ? 'Fit board' : 'Zoom in'}</button>}
-                    {zoomWalls && !showingSolution && <button type="button" className="control-button" aria-pressed={panning}
-                        disabled={editingDisabled} onClick={onPan}>{panning ? 'Resume editing' : 'Pan board'}</button>}
+                    {!showingSolution && editTool === 'walls' && wallCount > 0 && <button type="button" className="control-button quiet-action" disabled={editingDisabled} onClick={onClearWalls}>Clear walls</button>}
                 </fieldset>
             </details>
-            <div className="solver-about selectable-text">
-                <p>
-                    <span className="solver-methods">Runs locally. </span>
-                    <a href="https://www.kongesque.com/blog/flow-free-solver" target="_blank" rel="noreferrer"
-                        aria-label="Read more about this solver (opens in a new tab)">Read more</a>
-                </p>
-            </div>
+            <div className="solver-about selectable-text"><p>
+                <span className="solver-methods">Runs locally. </span>
+                <a href="https://www.kongesque.com/blog/flow-free-solver" target="_blank" rel="noreferrer"
+                    aria-label="Read more about this solver (opens in a new tab)">Read more</a>
+            </p></div>
         </div>
     );
 };

@@ -48,7 +48,7 @@ for (const width of [390, 1280]) {
         await page.keyboard.press('Meta+z'); // Second red endpoint.
         await expect(cell(page, 4, 0)).toHaveAttribute('aria-label', 'Cell 4,0 Empty');
         await openBoardOptions(page);
-        await page.getByRole('button', { name: 'Walls', exact: true }).click();
+        await page.getByRole('button', { name: 'Dots', exact: true }).click();
         await expect(page.getByRole('status')).toContainText('End');
         await cell(page, 4, 1).click(); // The restored pending color is red.
         await expect(cell(page, 4, 1)).toHaveAttribute('aria-label', 'Cell 4,1 Color 1');

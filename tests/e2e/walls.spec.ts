@@ -63,8 +63,7 @@ for (const [width, height] of [[5, 5], [5, 8], [8, 5]]) {
         if (width === height) await page.getByRole('combobox', { name: 'Solver Algorithm' }).selectOption('astar');
         await place(page, fixture.input);
         await drawWithKeyboard(page, fixture.walls);
-        await expect(page.getByRole('combobox', { name: 'Solver Algorithm' })).toHaveValue('heuristic_bfs');
-        await expect(page.getByRole('combobox', { name: 'Solver Algorithm' })).toBeDisabled();
+        await expect(page.getByRole('combobox', { name: 'Solver Algorithm' })).toHaveCount(0);
         await expect(page.getByRole('button', { name: 'Generate', exact: true })).toBeDisabled();
         await expect.poll(async () => (await saved(page))?.walls?.length).toBe(fixture.walls.length);
         await page.reload();
@@ -147,7 +146,7 @@ test('pointer strokes add/remove once per edge, with undo and center/outer-borde
     await expect(cell(page, 0, 0)).toBeFocused();
     await expect(cell(page, 0, 0)).toHaveAttribute('aria-label', 'Cell 0,0 Color 1');
     await expect(page.locator('[data-wall]')).toHaveCount(1);
-    await page.getByRole('button', { name: 'Walls', exact: true }).click();
+    await page.getByRole('button', { name: 'Dots', exact: true }).click();
     await cell(page, 1, 0).click();
     await expect(cell(page, 1, 0)).toHaveAttribute('aria-label', 'Cell 1,0 Color 1');
     page.once('dialog', dialog => dialog.accept());

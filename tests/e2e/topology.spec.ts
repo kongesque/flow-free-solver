@@ -51,8 +51,7 @@ for (const fixture of [warpRows(), warpRows(8, 5, true), bridgeCross(), bridgeCr
         const errors: string[] = [];
         page.on('pageerror', e => errors.push(e.message));
         await page.goto('./'); await recreate(page, fixture);
-        await expect(page.getByRole('button', { name: 'Generate', exact: true })).toBeDisabled();
-        await expect(page.getByRole('button', { name: 'Generate', exact: true })).toHaveAccessibleDescription('Generation is available in Standard mode.');
+        await expect(page.getByRole('button', { name: 'Generate', exact: true })).toHaveCount(0);
         await solveAndValidate(page, fixture);
         await page.screenshot({ path: test.info().outputPath(`${fixture.mode}-solved.png`) });
         await page.getByRole('button', { name: 'Edit', exact: true }).click();
@@ -190,7 +189,7 @@ test('legacy Warps placeholder preserves its old puzzle as the Standard draft', 
     });
     await page.reload(); await openBoardOptions(page);
     await expect(page.getByRole('combobox', { name: 'Game Mode' })).toHaveValue('warps');
-    await expect(page.getByRole('combobox', { name: 'Solver Algorithm' })).toHaveValue('heuristic_bfs');
+    await expect(page.getByRole('combobox', { name: 'Solver Algorithm' })).toHaveCount(0);
     await expect(page.locator('.endpoint-dot')).toHaveCount(0);
     await page.getByRole('button', { name: 'Warps', exact: true }).click();
     await page.getByRole('button', { name: 'Row 3 warp, left', exact: true }).click();
