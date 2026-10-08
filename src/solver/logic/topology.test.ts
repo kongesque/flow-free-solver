@@ -1,5 +1,5 @@
 import { normalizeTopology, topologyGraph } from './topology';
-import { validateSolution } from './solution';
+import { boardToSolution, validateSolution } from './solution';
 import { parseTopologySolution, serializeTopology } from './heuristic-solver';
 import { bridgeCross, warpRows } from '../../../tests/fixtures/topology-puzzles.mjs';
 import { assertTopologySolution } from '../../../tests/fixtures/assert-topology-solution.mjs';
@@ -47,4 +47,15 @@ test('C response parsing distinguishes limit and unsatisfiable and rejects inval
     expect(parseTopologySolution('{"version":1,"status":"unsatisfiable"}', f.board, f.topology).solution).toBeNull();
     expect(() => parseTopologySolution('{"version":1,"status":"solved","paths":[]}', f.board, f.topology)).toThrow('coverage');
     expect(() => parseTopologySolution('{"version":2,"status":"solved"}', f.board, f.topology)).toThrow();
+});
+
+test('Standard adapter rejects a solution that changes an endpoint or dimensions', () => {
+    const board = Array.from({ length: 3 }, () => Array(3).fill(0));
+    for (let y = 0; y < 3; y++) board[0][y] = board[2][y] = y + 1;
+    const solved = Array.from({ length: 3 }, () => [1, 2, 3]);
+    const topology = { walls: [], bridges: [], warps: [] };
+    expect(boardToSolution(board, solved, topology).paths).toHaveLength(3);
+    const corrupt = structuredClone(solved); corrupt[0][0] = 2;
+    expect(() => boardToSolution(board, corrupt, topology)).toThrow('endpoints');
+    expect(() => boardToSolution(board, solved.slice(1), topology)).toThrow('dimensions');
 });

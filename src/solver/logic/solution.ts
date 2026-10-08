@@ -43,6 +43,10 @@ export function validateSolution(board: Board, topology: PuzzleTopology, solutio
 
 /** Legacy Standard solvers imply edges through open same-color adjacency. */
 export function boardToSolution(board: Board, solved: Board, topology: PuzzleTopology): PuzzleSolution {
+    if (solved.length !== board.length || solved.some(col => col.length !== board[0].length)) throw new Error('Invalid solution dimensions');
+    board.forEach((col, x) => col.forEach((color, y) => {
+        if (color && solved[x][y] !== color) throw new Error('Changed endpoints');
+    }));
     const graph = topologyGraph(board.length, board[0].length, topology);
     const endpoints = new Map<number, number[]>();
     board.forEach((column, x) => column.forEach((color, y) => {
