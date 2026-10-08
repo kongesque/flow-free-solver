@@ -305,7 +305,8 @@ with explicit core-cell refs/selectors before adding seam or rotation buttons.
 Label bridge cells with their coordinates, top axis, and both solution colors.
 Label seams with both partners and open/closed state; expose bulk actions as
 ordinary buttons. Do not put duplicate shadow cells into the Tab order. Add
-pair numbers/symbols to endpoints and seam labels so color is not the only cue.
+descriptive accessible labels to endpoints and seams. Visible endpoints use plain
+colored circles, without outlines or numbers, per the requested visual design.
 [W3C use-of-color guidance](https://www.w3.org/WAI/WCAG22/Understanding/use-of-color.html).
 
 Announce completed edits, Undo, and solver outcomes through a polite live region,
@@ -385,7 +386,7 @@ require using that mechanic, not merely include an unused feature.
 | Graph validity | All slots covered; correct endpoints; degree; connected paths; no detached cycle; no repeated node; no crossing lane transfer; no traversal through walls/closed seams; known colors only. |
 | Native/API | Wrong versions, modes, records and indices; malformed result; repeated invalid/valid/Standard calls; upper bounds; search-limit status distinct from unsatisfiable; buffer and state cleanup. |
 | App state | Mixed dot/wall/bridge/seam Undo; atomic bulk edits; reload; legacy migration; mode draft restoration; worker cancellation/stale result; Reset/resize confirm and cancel; Edit preserves topology; no stale generated fallback. |
-| UI | Tap/pen/touch plus keyboard; precise border mapping; paired highlights; bridge separation; endpoint symbols; preview cancellation; fitted boards; options collapse; stable board position; no horizontal page overflow. |
+| UI | Tap/pen/touch plus keyboard; precise border mapping; paired highlights; bridge separation; endpoint labels; plain dot rendering; preview cancellation; fitted boards; options collapse; stable board position; no horizontal page overflow. |
 | Capabilities | Direct worker requests cannot run variants in A*/Z3 or generator; Standard behavior remains available; Hexes stays unavailable. |
 
 The new fixture validator must reconstruct allowed graph edges independently
@@ -466,7 +467,7 @@ The release makes these concrete UI choices:
   directly accessible during editing. Selection is explicit, so selecting the
   current tool does not silently return to Dots. Board options holds custom
   dimensions, applicable solver choices, and contextual bulk edits. Endpoint
-  numbers supplement color.
+  cells retain descriptive accessible labels; visible dots have no numbers or outlines.
 - Solve, Cancel, and Edit share one primary action position. Solve and
   Generate share an equal-width row. Undo and Reset sit beside Board options and
   use labeled icons with 44px targets. Tool tabs use a thin active underline

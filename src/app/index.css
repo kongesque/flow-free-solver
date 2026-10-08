@@ -149,7 +149,6 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
 .puzzle-grid button:active:not(:disabled) { background: #252b29; }
 .puzzle-grid button:focus-visible { outline-offset: -3px; z-index: 1; }
 .puzzle-grid button:disabled { opacity: 1; cursor: default; }
-.endpoint-dot { box-shadow: inset 0 0 0 1px rgb(255 255 255 / .12); }
 .endpoint-preview { opacity: 0; }
 @media (hover: hover) and (pointer: fine) {
   .puzzle-grid button:hover:not(:disabled) .endpoint-preview { opacity: .4; }
@@ -322,5 +321,3 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
 .seam-target[data-axis="horizontal"]::after { top: 32%; bottom: 32%; width: 1px; left: 50%; }
 .seam-target[data-axis="vertical"]::after { left: 32%; right: 32%; height: 1px; top: 50%; }
 .seam-target.paired { background: rgb(43 158 168 / .1); outline: 1px solid var(--color-stoic-accent); outline-offset: -1px; }
-
-.pair-symbol { display: grid; place-items: center; height: 100%; font-size: clamp(8px, 1.5vw, 13px); color: white; text-shadow: 0 1px 2px black, 0 0 3px black; }

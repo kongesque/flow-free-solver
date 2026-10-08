@@ -213,7 +213,7 @@ const PuzzleGrid = ({
                             <span
                                 className="endpoint-dot rounded-full w-[70%] h-[70%]"
                                 style={{ backgroundColor: COLORS[endpoint] || '#888' }}
-                            ><span className="pair-symbol">{endpoint}</span></span>
+                            />
                         ) : !bridge && editTool === 'dots' && !solvedBoard && !isResetting && (
                             <span
                                 className="endpoint-preview rounded-full w-[70%] h-[70%] transition-opacity duration-75"
