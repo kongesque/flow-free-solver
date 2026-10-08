@@ -30,9 +30,9 @@ for (const viewport of [
         await page.setViewportSize(viewport);
         await page.goto('./');
         await expect(page.locator('.control-actions button')).toHaveCount(3);
-        await expect(page.getByRole('combobox')).toHaveCount(viewport.width >= 960 ? 5 : 2);
+        await expect(page.getByRole('combobox')).toHaveCount(1);
         await expect(page.getByText('Size', { exact: true })).toBeVisible();
-        await expect(page.getByText('Algorithm', { exact: true })).toBeVisible();
+        await expect(page.getByRole('combobox', { name: 'Solver Algorithm' })).toBeHidden();
         const source = page.getByRole('link', { name: /View source on GitHub/ });
         await expect(source).toBeVisible();
         await expect(source).toHaveAttribute('href', 'https://github.com/Kongesque/flow-free-solver');
@@ -55,8 +55,8 @@ for (const viewport of [
         await expect(readMore).toBeVisible();
         await expect(readMore).toHaveAttribute('href', 'https://www.kongesque.com/blog/flow-free-solver');
         await expect(readMore).toHaveAttribute('target', '_blank');
-        await expect(page.locator('.solver-about > p')).toHaveText('Solve any Flow Free or Numberlink puzzle instantly. Powered by C/Wasm Heuristic BFS, SAT (Z3) & A* search. Read more');
-        await expect(page.locator('.solver-methods')).toHaveText('Powered by C/Wasm Heuristic BFS, SAT (Z3) & A* search. Read more');
+        await expect(page.locator('.solver-about > p')).toHaveText('Runs locally. Read more');
+        await expect(page.locator('.solver-methods')).toHaveText('Runs locally.');
         expect(await readMore.evaluate(element => getComputedStyle(element).color)).toBe('rgb(138, 142, 140)');
         expect(await page.locator('.solver-about').evaluate(element => getComputedStyle(element).textAlign))
             .toBe(viewport.width >= 960 ? 'left' : 'center');
@@ -71,7 +71,7 @@ for (const viewport of [
         const phonePortrait = viewport.width <= 600 && viewport.height >= viewport.width;
         const phoneLandscape = !desktop && viewport.width > viewport.height && viewport.height <= 600;
         const tip = page.locator('.solver-header p');
-        await expect(tip).toHaveText('Tips: Click to place. Click again to remove.');
+        await expect(tip).toHaveText('Click to place or remove.');
         expect((await layoutBounds(tip)).height).toBeLessThan(19);
         expect(await tip.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
         const selectedLabelsFit = await page.locator('.primary-settings select').evaluateAll(selects => {
@@ -90,9 +90,7 @@ for (const viewport of [
         }
         if (desktop) {
             await expect(page.locator('.solver-methods')).toBeVisible();
-            await expect(page.locator('.desktop-board-options')).toBeVisible();
-            await expect(page.locator('.board-options summary')).toBeHidden();
-            await expect(page.getByRole('heading', { name: 'Board options', exact: true })).toBeVisible();
+            await expect(page.locator('.board-options summary')).toBeVisible();
             expect(initialHeader.x).toBeGreaterThan(initialBoard!.x + initialBoard!.width);
             expect(controls!.x).toBeGreaterThan(initialBoard!.x + initialBoard!.width);
             expect(status.x + status.width / 2).toBeCloseTo(initialBoard!.x + initialBoard!.width / 2, 0);
@@ -104,16 +102,16 @@ for (const viewport of [
             expect(tip.y).toBeGreaterThan(initialHeader.y + initialHeader.height);
             expect(tip.y + tip.height).toBeLessThan(controls!.y);
             expect(tip.height).toBeLessThan(19);
-            const options = await layoutBounds(page.locator('.desktop-board-options'));
+            const options = await layoutBounds(page.locator('.board-options'));
             const actions = await layoutBounds(page.locator('.control-actions'));
-            expect(actions.y).toBeGreaterThan(options.y + options.height);
+            expect(options.y).toBeGreaterThan(actions.y + actions.height);
             expect(controls!.y + controls!.height).toBeLessThanOrEqual(initialBoard!.y + initialBoard!.height);
         } else {
             await expect(page.locator('.solver-methods')).toBeVisible();
-            const options = await layoutBounds(page.locator('.mobile-board-options'));
+            const options = await layoutBounds(page.locator('.board-options'));
             expect(about.y).toBeGreaterThan(options.y + options.height);
             await expect(page.locator('.solver-header p')).toBeVisible();
-            await expect(page.locator('.mobile-board-options')).not.toHaveAttribute('open', '');
+            await expect(page.locator('.board-options')).not.toHaveAttribute('open', '');
             await expect(page.locator('.board-options summary')).toBeVisible();
             if (phoneLandscape) {
                 expect(initialHeader.y + initialHeader.height).toBeLessThan(initialBoard!.y);
@@ -187,24 +185,22 @@ for (const viewport of [
     });
 }
 
-test('board options adapt between mobile and desktop while preserving endpoints', async ({ page }) => {
+test('board options keep their open state across mobile and desktop while preserving endpoints', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('./');
     await page.getByRole('button', { name: 'Cell 0,0 Empty', exact: true }).click();
     await openBoardOptions(page);
-    await expect(page.getByRole('combobox', { name: 'Grid Width' })).toBeVisible();
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await expect(page.locator('.board-options summary')).toBeHidden();
-    await expect(page.getByRole('combobox', { name: 'Grid Width' })).toBeVisible();
-    await page.setViewportSize({ width: 390, height: 844 });
-    await expect(page.getByRole('combobox', { name: 'Grid Width' })).toBeVisible();
+    for (const width of [1440, 390]) {
+        await page.setViewportSize({ width, height: 900 });
+        await expect(page.locator('.board-options summary')).toBeVisible();
+        await expect(page.getByRole('combobox', { name: 'Grid Width' })).toBeVisible();
+    }
     await page.locator('.board-options summary').click();
-    await expect(page.getByRole('combobox', { name: 'Grid Width' })).toBeHidden();
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await expect(page.getByRole('combobox', { name: 'Grid Width' })).toBeVisible();
-    await page.setViewportSize({ width: 390, height: 844 });
-    await expect(page.getByRole('combobox', { name: 'Grid Width' })).toBeHidden();
-    await expect(page.getByRole('button', { name: 'Cell 0,0 Color 1', exact: true })).toBeVisible();
+    for (const width of [1440, 390]) {
+        await page.setViewportSize({ width, height: 900 });
+        await expect(page.getByRole('combobox', { name: 'Grid Width' })).toBeHidden();
+        await expect(page.getByRole('button', { name: 'Cell 0,0 Color 1', exact: true })).toBeVisible();
+    }
     await openBoardOptions(page);
     await expect(page.getByRole('combobox', { name: 'Grid Width' })).toBeVisible();
 });
@@ -233,9 +229,9 @@ test('keyboard editing uses a single grid tab stop and respects rectangular boun
 
 test('keeps the familiar automatic endpoint sequence and repairs removed pairs', async ({ page }) => {
     await page.goto('./');
-    await expect(page.locator('.desktop-board-options')).toBeVisible();
+    await expect(page.locator('.board-options summary')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Choose endpoint color' })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Undo', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Undo', exact: true })).toBeDisabled();
     const cell = (x: number, y: number, color = 'Empty') => page.getByRole('button', { name: `Cell ${x},${y} ${color}`, exact: true });
     await expect(page.getByRole('status')).toContainText('Start');
     await cell(0, 0).click();
@@ -338,6 +334,7 @@ for (const viewport of [
         await page.getByRole('button', { name: 'Edit', exact: true }).click();
         await expect(page.getByRole('button', { name: 'Edit', exact: true })).toHaveCount(0);
         await expectStable();
+        page.once('dialog', dialog => dialog.accept());
         await page.getByRole('button', { name: 'Reset', exact: true }).click();
         await page.getByRole('button', { name: 'Generate', exact: true }).click();
         await expect(page.getByRole('status')).toContainText('Generated');
@@ -362,6 +359,7 @@ for (const viewport of [
         await grid.getByRole('button', { name: /Color/ }).first().click();
         await expect(page.getByRole('button', { name: 'Edit', exact: true })).toHaveCount(0);
         await expectStable();
+        page.once('dialog', dialog => dialog.accept());
         await page.getByRole('button', { name: 'Reset', exact: true }).click();
         await expectStable();
     });

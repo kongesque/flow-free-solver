@@ -1,9 +1,10 @@
 import type { Board } from './astar-solver';
+import { normalizeWalls, type Wall } from './walls';
 
 export const COLOR_CHARS = ['', 'R', 'B', 'Y', 'G', 'O', 'C', 'M', 'm', 'P', 'A', 'W', 'g', 'T', 'b', 'c', 'p'];
 
 interface FlowModule {
-  cwrap(name: string, result: 'string', args: ['string']): (input: string) => string;
+  cwrap(name: string, result: 'string', args: string[]): (...input: string[]) => string;
 }
 
 let modulePromise: Promise<FlowModule> | undefined;
@@ -45,8 +46,14 @@ export function parseSolution(result: string, width: number, height = width): Bo
   );
 }
 
-export async function solveHeuristicBFS(board: Board): Promise<Board | null> {
+export function serializeWalls(walls: readonly Wall[], width: number, height: number): string {
+  return normalizeWalls(walls, width, height)
+    .map(({ x, y, side }) => `${x},${y},${side === 'right' ? 'R' : 'D'}\n`).join('');
+}
+
+export async function solveHeuristicBFS(board: Board, walls: Wall[] = []): Promise<Board | null> {
   const input = serializeBoard(board);
+  const wallInput = serializeWalls(walls, board.length, board[0].length);
   if (!modulePromise) {
     const url = new URL(`${import.meta.env.BASE_URL}wasm/flow_solver_c.mjs`, self.location.origin).href;
     // Absolute URLs also keep Vite's dev import helper from adding ?import to
@@ -58,5 +65,8 @@ export async function solveHeuristicBFS(board: Board): Promise<Board | null> {
       .catch(error => { modulePromise = undefined; throw error; });
   }
   const module = await modulePromise;
-  return parseSolution(module.cwrap('solve_puzzle_wasm', 'string', ['string'])(input), board.length, board[0].length);
+  const result = wallInput
+    ? module.cwrap('solve_puzzle_with_walls_wasm', 'string', ['string', 'string'])(input, wallInput)
+    : module.cwrap('solve_puzzle_wasm', 'string', ['string'])(input);
+  return parseSolution(result, board.length, board[0].length);
 }

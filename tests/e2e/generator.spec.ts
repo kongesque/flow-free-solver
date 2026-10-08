@@ -1,3 +1,4 @@
+import { openBoardOptions } from './board-options';
 import { test, expect, type Page } from '@playwright/test';
 import { assertSolution } from '../fixtures/assert-solution.mjs';
 
@@ -69,6 +70,7 @@ for (const algorithm of ['heuristic_bfs', 'astar', 'z3']) {
     test(`generated puzzle can be independently solved by ${algorithm} in a real worker`, async ({ page }) => {
         await page.goto('./');
         const input = await generate(page, 5);
+        await openBoardOptions(page);
         await page.getByRole('combobox', { name: 'Solver Algorithm' }).selectOption(algorithm);
         await solve(page);
         await expect(page.getByRole('status')).toContainText('Solved', { timeout: 45_000 });
@@ -105,6 +107,7 @@ test('generated endpoints and solution survive reload; editing invalidates the s
     await page.getByRole('button', { name: /Cell .* Color/ }).first().click();
     await expect(page.getByRole('button', { name: 'Edit', exact: true })).toHaveCount(0);
     await expect(page.getByRole('status')).toContainText('End');
+    page.once('dialog', dialog => dialog.accept());
     await page.getByRole('button', { name: 'Reset', exact: true }).click();
     await expect(page.getByRole('button', { name: /Cell .* Empty/ })).toHaveCount(64);
 });
@@ -125,6 +128,11 @@ test('Reset cancels generation and a fresh generation succeeds', async ({ page }
         await expect(page.getByRole('button', { name: 'Solve', exact: true })).toBeDisabled();
         await expect(page.getByRole('combobox', { name: 'Grid Size' })).toBeDisabled();
         await expect(page.getByRole('button', { name: 'Cell 0,0 Empty', exact: true })).toBeDisabled();
+        page.once('dialog', dialog => dialog.dismiss());
+        await page.getByRole('button', { name: 'Reset', exact: true }).click();
+        await expect(page.getByRole('status')).toContainText('Generating');
+        await expect(page.getByRole('button', { name: 'Generate', exact: true })).toBeDisabled();
+        page.once('dialog', dialog => dialog.accept());
         await page.getByRole('button', { name: 'Reset', exact: true }).click();
         release();
         await expect(page.getByRole('button', { name: 'Generate', exact: true })).toBeEnabled();

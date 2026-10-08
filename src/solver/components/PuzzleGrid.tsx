@@ -1,5 +1,6 @@
-import { useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
 import { COLORS } from './constants';
+import { wallAtPoint, wallBetween, wallKey, type Wall, type EditTool } from '../logic/walls';
 
 interface PuzzleGridProps {
     width: number;
@@ -10,6 +11,10 @@ interface PuzzleGridProps {
     activeColor: number;
     isResetting: boolean;
     onCellClick: (x: number, y: number) => void;
+    walls: Wall[];
+    editTool: EditTool;
+    zoomed: boolean;
+    onWallsChange: (walls: Wall[]) => void;
 }
 
 const PuzzleGrid = ({
@@ -21,18 +26,91 @@ const PuzzleGrid = ({
     activeColor,
     isResetting,
     onCellClick,
+    walls, editTool, zoomed, onWallsChange,
 }: PuzzleGridProps) => {
     const gridRef = useRef<HTMLElement>(null);
     const [focusedCell, setFocusedCell] = useState(0);
+    const [preview, setPreview] = useState<Wall | null>(null);
+    const [draft, setDraft] = useState<Wall[] | null>(null);
+    const [announcement, setAnnouncement] = useState('');
+    const stroke = useRef<{ pointerId: number; adding: boolean; walls: Wall[]; seen: Set<string>; point: [number, number]; side: Wall['side'] } | null>(null);
+    const editingWalls = editTool === 'walls' && !isSolving && !solvedBoard;
+    const visibleWalls = draft ?? walls;
+    // Cancel an in-flight stroke if Reset, resizing, mode changes, or solving replaces the board.
+    useEffect(() => {
+        stroke.current = null;
+        setDraft(null);
+        setPreview(null);
+    }, [walls, width, height, editTool, isSolving, solvedBoard]);
+    const announce = (wall: Wall, adding: boolean) => {
+        const nx = wall.x + (wall.side === 'right' ? 1 : 0), ny = wall.y + (wall.side === 'down' ? 1 : 0);
+        setAnnouncement(`Wall ${adding ? 'added' : 'removed'} between column ${wall.x + 1}, row ${wall.y + 1} and column ${nx + 1}, row ${ny + 1}.`);
+    };
+    const pointerPoint = (event: PointerEvent<HTMLElement>): [number, number] => {
+        const bounds = event.currentTarget.getBoundingClientRect();
+        return [(event.clientX - bounds.left) / bounds.width * width, (event.clientY - bounds.top) / bounds.height * height];
+    };
+    const paint = (point: [number, number]) => {
+        const active = stroke.current;
+        if (!active) return;
+        // Interpolate fast pointer moves so a continuous stroke has no missing segments.
+        const [x0, y0] = active.point;
+        const steps = Math.max(1, Math.ceil(Math.max(Math.abs(point[0] - x0), Math.abs(point[1] - y0)) * 8));
+        for (let i = 1; i <= steps; i++) {
+            const wall = wallAtPoint(x0 + (point[0] - x0) * i / steps, y0 + (point[1] - y0) * i / steps, width, height, active.side);
+            if (!wall) continue;
+            const key = wallKey(wall);
+            if (active.seen.has(key)) continue;
+            active.seen.add(key);
+            active.walls = active.adding
+                ? [...active.walls.filter(value => wallKey(value) !== key), wall]
+                : active.walls.filter(value => wallKey(value) !== key);
+            setPreview(wall);
+        }
+        active.point = point;
+        setDraft(active.walls);
+    };
+    const startStroke = (event: PointerEvent<HTMLElement>) => {
+        if (!editingWalls || event.button !== 0 || !event.isPrimary || stroke.current) return;
+        const point = pointerPoint(event);
+        const wall = wallAtPoint(...point, width, height);
+        if (!wall) return; // Cell centers remain available for scrolling a zoomed board.
+        event.preventDefault();
+        event.currentTarget.setPointerCapture(event.pointerId);
+        const adding = !walls.some(value => wallKey(value) === wallKey(wall));
+        stroke.current = { pointerId: event.pointerId, adding, walls, seen: new Set(), point, side: wall.side };
+        paint(point);
+        announce(wall, adding);
+    };
+    const movePointer = (event: PointerEvent<HTMLElement>) => {
+        if (!editingWalls) return;
+        const point = pointerPoint(event);
+        if (stroke.current?.pointerId === event.pointerId) paint(point);
+        else if (!stroke.current) setPreview(wallAtPoint(...point, width, height));
+    };
+    const finishStroke = (event: PointerEvent<HTMLElement>, cancel = false) => {
+        const active = stroke.current;
+        if (!active || active.pointerId !== event.pointerId) return;
+        if (!cancel) paint(pointerPoint(event));
+        stroke.current = null;
+        setDraft(null);
+        setPreview(null);
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+        if (!cancel) onWallsChange(active.walls);
+    };
     // Grid lines belong to the nearest cell, so small touch targets have no dead gaps.
     const handleGridClick = (event: MouseEvent<HTMLElement>) => {
-        if (event.target !== event.currentTarget || isSolving || solvedBoard) return;
+        if (editTool !== 'dots' || event.target !== event.currentTarget || isSolving || solvedBoard) return;
         const bounds = event.currentTarget.getBoundingClientRect();
         const x = Math.min(width - 1, Math.floor((event.clientX - bounds.left) / bounds.width * width));
         const y = Math.min(height - 1, Math.floor((event.clientY - bounds.top) / bounds.height * height));
         onCellClick(Math.max(0, x), Math.max(0, y));
     };
     const moveFocus = (event: KeyboardEvent<HTMLButtonElement>, x: number, y: number) => {
+        if (editTool === 'walls' && (event.key === 'Enter' || event.key === ' ')) {
+            event.preventDefault();
+            return;
+        }
         let nextX = x;
         let nextY = y;
         switch (event.key) {
@@ -45,6 +123,14 @@ const PuzzleGrid = ({
             default: return;
         }
         event.preventDefault();
+        if (editingWalls && event.shiftKey && event.key.startsWith('Arrow')) {
+            const wall = wallBetween([x, y], [nextX, nextY]);
+            if (!wall) return;
+            const adding = !walls.some(value => wallKey(value) === wallKey(wall));
+            onWallsChange(adding ? [...walls, wall] : walls.filter(value => wallKey(value) !== wallKey(wall)));
+            announce(wall, adding);
+            return;
+        }
         const index = nextY * width + nextX;
         setFocusedCell(index);
         gridRef.current?.querySelectorAll('button')[index]?.focus();
@@ -54,13 +140,20 @@ const PuzzleGrid = ({
         ref={gridRef}
         aria-label="Puzzle Grid Board"
         aria-describedby="board-instructions board-keyboard-help"
-        className="puzzle-grid"
+        className={`puzzle-grid ${editingWalls ? 'editing-walls' : ''}`}
         onClick={handleGridClick}
+        onPointerDown={startStroke}
+        onPointerMove={movePointer}
+        onPointerUp={event => finishStroke(event)}
+        onPointerCancel={event => finishStroke(event, true)}
+        onLostPointerCapture={event => finishStroke(event, true)}
+        onPointerLeave={() => { if (!stroke.current) setPreview(null); }}
         style={{
             gridTemplateColumns: `repeat(${width}, minmax(0, 1fr))`,
             gridTemplateRows: `repeat(${height}, minmax(0, 1fr))`,
             '--grid-width': `${100 * width / Math.max(width, height)}%`,
             aspectRatio: `${width} / ${height}`,
+            ...(zoomed ? { width: width * 48, minWidth: '100%' } : {}),
         } as CSSProperties}
     >
         {Array.from({ length: height }).map((_, y) =>
@@ -87,7 +180,7 @@ const PuzzleGrid = ({
                             select-none
                             ${solvedBoard ? 'cursor-default' : 'hover:bg-stoic-block-hover active:bg-stoic-block-hover'}
                         `}
-                        onClick={() => !solvedBoard && onCellClick(x, y)}
+                        onClick={() => editTool === 'dots' && !solvedBoard && onCellClick(x, y)}
                         aria-label={`Cell ${x},${y} ${hasColor ? `Color ${cellValue}` : 'Empty'}`}
                     >
                         {hasColor ? (
@@ -95,7 +188,7 @@ const PuzzleGrid = ({
                                 className="endpoint-dot rounded-full w-[70%] h-[70%]"
                                 style={{ backgroundColor: COLORS[cellValue] || '#888' }}
                             />
-                        ) : !solvedBoard && !isResetting && (
+                        ) : editTool === 'dots' && !solvedBoard && !isResetting && (
                             <span
                                 className="endpoint-preview rounded-full w-[70%] h-[70%] transition-opacity duration-75"
                                 style={{ backgroundColor: COLORS[activeColor] || '#888' }}
@@ -105,6 +198,22 @@ const PuzzleGrid = ({
                 );
             })
         )}
+        {editingWalls && Array.from({ length: height }, (_, y) =>
+            Array.from({ length: width }, (_, x) => (['right', 'down'] as const).map(side => {
+                if (side === 'right' ? x === width - 1 : y === height - 1) return null;
+                return <span key={`${x},${y},${side}`} className="wall-target" aria-hidden="true" style={side === 'right'
+                    ? { left: `${(x + .78) / width * 100}%`, top: `${y / height * 100}%`, width: `${.44 / width * 100}%`, height: `${100 / height}%` }
+                    : { left: `${x / width * 100}%`, top: `${(y + .78) / height * 100}%`, width: `${100 / width}%`, height: `${.44 / height * 100}%` }} />;
+            }))) }
+        <svg className="wall-overlay" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-hidden="true">
+            {visibleWalls.map(wall => <line key={wallKey(wall)} data-wall={wallKey(wall)} className="puzzle-wall"
+                x1={wall.x + (wall.side === 'right' ? 1 : 0)} y1={wall.y + (wall.side === 'down' ? 1 : 0)}
+                x2={wall.x + 1} y2={wall.y + 1} vectorEffect="non-scaling-stroke" />)}
+            {editingWalls && preview && <line className="wall-preview"
+                x1={preview.x + (preview.side === 'right' ? 1 : 0)} y1={preview.y + (preview.side === 'down' ? 1 : 0)}
+                x2={preview.x + 1} y2={preview.y + 1} vectorEffect="non-scaling-stroke" />}
+        </svg>
+        <span aria-live="polite" aria-atomic="true" className="sr-only">{announcement}</span>
     </article>
 );
 };

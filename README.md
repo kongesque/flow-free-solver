@@ -54,7 +54,7 @@ Try it online: **[https://flow.kongesque.com](https://flow.kongesque.com)**
 3.  **Paint the Board**: Alternatively, click an empty cell to place an endpoint, or click a filled cell to remove it. Editing a generated puzzle discards its saved solution.
     - With a keyboard, Tab enters the board, arrow keys move between cells, and Enter or Space places or removes a dot. Home and End move to the edges of a row.
     - *Tip*: You need exactly two dots of the same color to form a pair.
-4.  **Click Solve**: The selected solver calculates non-overlapping paths. **Solve** becomes **Edit** after solving; click it to return to the original endpoints. Generated puzzles use their saved solution if the selected solver reaches its search limit. **Reset** clears the board and cancels active solving or generation.
+4.  **Click Solve**: The selected solver calculates non-overlapping paths. **Solve** becomes **Edit** after solving; click it to return to the original endpoints. Generated puzzles use their saved solution if the selected solver reaches its search limit. **Reset** asks for confirmation before clearing a puzzle or cancelling active solving or generation; Cancel preserves your current work. An empty, idle board resets immediately.
 
 Generation runs in a dedicated Web Worker. It starts with a complete path cover
 and randomly transfers cells between path endpoints while preserving full-board
@@ -63,6 +63,19 @@ The remaining endpoints therefore always have a valid solution. Puzzles may have
 multiple solutions; the generator does not certify uniqueness or difficulty.
 Some large puzzles can exceed an independent solver's search budget. **Show
 solution** always reveals the solution retained during construction.
+
+The tool panel sits beside the board on desktop and below it on mobile. Size,
+Undo, Solve, Generate, and Reset stay visible. Solve becomes Edit in the same
+position. Board options start collapsed on both layouts and contain dimensions,
+algorithm, mode, and a single Draw walls toggle. Wall tools appear only while
+drawing walls. The board keeps its size and position as tools change; on phones,
+the footer can scroll when browser bars leave less room.
+
+**Undo** reverses endpoint placement/removal, wall strokes, and Clear walls in
+order, restoring the endpoint color and placement state. **Ctrl+Z** or **⌘Z**
+also works when focus is outside a form field. Up to 50 edits are retained for
+the current session. Reset, resizing, successful generation, and reloading start
+a fresh history. Undoing an edit does not restore a discarded generated solution.
 
 ---
 
@@ -73,6 +86,21 @@ solution** always reveals the solution retained during construction.
 disabled in these modes; switching back to Standard preserves the current puzzle.
 Mode, dimensions, endpoints, and the generated solution are saved locally. Legacy
 square saves with a single size continue to load.
+
+**Walls** can be added to Standard square or rectangular boards. Open **Board
+options** and turn on **Draw walls**, then tap or drag along the lines between
+cells to add or remove boundaries. Turn it off to place endpoints again. Both
+cells beside a wall still need to be filled. **Undo** reverses the last edit;
+**Clear walls** appears when walls exist and is also undoable. **Zoom in** is
+available on mobile and for large desktop boards. Swipe from a cell center to
+pan the enlarged board. With the keyboard, focus a cell and press **Shift +
+Arrow** to toggle the wall on that side.
+
+Wall puzzles automatically use **Heuristic BFS** (C/Wasm). **Generate** is disabled
+until walls are cleared. Wall edits discard any retained generated solution;
+walls and endpoints persist across reloads. **Edit** preserves walls and **Reset**
+or changing dimensions clears them. See the [wall research and implementation record](docs/flow-free-walls.md)
+for the data model, solver design, fixtures, and verification results.
 
 Rectangular and future variant solving use the C/Wasm backend only. The generator
 remains TypeScript in a dedicated worker; it constructs solutions without search.

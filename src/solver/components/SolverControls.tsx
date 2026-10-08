@@ -2,6 +2,7 @@ import React from 'react';
 import { ChevronDown } from 'lucide-react';
 import { GAME_MODES, type GameMode } from '../logic/game-modes';
 import { SIZE_OPTIONS, RESTRICT_Z3_TO_LARGE_GRIDS, SolverType } from './constants';
+import type { EditTool } from '../logic/walls';
 
 interface SolverControlsProps {
     onEdit: () => void;
@@ -15,12 +16,21 @@ interface SolverControlsProps {
     isSolving: boolean;
     isGenerating: boolean;
     isLoaded: boolean;
+    invalidSavedWalls: boolean;
     showingSolution: boolean;
     onSizeChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
     onSolverTypeChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
     onSolve: () => void;
     onReset: () => void;
     onGenerate: () => void;
+    wallCount: number;
+    editTool: EditTool;
+    onEditToolChange: (tool: EditTool) => void;
+    canUndo: boolean;
+    onUndo: () => void;
+    onClearWalls: () => void;
+    zoomWalls: boolean;
+    onZoomWalls: () => void;
 }
 
 const SolverControls = ({
@@ -35,47 +45,19 @@ const SolverControls = ({
     isSolving,
     isGenerating,
     isLoaded,
+    invalidSavedWalls,
     showingSolution,
     onSizeChange,
     onSolverTypeChange,
     onSolve,
     onReset,
     onGenerate,
+    wallCount, editTool, onEditToolChange, canUndo, onUndo, onClearWalls, zoomWalls, onZoomWalls,
 }: SolverControlsProps) => {
-    const isBusy = isSolving || isGenerating || !isLoaded;
+    const isBusy = isSolving || isGenerating || !isLoaded || invalidSavedWalls;
     const unavailable = !GAME_MODES[mode].available;
-    const wasmOnly = width !== height || unavailable;
-    const boardSettings = (
-        <fieldset disabled={isBusy} className="custom-settings">
-            <legend className="sr-only">Board options</legend>
-            <div className="settings-grid">
-                {(['Width', 'Height'] as const).map(label => (
-                    <label key={label} className="control-field">
-                        <span>{label}</span>
-                        <span className="select-wrap">
-                            <select aria-label={`Grid ${label}`} value={label === 'Width' ? width : height}
-                                onChange={label === 'Width' ? onWidthChange : onHeightChange} disabled={unavailable}>
-                                {SIZE_OPTIONS.map(dimension => <option key={dimension} value={dimension}>{dimension}</option>)}
-                            </select>
-                            <ChevronDown aria-hidden="true" />
-                        </span>
-                    </label>
-                ))}
-                <label className="control-field mode-field">
-                    <span>Mode</span>
-                    <span className="select-wrap">
-                        <select aria-label="Game Mode" value={mode} onChange={onModeChange}>
-                            {Object.entries(GAME_MODES).map(([value, config]) => (
-                                <option key={value} value={value}>{config.label}{config.available ? '' : ' (coming soon)'}</option>
-                            ))}
-                        </select>
-                        <ChevronDown aria-hidden="true" />
-                    </span>
-                </label>
-            </div>
-            <p className="control-hint">Changing dimensions clears the board.</p>
-        </fieldset>
-    );
+    const wasmOnly = width !== height || unavailable || wallCount > 0;
+    const editingDisabled = isBusy || unavailable || showingSolution;
     return (
         <div className="solver-controls">
             <div className="primary-settings">
@@ -90,48 +72,84 @@ const SolverControls = ({
                         <ChevronDown aria-hidden="true" />
                     </span>
                 </label>
-                <label className="control-field">
-                    <span>Algorithm</span>
-                    <span className="select-wrap">
-                        <select value={solverType} onChange={onSolverTypeChange} aria-label="Solver Algorithm"
-                            disabled={isBusy || wasmOnly || (RESTRICT_Z3_TO_LARGE_GRIDS && (width !== 15 || height !== 15))}>
-                            <option value="heuristic_bfs">Heuristic BFS</option>
-                            <option value="astar" disabled={wasmOnly}>A*</option>
-                            <option value="z3" disabled={wasmOnly}>SAT (Z3)</option>
-                        </select>
-                        <ChevronDown aria-hidden="true" />
-                    </span>
-                </label>
+                <button type="button" className="control-button undo-action" disabled={!canUndo || editingDisabled} onClick={onUndo}
+                    aria-keyshortcuts="Control+Z Meta+Z" title="Undo last edit (Ctrl+Z / ⌘Z)">Undo</button>
             </div>
-            <section className="board-options desktop-board-options" aria-label="Board options">
-                <h2 className="board-options-title">Board options</h2>
-                {boardSettings}
-            </section>
             <div className="control-actions" aria-label="Puzzle actions">
                 <button className="control-button primary-action" onClick={showingSolution ? onEdit : onSolve} disabled={isBusy || unavailable}>
                     {showingSolution ? 'Edit' : 'Solve'}
                 </button>
-                <button className="control-button" onClick={onGenerate} disabled={isBusy || unavailable}>
+                <button className="control-button" onClick={onGenerate} disabled={isBusy || unavailable || wallCount > 0}
+                    aria-describedby={wallCount > 0 ? 'wall-generation-hint' : undefined}>
                     Generate
                 </button>
                 <button className="control-button reset-action" onClick={onReset} disabled={!isLoaded || unavailable}>
                     Reset
                 </button>
             </div>
-            <details className="board-options mobile-board-options">
-                <summary>Board options <ChevronDown aria-hidden="true" /></summary>
-                {boardSettings}
+            {wallCount > 0 && <p id="wall-generation-hint" className="panel-notice">Clear walls to generate.</p>}
+            <details className="board-options">
+                <summary>Board options{editTool === 'walls' && <span className="active-tool"> · Walls</span>} <ChevronDown aria-hidden="true" /></summary>
+                <fieldset disabled={isBusy} className="custom-settings">
+                    <legend className="sr-only">Board options</legend>
+                    <div className="settings-grid">
+                        {(['Width', 'Height'] as const).map(label => (
+                            <label key={label} className="control-field">
+                                <span>{label}</span>
+                                <span className="select-wrap">
+                                    <select aria-label={`Grid ${label}`} value={label === 'Width' ? width : height}
+                                        onChange={label === 'Width' ? onWidthChange : onHeightChange} disabled={unavailable}>
+                                        {SIZE_OPTIONS.map(dimension => <option key={dimension} value={dimension}>{dimension}</option>)}
+                                    </select>
+                                    <ChevronDown aria-hidden="true" />
+                                </span>
+                            </label>
+                        ))}
+                        <label className="control-field">
+                            <span>Algorithm</span>
+                            <span className="select-wrap">
+                                <select value={solverType} onChange={onSolverTypeChange} aria-label="Solver Algorithm"
+                                    disabled={isBusy || wasmOnly || (RESTRICT_Z3_TO_LARGE_GRIDS && (width !== 15 || height !== 15))}>
+                                    <option value="heuristic_bfs">Heuristic BFS</option>
+                                    <option value="astar" disabled={wasmOnly}>A*</option>
+                                    <option value="z3" disabled={wasmOnly}>SAT (Z3)</option>
+                                </select>
+                                <ChevronDown aria-hidden="true" />
+                            </span>
+                        </label>
+                        <label className="control-field">
+                            <span>Mode</span>
+                            <span className="select-wrap">
+                                <select aria-label="Game Mode" value={mode} onChange={onModeChange}>
+                                    {Object.entries(GAME_MODES).map(([value, config]) => (
+                                        <option key={value} value={value}>{config.label}{config.available ? '' : ' (coming soon)'}</option>
+                                    ))}
+                                </select>
+                                <ChevronDown aria-hidden="true" />
+                            </span>
+                        </label>
+                    </div>
+                    <p className="control-hint">Resizing clears the puzzle.</p>
+                    <button type="button" className="control-button wall-toggle" aria-label="Walls" aria-pressed={editTool === 'walls'}
+                        disabled={editingDisabled} onClick={() => onEditToolChange(editTool === 'walls' ? 'dots' : 'walls')}>
+                        <span>Draw walls{wallCount > 0 && <span className="wall-count"> · {wallCount}</span>}</span>
+                        <span className="wall-toggle-indicator" aria-hidden="true" />
+                    </button>
+                    {editTool === 'walls' && !showingSolution && <div className="wall-context">
+                        <div className="wall-actions" role="group" aria-label="Wall tools">
+                            {wallCount > 0 && <button type="button" className="control-button" disabled={editingDisabled} onClick={onClearWalls}>Clear walls</button>}
+                            <button type="button" className={`control-button wall-zoom-action ${Math.max(width, height) >= 10 ? 'large-board' : ''}`}
+                                disabled={editingDisabled} aria-pressed={zoomWalls} onClick={onZoomWalls}>{zoomWalls ? 'Fit board' : 'Zoom in'}</button>
+                        </div>
+                        <p className="wall-help">{zoomWalls ? 'Swipe from a cell center to pan.' : 'Tap or drag a boundary.'}</p>
+                    </div>}
+                </fieldset>
             </details>
             <div className="solver-about selectable-text">
                 <p>
-                    Solve any Flow Free or Numberlink puzzle instantly.{' '}
-                    <span className="solver-methods">
-                        Powered by C/Wasm Heuristic BFS, SAT (Z3) &amp; A* search.{' '}
-                        <a href="https://www.kongesque.com/blog/flow-free-solver" target="_blank" rel="noreferrer"
-                            aria-label="Read more about this solver (opens in a new tab)">
-                            Read more
-                        </a>
-                    </span>
+                    <span className="solver-methods">Runs locally. </span>
+                    <a href="https://www.kongesque.com/blog/flow-free-solver" target="_blank" rel="noreferrer"
+                        aria-label="Read more about this solver (opens in a new tab)">Read more</a>
                 </p>
             </div>
         </div>

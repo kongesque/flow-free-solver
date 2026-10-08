@@ -1,10 +1,19 @@
 import assert from 'node:assert/strict';
 
 // Check the puzzle's rules independently of any solver's search implementation.
-export function assertSolution(input, solution) {
+export function assertSolution(input, solution, walls = []) {
   const rows = input.trim().split(/\r?\n/);
   const height = rows.length;
   const width = rows[0].length;
+  const blocked = new Set();
+  const edgeKey = (x, y, nx, ny) => [y * width + x, ny * width + nx].sort((a, b) => a - b).join(':');
+  for (const { x, y, side } of walls) {
+    assert.ok(Number.isInteger(x) && Number.isInteger(y) && (side === 'right' || side === 'down'), 'Invalid wall');
+    const nx = x + (side === 'right' ? 1 : 0), ny = y + (side === 'down' ? 1 : 0);
+    assert.ok(x >= 0 && y >= 0 && nx < width && ny < height, 'Wall outside board');
+    blocked.add(edgeKey(x, y, nx, ny));
+  }
+  const connected = (x, y, nx, ny) => !blocked.has(edgeKey(x, y, nx, ny));
   assert.ok(rows.every(row => row.length === width), 'Ragged puzzle');
   assert.equal(solution.length, height);
   const endpoints = new Map();
@@ -26,7 +35,7 @@ export function assertSolution(input, solution) {
       const code = solution[y][x];
       assert.ok(endpoints.has(String.fromCharCode(code)), 'Unknown color');
       const neighbors = [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]]
-        .filter(([nx, ny]) => solution[ny]?.[nx] === code);
+        .filter(([nx, ny]) => solution[ny]?.[nx] === code && connected(x, y, nx, ny));
       assert.equal(neighbors.length, rows[y][x] === '.' ? 2 : 1, `Invalid path degree at ${x},${y}`);
     }
   }
@@ -40,7 +49,7 @@ export function assertSolution(input, solution) {
       if (seen.has(key)) continue;
       seen.add(key);
       for (const [nx, ny] of [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]]) {
-        if (solution[ny]?.[nx] === color.charCodeAt(0)) queue.push([nx, ny]);
+        if (solution[ny]?.[nx] === color.charCodeAt(0) && connected(x, y, nx, ny)) queue.push([nx, ny]);
       }
     }
     const count = solution.flat().filter(code => code === color.charCodeAt(0)).length;

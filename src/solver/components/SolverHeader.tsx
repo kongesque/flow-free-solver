@@ -14,7 +14,7 @@ const SolverHeader = () => (
                     ))}
                 </span>
             </h1>
-            <p><strong>Tips:</strong> Click to place. Click again to remove.</p>
+            <p>Click to place or remove.</p>
         </div>
     </header>
 );
