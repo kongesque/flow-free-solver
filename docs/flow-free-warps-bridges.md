@@ -98,7 +98,7 @@ it is not a claim about the official app's displayed pipe percentage.
 | `FlowSolver.tsx` gates many actions with `isStandard` | Replace scattered checks with capabilities for editing, solving, generation, and supported algorithms. Merely setting `available: true` is insufficient. |
 | `Board` and saved/solved/generated solutions are `number[][]` in `[x][y]` order | Keep the endpoint board; add a separate path solution type. Never squeeze two bridge colors into one number. |
 | `PuzzleGrid.tsx` displays every solved color as a large dot | Add actual pipe rendering behind original endpoint dots. Bridge and warp continuity need visible segments. |
-| Wall editing uses boundary hit testing, pointer capture, preview, stroke-level Undo, and zoom | Reuse its interaction principles for topology tools, while keeping one active tool. |
+| Wall editing uses boundary hit testing, pointer capture, preview, stroke-level Undo, and keyboard shortcuts | Reuse its interaction principles for topology tools, while keeping one active tool. |
 | `useStorage.ts` stores a single current draft; Undo snapshots contain endpoints and walls | Save variant topology, migrate legacy saves, and include topology in snapshots. |
 | C positions are packed `uint8_t`, with a fixed 16-cell row stride; each cell has one color | Arbitrary bridge nodes cannot be added safely by extending the current cell enum. A graph engine needs separate IDs and lane occupancy. |
 | C `game_can_move` and `game_make_move` calculate target coordinates directly | Changing only `offset_pos` would make wrap checks and actual movement disagree. |
@@ -216,7 +216,7 @@ the pinned Emscripten compiler, and the Matt Zucker attribution/license exceptio
 
 Keep the desktop panel beside the board and mobile panel below it. Make Mode,
 Size, and editing tools directly accessible. Keep Solve/Cancel/Edit in one
-position, with compact Undo and Reset actions alongside it. Use Board options
+position, with compact Undo and Reset actions beside Board options. Use Board options
 for custom dimensions, applicable algorithm choices, and contextual bulk edits.
 Show only implemented modes as usable choices; selecting a mode must lead to a
 working editor. Omit Generate in variants and hide editing tools on solutions.
@@ -225,29 +225,27 @@ An example of the open options, not a new application screen:
 
 ```text
 Mode [Bridges ▾]                   Size [5 × 5]
-[ Solve                         ] [Undo][Reset]
-Edit: [Dots] [Walls] [Bridges]         [Zoom in]
-Board options                                ▾
+[ Solve                                     ]
+Edit: Dots   Walls   Bridges
+Board options ▾                  [Undo][Reset]
   Width [5]                         Height [5]
-  Bridge on top: [Horizontal ▾]
-  [Rotate bridges]              [Clear bridges]
+  [Clear bridges]
 ```
 
-Use one segmented tool selector when multiple topology tools are available:
+Use one quiet text-tab selector with an active underline:
 Standard has Dots/Walls, Bridges adds Bridges, and Warps adds Warps. Replace
 the current Draw walls toggle as part of this change; do not add independent
-toggles that can be active together. Show the active tool in the collapsed
-summary and offer an easy Return to dots action in a reserved contextual row.
+toggles that can be active together. Keep every tool directly accessible,
+including Dots, and reserve Board options for advanced settings and bulk edits.
 The header, status, and help must reflect the current tool.
 
 ### Bridges workflow
 
 1. Select Bridges and set dimensions. Start in Dots; place pairs as today.
-2. Choose Bridges. A cell preview shows the bridge glyph. Tap an empty valid
+2. Choose Bridges. Tap an empty valid
    interior cell to add it, or tap an existing bridge to remove it.
-3. Use an explicit top-axis control for additions. To change an existing
-   bridge, focus/select it and use Rotate bridge; do not cycle three states
-   through ordinary taps. Add, remove, and rotate are separate Undo entries.
+3. Keep the horizontal arch above the vertical lane. Do not expose orientation
+   controls. Add/remove and Clear bridges are separate Undo entries.
 4. Block conflicting placement with an explanation: “Remove this dot before
    adding a bridge” or “This bridge needs all four sides open.” Do not erase
    endpoints or walls automatically. Wall edits beside bridges use the same
@@ -258,8 +256,8 @@ The header, status, and help must reflect the current tool.
 
 Initial bridge placement is tap-based. Bulk painting is optional later work;
 it is less useful than the wall editor's continuous strokes and needs its own
-error-recovery rules. Rotation changes only appearance, so it does not change
-solution validity; invalidate rendered caches but retain a validated solution.
+error-recovery rules. Adopting horizontal presentation for older saved bridges
+changes only appearance and preserves solution validity.
 
 ### Warps workflow
 
@@ -283,17 +281,15 @@ Reserve room for a narrow border gutter in all modes so introducing seam targets
 does not shift the core board. Derive pointer coordinates from the core grid's
 rectangle, not from a container including the gutter. Make bridge/wall overlays
 noninteractive and seam targets a separate interaction layer. If a shadow rim
-is offered, count it in fitted layout sizing; do not shrink mobile core cells
-without providing an enlarged editing view.
+is offered, count it in fitted layout sizing. Keep the mobile core board at the
+full available width.
 
 ### Touch, keyboard, and feedback
 
-Reuse zoom for every editing tool. Provide an explicit Pan control while zoomed:
-Pan drags scroll, and taps in editing tools edit. Wall/warp active strokes capture
-the pointer; cancellation discards the draft stroke. Pinch zoom may be added
-later, but it must not be the only precision control. Keep Fit visible. At large
-sizes aim for roughly 48px cells in the enlarged view, an implementation choice
-to validate on devices. WCAG's target-size criterion has a 24px minimum with
+Keep the board fitted in every editing mode; Zoom and Pan were removed at the
+user's request. Wall/warp active strokes capture the pointer; cancellation
+discards the draft stroke. Keep keyboard editing available for dense boards.
+WCAG's target-size criterion has a 24px minimum with
 exceptions; a dense grid requires an actual assessment, not an automatic
 conformance claim. [W3C target-size guidance](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html).
 
@@ -388,7 +384,7 @@ require using that mechanic, not merely include an unused feature.
 | Graph validity | All slots covered; correct endpoints; degree; connected paths; no detached cycle; no repeated node; no crossing lane transfer; no traversal through walls/closed seams; known colors only. |
 | Native/API | Wrong versions, modes, records and indices; malformed result; repeated invalid/valid/Standard calls; upper bounds; search-limit status distinct from unsatisfiable; buffer and state cleanup. |
 | App state | Mixed dot/wall/bridge/seam Undo; atomic bulk edits; reload; legacy migration; mode draft restoration; worker cancellation/stale result; Reset/resize confirm and cancel; Edit preserves topology; no stale generated fallback. |
-| UI | Tap/pen/touch plus keyboard; precise border mapping; paired highlights; bridge separation; endpoint symbols; preview cancellation; zoom/pan; options collapse; stable board position; no horizontal page overflow. |
+| UI | Tap/pen/touch plus keyboard; precise border mapping; paired highlights; bridge separation; endpoint symbols; preview cancellation; fitted boards; options collapse; stable board position; no horizontal page overflow. |
 | Capabilities | Direct worker requests cannot run variants in A*/Z3 or generator; Standard behavior remains available; Hexes stays unavailable. |
 
 The new fixture validator must reconstruct allowed graph edges independently
@@ -459,21 +455,27 @@ The release makes these concrete UI choices:
 
 - Border targets sit inside the board, preserving its footprint as tools change.
   Opposite targets share state and highlight. Keyboard focus stays clamped;
-  Shift + an outward arrow toggles a seam. Zoom offers larger cells and Pan board
-  temporarily disables editing.
-- Bridges toggle on empty interior cells. New bridges use the selected top axis;
-  Rotate bridges changes all current crossings in one Undo step. Individual
-  crossings can be removed and added with the other top axis. There is no
+  Shift + an outward arrow toggles a seam. The board stays fitted to the layout.
+- Bridges toggle on empty interior cells. The horizontal route always passes
+  above the vertical one; there is no orientation selector or rotation control.
+  Older saved bridges retain their routes and adopt the horizontal presentation.
+  Clear bridges is one Undo step. There is no
   separate selected-bridge inspector or hover-placement preview in this release.
 - Mode and Size stay visible; Dots/Walls and the active variant's tool are
   directly accessible during editing. Selection is explicit, so selecting the
   current tool does not silently return to Dots. Board options holds custom
   dimensions, applicable solver choices, and contextual bulk edits. Endpoint
   numbers supplement color.
-- Solve, Cancel, and Edit share one primary action position. Undo and Reset use
-  labeled icons with 44px targets. Generate is omitted for variants; fixed
+- Solve, Cancel, and Edit share one primary action position. Standard Solve and
+  Generate share an equal-width row. Undo and Reset sit beside Board options and
+  use labeled icons with 44px targets. Tool tabs use a thin active underline
+  instead of filled toggle blocks. Generate is omitted for variants; fixed
   C/Wasm solver choices and editing-only controls are omitted where inapplicable.
-  Short landscape layouts reduce spacing while preserving touch target size.
+  Short landscape layouts preserve touch target size.
+- Bridges use a slim horizontal arch with straight side stubs while editing.
+  Solved crossings curve the upper pipe over the lower route, with a small gap
+  separating them. Straight upper-lane SVG segments stop at the cell boundary
+  so they do not draw through the arch.
 - Solution rendering uses explicit SVG path steps, split warp stubs, and an
   outlined gap at crossings. Only the original endpoint cells retain dots.
 - Saves use schema version 2 and keep flat active-draft fields for existing
@@ -502,7 +504,7 @@ Hexes and mixed variants remain unavailable.
 Browser coverage exercises real C/Wasm workers on square and rectangular
 variants, independent full-cover validation, Edit/reload, mixed edits and bulk
 Undo, draft switching, legacy migration, conflicts, resize/Reset cancellation,
-Cancel/retry, and mobile touch with zoom/pan. Existing Standard, A*, Z3,
+Cancel/retry, and mobile touch on fitted boards. Existing Standard, A*, Z3,
 generator, wall, persistence, and layout checks remain in the full suite.
 
 Final verification used Node 24.21.0 and pinned Emscripten 4.0.23:

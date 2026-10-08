@@ -65,10 +65,11 @@ Some large puzzles can exceed an independent solver's search budget. **Show
 solution** always reveals the solution retained during construction.
 
 The tool panel sits beside the board on desktop and below it on mobile. Mode and
-Size stay visible above the primary action, with compact Undo and Reset buttons.
+Size stay visible above the primary actions. Compact Undo and Reset buttons sit
+beside Board options, separated from Solve and Generate.
 Solve becomes Cancel while working and Edit after solving, in the same position.
 Dots/Walls and the active variant's tool are directly accessible during editing,
-alongside Zoom and optional Pan. Selecting a tool keeps it selected; choose Dots
+as quiet text tabs with an active underline. Selecting a tool keeps it selected; choose Dots
 to return to endpoint placement. Editing tools disappear when viewing a solution.
 Board options start collapsed and contain custom dimensions, applicable solver
 choices, and contextual bulk edits. Generate appears only for Standard; variants,
@@ -103,10 +104,11 @@ solved paths show edge stubs rather than a line across the board.
 
 In **Bridges**, choose **Bridges** and tap an empty interior cell to add or remove
 a crossing. Its horizontal and vertical lanes remain straight, use different
-colors, and both must be filled. **Bridge on top** sets the appearance of new
-bridges; **Rotate bridges** changes all existing crossings and is undoable.
+colors, and both must be filled. A horizontal arch marks the overpass; the
+vertical route passes underneath it. Orientation is fixed, so no selector or
+rotation control is needed. **Clear bridges** in Board options is undoable.
 Bridges cannot replace dots or touch a wall that blocks any of their four ports.
-Solved crossings display a gap and outline separating the upper/lower pipes.
+Solved crossings retain the arch and a small gap separating the pipes.
 
 Variant solving uses the C/Wasm engine. **Generate** remains available only for
 Standard without walls. **Cancel** stops active work while preserving the puzzle.
@@ -118,13 +120,12 @@ See the [Warps and Bridges research and implementation plan](docs/flow-free-warp
 for rule evidence, the C/Wasm topology model, editor interactions,
 delivery milestones, and regression criteria.
 
-**Walls** can be added in all implemented modes. Open **Board
-options** and choose **Walls**, then tap or drag along the lines between
+**Walls** can be added in all implemented modes. Choose the **Walls** tool,
+then tap or drag along the lines between
 cells to add or remove boundaries. Choose **Dots** to place endpoints again. Both
 cells beside a wall still need to be filled. **Undo** reverses the last edit;
-**Clear walls** appears when walls exist and is also undoable. **Zoom in** is
-available on mobile and for large desktop boards. Swipe from a cell center to
-pan the enlarged board, or choose **Pan board** to temporarily disable editing.
+**Clear walls** appears in Board options when walls exist and is also undoable.
+The board stays fitted to the available space in every mode.
 With the keyboard, focus a cell and press **Shift +
 Arrow** to toggle the wall on that side.
 

@@ -27,15 +27,12 @@ const FlowSolver = () => {
     const [mode, setMode] = useState<GameMode>('standard');
     const [bridges, setBridges] = useState<Bridge[]>([]);
     const [warps, setWarps] = useState<WarpSeam[]>([]);
-    const [bridgeOver, setBridgeOver] = useState<Bridge['over']>('horizontal');
     const [pathSolution, setPathSolution] = useState<PuzzleSolution | null>(null);
     const draftsRef = useRef<Partial<Record<GameMode, PuzzleDraft>>>({});
     const historiesRef = useRef<Partial<Record<GameMode, EditorSnapshot[]>>>({});
     const [walls, setWalls] = useState<Wall[]>([]);
     const [editHistory, setEditHistory] = useState<EditorSnapshot[]>([]);
     const [editTool, setEditTool] = useState<EditTool>('dots');
-    const [panMode, setPanMode] = useState(false);
-    const [zoomWalls, setZoomWalls] = useState(false);
     const isStandard = mode === 'standard';
     const isAvailable = GAME_MODES[mode].available;
     const wasmOnly = width !== height || !isStandard || walls.length > 0;
@@ -64,7 +61,7 @@ const FlowSolver = () => {
     const currentDraft = (): PuzzleDraft => ({ width, height, board, walls, bridges, warps, solverType, activeColor, isPlacingSecond, generatedSolution });
     const restoreDraft = (draft: PuzzleDraft, draftMode: GameMode) => {
         setWidth(draft.width); setHeight(draft.height); setBoard(draft.board);
-        setWalls(draft.walls); setBridges(draft.bridges); setWarps(draft.warps);
+        setWalls(draft.walls); setBridges(draft.bridges.map(bridge => ({ ...bridge, over: 'horizontal' }))); setWarps(draft.warps);
         setActiveColor(draft.activeColor); setIsPlacingSecond(draft.isPlacingSecond);
         setGeneratedSolution(draft.generatedSolution);
         setSolverType(draftMode !== 'standard' || draft.width !== draft.height || draft.walls.length ? 'heuristic_bfs' : draft.solverType);
@@ -151,8 +148,6 @@ const FlowSolver = () => {
         setWalls([]);
         setBridges([]); setWarps([]);
         setEditHistory([]);
-        setZoomWalls(false);
-        setPanMode(false);
         setInvalidSavedWalls(false);
         setSolvedBoard(null); setPathSolution(null);
         setGeneratedSolution(null);
@@ -196,7 +191,7 @@ const FlowSolver = () => {
         historiesRef.current[mode] = editHistory;
         workerRef.current?.terminate(); workerRef.current = null;
         setIsSolving(false); setIsGenerating(false); setSolvedBoard(null); setPathSolution(null);
-        setError(null); setSolveTime(null); setEditTool('dots'); setZoomWalls(false); setPanMode(false);
+        setError(null); setSolveTime(null); setEditTool('dots');
         const draft = draftsRef.current[next] ?? { width, height, board: initializeBoard(width, height),
             walls: [], bridges: [], warps: [], solverType: 'heuristic_bfs', activeColor: 1, isPlacingSecond: false, generatedSolution: null };
         restoreDraft(draft, next); setMode(next); setEditHistory(historiesRef.current[next] ?? []);
@@ -296,7 +291,7 @@ const FlowSolver = () => {
     };
     const applyWalls = (next: Wall[]) => applyTopology({ walls: next, bridges, warps });
     const toggleBridge = (x: number, y: number) => applyTopology({ walls, warps, bridges:
-        bridges.some(b => b.x === x && b.y === y) ? bridges.filter(b => b.x !== x || b.y !== y) : [...bridges, { x, y, over: bridgeOver }] });
+        bridges.some(b => b.x === x && b.y === y) ? bridges.filter(b => b.x !== x || b.y !== y) : [...bridges, { x, y, over: 'horizontal' }] });
     const toggleSeam = (seam: WarpSeam) => applyTopology({ walls, bridges, warps:
         warps.some(s => seamKey(s) === seamKey(seam)) ? warps.filter(s => seamKey(s) !== seamKey(seam)) : [...warps, seam] });
 
@@ -458,7 +453,7 @@ const FlowSolver = () => {
                     wallCount={walls.length}
                     editTool={editTool} bridgeCount={bridges.length} warpCount={warps.length}
                 />
-                <section className={`board-area ${zoomWalls && !solvedBoard ? 'wall-zoom' : ''}`} aria-label="Puzzle editor">
+                <section className="board-area" aria-label="Puzzle editor">
                     <div className="board-viewport">
                         <PuzzleGrid
                             width={width}
@@ -471,9 +466,8 @@ const FlowSolver = () => {
                             onCellClick={handleCellClick}
                             walls={walls}
                             editTool={editTool}
-                            zoomed={zoomWalls && !solvedBoard}
                             onWallsChange={applyWalls}
-                            panning={panMode && zoomWalls} endpointBoard={board} solution={visibleSolution} bridges={bridges} warps={warps}
+                            endpointBoard={board} solution={visibleSolution} bridges={bridges} warps={warps}
                             onBridgeClick={toggleBridge} onSeamClick={toggleSeam}
                         />
                     </div>
@@ -503,16 +497,12 @@ const FlowSolver = () => {
                         onGenerate={generateBoard}
                         wallCount={walls.length}
                         editTool={editTool}
-                        onEditToolChange={tool => { setEditTool(tool); setPanMode(false); }}
+                        onEditToolChange={setEditTool}
                         canUndo={canUndo}
                         onUndo={undoEdit}
                         onClearWalls={() => applyWalls([])}
-                        zoomWalls={zoomWalls}
-                        onZoomWalls={() => { setZoomWalls(value => !value); setPanMode(false); }}
-                        panning={panMode} onPan={() => setPanMode(value => !value)}
-                        bridges={bridges} warps={warps} bridgeOver={bridgeOver} onBridgeOver={setBridgeOver}
+                        bridges={bridges} warps={warps}
                         onClearBridges={() => applyTopology({ walls, warps, bridges: [] })}
-                        onRotateBridges={() => applyTopology({ walls, warps, bridges: bridges.map(b => ({ ...b, over: b.over === 'horizontal' ? 'vertical' : 'horizontal' })) })}
                         onWarpsChange={next => applyTopology({ walls, bridges, warps: next })}
                     />
                 </section>

@@ -264,36 +264,22 @@ test('real generator worker rejects a wall layout even when directly requested',
 
 test.describe('mobile wall editing', () => {
     test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
-    test('touch toggles walls and zoom offers large targets without page overflow', async ({ page }) => {
+    test('touch edits the first and last wall boundaries on a fitted dense board without overflow', async ({ page }) => {
         await page.goto('./');
         await page.getByRole('combobox', { name: 'Grid Size' }).selectOption('15');
         await selectWallTool(page);
-        await page.getByRole('button', { name: 'Zoom in', exact: true }).tap();
+        await expect(page.getByRole('button', { name: /Zoom in|Fit board|Pan board/ })).toHaveCount(0);
         await grid(page).scrollIntoViewIfNeeded();
         const bounds = (await grid(page).boundingBox())!;
-        expect(bounds.width).toBeGreaterThanOrEqual(720);
-        await page.touchscreen.tap(bounds.x + 48, bounds.y + 24);
+        expect(bounds.width).toBeLessThanOrEqual(390);
+        const cellWidth = bounds.width / 15, cellHeight = bounds.height / 15;
+        await page.touchscreen.tap(bounds.x + cellWidth, bounds.y + cellHeight / 2);
         await expect(page.locator('[data-wall="0,0,right"]')).toHaveCount(1);
-        await page.touchscreen.tap(bounds.x + 48, bounds.y + 24);
+        await page.touchscreen.tap(bounds.x + cellWidth, bounds.y + cellHeight / 2);
         await expect(page.locator('[data-wall]')).toHaveCount(0);
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-        // A native touch swipe starting at a cell center pans instead of drawing.
-        const session = await page.context().newCDPSession(page);
-        try {
-            await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: bounds.x + 264, y: bounds.y + 24 }] });
-            for (let step = 1; step <= 8; step++) {
-                await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: bounds.x + 264 - step * 24, y: bounds.y + 24 }] });
-            }
-            await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-        } finally { await session.detach(); }
-        await expect.poll(() => page.locator('.board-viewport').evaluate(element => element.scrollLeft)).toBeGreaterThan(70);
-        await expect(page.locator('[data-wall]')).toHaveCount(0);
-        // Scroll within the viewport to expose the final column's boundary.
-        await page.locator('.board-viewport').evaluate(element => { element.scrollLeft = element.scrollWidth; });
-        const moved = (await grid(page).boundingBox())!;
-        await page.touchscreen.tap(moved.x + 14 * 48, moved.y + 24);
+        await page.touchscreen.tap(bounds.x + 14 * cellWidth, bounds.y + cellHeight / 2);
         await expect(page.locator('[data-wall="13,0,right"]')).toHaveCount(1);
-        await page.getByRole('button', { name: 'Fit board', exact: true }).tap();
         expect((await grid(page).boundingBox())!.width).toBeLessThanOrEqual(390);
         await page.screenshot({ path: test.info().outputPath('walls-mobile.png'), fullPage: true });
     });

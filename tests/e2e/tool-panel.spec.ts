@@ -30,7 +30,14 @@ for (const viewport of [
         };
         await expect(options).not.toHaveAttribute('open', '');
         await expect(page.getByRole('combobox')).toHaveCount(2);
-        await expect(page.locator('.game-controls button:visible')).toHaveCount(7);
+        await expect(page.locator('.game-controls button:visible')).toHaveCount(6);
+        await expect(page.getByRole('button', { name: /Zoom in|Fit board|Pan board/ })).toHaveCount(0);
+        const optionsSummary = await bounds(options.locator('summary'));
+        for (const control of await page.getByRole('group', { name: 'Edit history' }).getByRole('button').all()) {
+            const buttonBounds = await bounds(control);
+            expect(buttonBounds.y).toEqual(optionsSummary.y);
+            expect(buttonBounds.x).toBeGreaterThanOrEqual(optionsSummary.x + optionsSummary.width);
+        }
         await expect(page.getByRole('button', { name: 'Walls', exact: true })).toBeVisible();
         await expect(page.getByRole('combobox', { name: 'Solver Algorithm' })).toBeHidden();
         await openBoardOptions(page);
@@ -78,6 +85,7 @@ for (const viewport of [
         await expect(page.getByRole('button', { name: 'Walls', exact: true })).toHaveAttribute('aria-pressed', 'true');
         await openBoardOptions(page);
         await expect(page.getByRole('button', { name: 'Undo', exact: true })).toBeEnabled();
+        await options.locator('summary').click();
         await page.screenshot({ path: test.info().outputPath('tool-panel.png'), fullPage: true });
     });
 }
@@ -94,7 +102,8 @@ for (const width of [390, 1280]) {
             await expect(page.getByRole('combobox', { name: 'Solver Algorithm' })).toHaveCount(0);
             await page.getByRole('button', { name: tool, exact: true }).click();
             await expect(page.getByRole('button', { name: tool, exact: true })).toHaveAttribute('aria-pressed', 'true');
-            await expect(page.getByRole('button', { name: tool, exact: true })).toHaveCSS('background-color', 'rgb(48, 58, 57)');
+            await expect(page.getByRole('button', { name: tool, exact: true })).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+            await expect(page.getByRole('button', { name: tool, exact: true })).toHaveCSS('color', 'rgb(230, 228, 223)');
             await expect(page.getByRole('combobox', { name: 'Grid Width' })).toBeHidden();
             await expect(options).not.toHaveAttribute('open', '');
             const walls = page.getByRole('button', { name: 'Walls', exact: true });

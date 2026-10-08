@@ -16,9 +16,7 @@ interface PuzzleGridProps {
     onCellClick: (x: number, y: number) => void;
     walls: Wall[];
     editTool: EditTool;
-    zoomed: boolean;
     onWallsChange: (walls: Wall[]) => void;
-    panning: boolean;
     endpointBoard: number[][];
     solution: PuzzleSolution | null;
     bridges: Bridge[];
@@ -36,7 +34,7 @@ const PuzzleGrid = ({
     activeColor,
     isResetting,
     onCellClick,
-    walls, editTool, zoomed, onWallsChange, panning, endpointBoard, solution, bridges, warps, onBridgeClick, onSeamClick,
+    walls, editTool, onWallsChange, endpointBoard, solution, bridges, warps, onBridgeClick, onSeamClick,
 }: PuzzleGridProps) => {
     const gridRef = useRef<HTMLElement>(null);
     const [highlightSeam, setHighlightSeam] = useState<string | null>(null);
@@ -45,7 +43,7 @@ const PuzzleGrid = ({
     const [draft, setDraft] = useState<Wall[] | null>(null);
     const [announcement, setAnnouncement] = useState('');
     const stroke = useRef<{ pointerId: number; adding: boolean; walls: Wall[]; seen: Set<string>; point: [number, number]; side: Wall['side'] } | null>(null);
-    const editingWalls = editTool === 'walls' && !panning && !isSolving && !solvedBoard;
+    const editingWalls = editTool === 'walls' && !isSolving && !solvedBoard;
     const visibleWalls = draft ?? walls;
     // Cancel an in-flight stroke if Reset, resizing, mode changes, or solving replaces the board.
     useEffect(() => {
@@ -85,7 +83,7 @@ const PuzzleGrid = ({
         if (!editingWalls || event.button !== 0 || !event.isPrimary || stroke.current) return;
         const point = pointerPoint(event);
         const wall = wallAtPoint(...point, width, height);
-        if (!wall) return; // Cell centers remain available for scrolling a zoomed board.
+        if (!wall) return; // Only boundaries start a wall stroke.
         event.preventDefault();
         event.currentTarget.setPointerCapture(event.pointerId);
         const adding = !walls.some(value => wallKey(value) === wallKey(wall));
@@ -111,7 +109,7 @@ const PuzzleGrid = ({
     };
     // Grid lines belong to the nearest cell, so small touch targets have no dead gaps.
     const handleGridClick = (event: MouseEvent<HTMLElement>) => {
-        if (panning || editTool !== 'dots' || event.target !== event.currentTarget || isSolving || solvedBoard) return;
+        if (editTool !== 'dots' || event.target !== event.currentTarget || isSolving || solvedBoard) return;
         const bounds = event.currentTarget.getBoundingClientRect();
         const x = Math.min(width - 1, Math.floor((event.clientX - bounds.left) / bounds.width * width));
         const y = Math.min(height - 1, Math.floor((event.clientY - bounds.top) / bounds.height * height));
@@ -134,7 +132,7 @@ const PuzzleGrid = ({
             default: return;
         }
         event.preventDefault();
-        if (editTool === 'warps' && event.shiftKey && !panning && !isSolving && !solvedBoard) {
+        if (editTool === 'warps' && event.shiftKey && !isSolving && !solvedBoard) {
             const axis = event.key === 'ArrowLeft' || event.key === 'ArrowRight' ? 'horizontal' : 'vertical';
             if ((event.key === 'ArrowLeft' && x === 0) || (event.key === 'ArrowRight' && x === width - 1) ||
                 (event.key === 'ArrowUp' && y === 0) || (event.key === 'ArrowDown' && y === height - 1)) {
@@ -161,7 +159,7 @@ const PuzzleGrid = ({
         aria-label="Puzzle Grid Board"
         aria-describedby="board-instructions board-keyboard-help"
         data-solution={solution ? JSON.stringify(solution) : undefined}
-        className={`puzzle-grid ${panning ? 'panning' : ''} ${editingWalls ? 'editing-walls' : ''}`}
+        className={`puzzle-grid ${editingWalls ? 'editing-walls' : ''}`}
         onClick={handleGridClick}
         onPointerDown={startStroke}
         onPointerMove={movePointer}
@@ -174,7 +172,6 @@ const PuzzleGrid = ({
             gridTemplateRows: `repeat(${height}, minmax(0, 1fr))`,
             '--grid-width': `${100 * width / Math.max(width, height)}%`,
             aspectRatio: `${width} / ${height}`,
-            ...(zoomed ? { width: width * 48, minWidth: '100%' } : {}),
         } as CSSProperties}
     >
         {Array.from({ length: height }).map((_, y) =>
@@ -206,7 +203,7 @@ const PuzzleGrid = ({
                             ${solvedBoard ? 'cursor-default' : 'hover:bg-stoic-block-hover active:bg-stoic-block-hover'}
                         `}
                         onClick={() => {
-                            if (panning || isSolving || solvedBoard) return;
+                            if (isSolving || solvedBoard) return;
                             if (editTool === 'dots') onCellClick(x, y);
                             if (editTool === 'bridges') { onBridgeClick(x, y); setAnnouncement(`Bridge toggled, column ${x + 1}, row ${y + 1}.`); }
                         }}
@@ -228,7 +225,7 @@ const PuzzleGrid = ({
             })
         )}
         <PipeOverlay width={width} height={height} solution={solution} bridges={bridges} />
-        {editTool === 'warps' && !panning && !solvedBoard && !isSolving && (['left', 'right', 'top', 'bottom'] as const).flatMap(side =>
+        {editTool === 'warps' && !solvedBoard && !isSolving && (['left', 'right', 'top', 'bottom'] as const).flatMap(side =>
             Array.from({ length: side === 'left' || side === 'right' ? height : width }, (_, index) => {
                 const axis = side === 'left' || side === 'right' ? 'horizontal' : 'vertical';
                 const seam: WarpSeam = { axis, index }, key = seamKey(seam);

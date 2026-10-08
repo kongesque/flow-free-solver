@@ -46,6 +46,52 @@ async function state(page: Page) {
     });
 }
 
+for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 }]) {
+    test(`horizontal bridge arches preserve both lane routes and board position at ${viewport.width}px`, async ({ page }) => {
+        await page.setViewportSize(viewport);
+        await page.goto('./');
+        const fixture = bridgeCross();
+        await recreate(page, fixture);
+        await expect(page.getByRole('combobox', { name: 'Bridge on top' })).toHaveCount(0);
+        await expect(page.getByRole('button', { name: 'Rotate bridges', exact: true })).toHaveCount(0);
+        await page.locator('.board-options summary').click();
+        const grid = page.getByRole('article', { name: 'Puzzle Grid Board' });
+        const initialBounds = await grid.boundingBox();
+        await page.screenshot({ path: test.info().outputPath('bridge-editor.png'), fullPage: true });
+        await solveAndValidate(page, fixture);
+        await expect(cell(page, 2, 2)).toHaveAccessibleName(/Bridge horizontal on top; vertical Color 1; horizontal Color 2/);
+        expect(await grid.boundingBox()).toEqual(initialBounds);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await page.screenshot({ path: test.info().outputPath('bridge-solved.png'), fullPage: true });
+        // Older saves may have a vertical presentation; preserve routes while
+        // adopting the fixed horizontal overpass on reload.
+        await expect.poll(async () => (await state(page))?.bridges).toEqual(fixture.topology.bridges);
+        await page.evaluate(async () => {
+            const db = await new Promise<IDBDatabase>(resolve => {
+                const request = indexedDB.open('flow-solver-db');
+                request.onsuccess = () => resolve(request.result);
+            });
+            await new Promise<void>((resolve, reject) => {
+                const transaction = db.transaction('puzzle-state', 'readwrite');
+                const store = transaction.objectStore('puzzle-state');
+                const request = store.get('current');
+                request.onsuccess = () => {
+                    const saved = request.result;
+                    saved.bridges[0].over = 'vertical';
+                    saved.drafts.bridges.bridges[0].over = 'vertical';
+                    store.put(saved, 'current');
+                };
+                transaction.oncomplete = () => resolve();
+                transaction.onerror = () => reject(transaction.error);
+            });
+            db.close();
+        });
+        await page.reload();
+        await expect(cell(page, 2, 2)).toHaveAccessibleName('Cell 2,2 Bridge horizontal on top');
+        await solveAndValidate(page, fixture);
+    });
+}
+
 for (const fixture of [warpRows(), warpRows(8, 5, true), bridgeCross(), bridgeCross(true)]) {
     test(`edit, solve, reload and preserve ${fixture.mode} ${fixture.width}x${fixture.height} through real workers`, async ({ page }) => {
         const errors: string[] = [];
@@ -92,7 +138,7 @@ test('warp pairs, keyboard edits, bulk Undo and mode histories preserve separate
     await expect(left).toHaveAttribute('aria-pressed', 'true');
 });
 
-test('bridge conflicts, rotation, Undo and reset/resize cancellation are reversible', async ({ page }) => {
+test('horizontal bridge conflicts, clearing, Undo and reset/resize cancellation are reversible', async ({ page }) => {
     await page.goto('./'); await openBoardOptions(page);
     await page.getByRole('combobox', { name: 'Game Mode' }).selectOption('bridges');
     await cell(page, 1, 1).click();
@@ -100,8 +146,8 @@ test('bridge conflicts, rotation, Undo and reset/resize cancellation are reversi
     await cell(page, 1, 1).click(); await expect(page.getByRole('status')).toContainText('Remove this dot');
     await cell(page, 2, 2).focus(); await page.keyboard.press('Enter');
     await expect(page.locator('[data-bridge="2,2"]')).toHaveCount(1);
-    await page.getByRole('button', { name: 'Rotate bridges', exact: true }).click();
-    await expect(cell(page, 2, 2)).toHaveAttribute('aria-label', /vertical on top/);
+    await page.getByRole('button', { name: 'Clear bridges', exact: true }).click();
+    await expect(page.locator('[data-bridge]')).toHaveCount(0);
     await page.getByRole('button', { name: 'Undo', exact: true }).click();
     await expect(cell(page, 2, 2)).toHaveAttribute('aria-label', /horizontal on top/);
     await page.getByRole('button', { name: 'Walls', exact: true }).click();
@@ -140,11 +186,8 @@ test('mobile bridge editing and warp targets work with touch without page overfl
     await page.getByRole('combobox', { name: 'Game Mode' }).selectOption('bridges');
     await page.getByRole('button', { name: 'Bridges', exact: true }).tap();
     await cell(page, 2, 2).tap(); await expect(page.locator('[data-bridge]')).toHaveCount(1);
-    await page.getByRole('button', { name: 'Zoom in', exact: true }).tap();
-    await page.getByRole('button', { name: 'Pan board', exact: true }).tap();
-    await cell(page, 1, 1).tap(); await expect(page.locator('[data-bridge]')).toHaveCount(1);
-    await page.getByRole('button', { name: 'Resume editing', exact: true }).tap();
-    await page.getByRole('button', { name: 'Fit board', exact: true }).tap();
+    await expect(page.getByRole('button', { name: /Zoom in|Fit board|Pan board/ })).toHaveCount(0);
+    await cell(page, 1, 1).tap(); await expect(page.locator('[data-bridge]')).toHaveCount(2);
     await page.getByRole('combobox', { name: 'Game Mode' }).selectOption('warps');
     await page.getByRole('button', { name: 'Warps', exact: true }).tap();
     await page.getByRole('button', { name: 'Row 3 warp, right', exact: true }).tap();

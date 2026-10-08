@@ -29,7 +29,7 @@ for (const viewport of [
     test(`editor fits ${viewport.width}×${viewport.height} with square and rectangular boards`, async ({ page }) => {
         await page.setViewportSize(viewport);
         await page.goto('./');
-        await expect(page.locator('.control-actions button')).toHaveCount(4);
+        await expect(page.locator('.control-actions button')).toHaveCount(2);
         await expect(page.getByRole('combobox')).toHaveCount(2);
         await expect(page.getByText('Size', { exact: true })).toBeVisible();
         await expect(page.getByRole('combobox', { name: 'Solver Algorithm' })).toBeHidden();
