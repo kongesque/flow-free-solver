@@ -79,8 +79,8 @@ const SolverControls = ({
                 <label className="control-field">
                     <span>Mode</span><span className="select-wrap">
                         <select aria-label="Game Mode" value={mode} onChange={onModeChange} disabled={isBusy}>
-                            {Object.entries(GAME_MODES).map(([value, config]) => (
-                                <option key={value} value={value} disabled={!config.available}>{config.label}{config.available ? '' : ' (coming soon)'}</option>
+                            {Object.entries(GAME_MODES).filter(([, config]) => config.available).map(([value, config]) => (
+                                <option key={value} value={value}>{config.label}</option>
                             ))}
                         </select><ChevronDown aria-hidden="true" />
                     </span>

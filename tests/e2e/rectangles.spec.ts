@@ -146,7 +146,7 @@ test('legacy square saves load with independent dimensions', async ({ page }) =>
     await expect(page.getByRole('button', { name: 'Cell 5,0 Color 1', exact: true })).toBeVisible();
 });
 
-test('implemented modes restore their drafts and Hexes remains unavailable', async ({ page }) => {
+test('implemented modes restore their drafts and Hexes is omitted from the menu', async ({ page }) => {
     await page.goto('./'); await openBoardOptions(page);
     await dimensions(page, 5, 8);
     await page.getByRole('button', { name: 'Cell 4,7 Empty', exact: true }).click();
@@ -156,7 +156,7 @@ test('implemented modes restore their drafts and Hexes remains unavailable', asy
         await expect(page.getByRole('button', { name: 'Generate', exact: true })).toBeVisible();
         await expect(page.getByRole('button', { name: 'Cell 4,7 Empty', exact: true })).toBeEnabled();
     }
-    await expect(page.getByRole('combobox', { name: 'Game Mode' }).locator('option[value="hexes"]')).toHaveJSProperty('disabled', true);
+    await expect(page.getByRole('combobox', { name: 'Game Mode' }).locator('option[value="hexes"]')).toHaveCount(0);
     await expect.poll(async () => (await savedState(page))?.mode).toBe('warps');
     await page.reload(); await openBoardOptions(page);
     await expect(page.getByRole('combobox', { name: 'Game Mode' })).toHaveValue('warps');
