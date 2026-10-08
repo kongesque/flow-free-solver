@@ -305,9 +305,11 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
 .warp-marker { stroke-dasharray: .1 .08; }
 .warp-marker.paired { stroke: var(--color-stoic-accent); }
 .editor-toolbar { display: flex; align-items: center; gap: 6px; }
-.edit-tools { display: flex; flex: 1; min-width: 0; gap: 8px; }
-.edit-tools button { position: relative; min-width: 44px; border: 0; border-radius: 0; padding-inline: 12px; color: var(--color-stoic-secondary); }
-.edit-tools button::after { content: ''; position: absolute; left: 12px; right: 12px; bottom: 4px; height: 1px; background: transparent; }
+.edit-tools { display: flex; flex: 1; min-width: 0; gap: 4px; }
+.edit-tools button { position: relative; min-width: 44px; gap: 7px; border: 0; border-radius: 4px; padding-inline: 10px; color: var(--color-stoic-secondary); transition: color .15s; }
+.edit-tools .tool-glyph { width: 12px; height: 12px; opacity: .75; }
+.edit-tools button[aria-pressed="true"] .tool-glyph { opacity: 1; }
+.edit-tools button::after { content: ''; position: absolute; left: 10px; right: 10px; bottom: 3px; height: 2px; border-radius: 1px; background: transparent; }
 .edit-tools button:hover:not(:disabled) { background: transparent; color: var(--color-stoic-primary); }
 .edit-tools button[aria-pressed="true"] { background: transparent; color: var(--color-stoic-primary); }
 .edit-tools button[aria-pressed="true"]::after { background: var(--color-stoic-accent); }

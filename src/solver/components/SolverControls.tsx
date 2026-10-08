@@ -5,6 +5,13 @@ import { SIZE_OPTIONS, RESTRICT_Z3_TO_LARGE_GRIDS, SolverType } from './constant
 import type { Bridge, WarpSeam } from '../logic/topology';
 import type { EditTool } from '../logic/walls';
 
+const toolGlyphs: Record<EditTool, React.ReactNode> = {
+    dots: <circle cx="6" cy="6" r="2.5" fill="currentColor" stroke="none" />,
+    walls: <path d="M6 1v10" />,
+    bridges: <path d="M1 5h2c1.5 0 1.5-3 3-3s1.5 3 3 3h2 M1 10h2c1.5 0 1.5-3 3-3s1.5 3 3 3h2" />,
+    warps: <path d="M6 1v10" strokeDasharray="2 2" />,
+};
+
 interface SolverControlsProps {
     onEdit: () => void;
     width: number;
@@ -99,6 +106,9 @@ const SolverControls = ({
                 <div className="edit-tools" role="group" aria-label="Editing tool">
                     {tools.map(tool => <button key={tool} type="button" className="control-button" aria-pressed={editTool === tool}
                         disabled={editingDisabled} onClick={() => onEditToolChange(tool)}>
+                        <svg className="tool-glyph" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true" focusable="false">
+                            {toolGlyphs[tool]}
+                        </svg>
                         {tool[0].toUpperCase() + tool.slice(1)}
                         {tool === 'walls' && wallCount > 0 && <span aria-hidden="true" className="wall-count">{wallCount}</span>}
                     </button>)}

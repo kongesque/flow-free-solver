@@ -470,7 +470,8 @@ The release makes these concrete UI choices:
   cells retain descriptive accessible labels; visible dots have no numbers or outlines.
 - Solve, Cancel, and Edit share one primary action position. Solve and
   Generate share an equal-width row. Undo and Reset sit beside Board options and
-  use labeled icons with 44px targets. Tool tabs use a thin active underline
+  use labeled icons with 44px targets. Tool tabs pair labels with small glyphs
+  matching the board marks and use a slim active underline
   instead of filled toggle blocks. Generate is available in all implemented modes; fixed
   C/Wasm solver choices and editing-only controls are omitted where inapplicable.
   Short landscape layouts preserve touch target size.
