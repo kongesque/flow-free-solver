@@ -49,7 +49,7 @@ const PuzzleGrid = ({
     const [guideCell, setGuideCell] = useState<[number, number] | null>(null);
     const [touchPreview, setTouchPreview] = useState(false);
     const [coordinateStep, setCoordinateStep] = useState({ column: 1, row: 1 });
-    const placement = useRef<{ pointerId: number; tool: 'dots' | 'bridges' } | null>(null);
+    const placement = useRef<{ pointerId: number; tool: 'dots' | 'bridges'; origin: [number, number]; guided: boolean } | null>(null);
     const suppressClickUntil = useRef(0);
     const cancelledPlacement = useRef<number | null>(null);
     const stroke = useRef<{ pointerId: number; adding: boolean; walls: Wall[]; seen: Set<string>; point: [number, number]; side: Wall['side'] } | null>(null);
@@ -121,16 +121,18 @@ const PuzzleGrid = ({
         setGuideCell(current => current?.[0] === cell?.[0] && current?.[1] === cell?.[1] ? current : cell);
     };
     const startPlacement = (event: PointerEvent<HTMLElement>) => {
-        if (!showBoardGuides || !editing || event.pointerType === 'mouse' || event.button !== 0 || !event.isPrimary ||
+        if (!editing || event.pointerType === 'mouse' || event.button !== 0 || !event.isPrimary ||
             (editTool !== 'dots' && editTool !== 'bridges') ||
             stroke.current || placement.current) return;
         const cell = pointerCell(event);
         if (!cell) return;
-        event.preventDefault();
+        // Ordinary touch taps also commit on pointer-up. A browser may omit the
+        // compatibility click after a previous touch gesture was cancelled.
+        if (showBoardGuides) event.preventDefault();
         suppressClickUntil.current = performance.now() + 500;
-        placement.current = { pointerId: event.pointerId, tool: editTool };
-        updateGuide(cell); setTouchPreview(true);
-        event.currentTarget.setPointerCapture(event.pointerId);
+        placement.current = { pointerId: event.pointerId, tool: editTool, origin: cell, guided: showBoardGuides };
+        updateGuide(cell); setTouchPreview(showBoardGuides);
+        if (showBoardGuides) event.currentTarget.setPointerCapture(event.pointerId);
     };
     const finishPlacement = (event: PointerEvent<HTMLElement>, cancel = false) => {
         const active = placement.current;
@@ -140,7 +142,7 @@ const PuzzleGrid = ({
         setTouchPreview(false); updateGuide(cell);
         suppressClickUntil.current = performance.now() + 500;
         if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
-        if (cell) {
+        if (cell && (active.guided || (cell[0] === active.origin[0] && cell[1] === active.origin[1]))) {
             if (active.tool === 'dots') onCellClick(...cell);
             else onBridgeClick(...cell);
         }
@@ -181,7 +183,7 @@ const PuzzleGrid = ({
         const cell = editing ? pointerCell(event) : null;
         if (editing) updateGuide(cell);
         if (placement.current?.pointerId === event.pointerId) {
-            setTouchPreview(cell !== null);
+            setTouchPreview(placement.current.guided && cell !== null);
             return;
         }
         if (!editingWalls) return;

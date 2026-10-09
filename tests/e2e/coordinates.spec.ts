@@ -144,6 +144,16 @@ test.describe('Touch placement guides', () => {
     });
 
     test('turning guides off cancels a pending slide and restores ordinary taps', async ({ page }) => {
+        const events: string[] = [];
+        await page.exposeFunction('recordPlacementEvent', (event: string) => events.push(event));
+        await page.addInitScript(() => {
+            for (const type of ['pointerdown', 'pointerup', 'pointercancel', 'click']) {
+                document.addEventListener(type, event => {
+                    const target = event.target instanceof Element ? event.target.closest('[data-cell], [role="switch"]') : null;
+                    if (target) (window as unknown as { recordPlacementEvent: (event: string) => void }).recordPlacementEvent(`${type}: ${target.getAttribute('data-cell') ?? target.getAttribute('aria-label')}`);
+                }, true);
+            }
+        });
         await page.goto('./');
         await openBoardOptions(page);
         const toggle = page.getByRole('switch', { name: 'Board guides', exact: true });
@@ -164,12 +174,31 @@ test.describe('Touch placement guides', () => {
         await expect(toggle).not.toBeChecked();
         await expect(page.locator('.endpoint-dot')).toHaveCount(1);
         await expect(page.locator('.cell-guide, .endpoint-preview')).toHaveCount(0);
+        // A fresh touch must work even when Chromium omits its compatibility click.
+        await page.evaluate(() => document.addEventListener('click', event => {
+            if (event.detail && event.target instanceof Element && event.target.closest('[data-cell]')) {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+            }
+        }, true));
         await cell(page, 4, 4).tap();
-        await expect(page.locator('.endpoint-dot')).toHaveCount(2);
+        try {
+            await expect(page.locator('.endpoint-dot')).toHaveCount(2);
+        } catch (error) {
+            console.error('Touch cancellation input sequence:', events);
+            throw error;
+        }
         await expect(cell(page, 4, 4)).toHaveAttribute('aria-label', 'Cell 4,4 Color 1');
         await cell(page, 4, 3).tap();
         await expect(page.locator('.endpoint-dot')).toHaveCount(3);
         await expect(cell(page, 4, 3)).toHaveAttribute('aria-label', 'Cell 4,3 Color 2');
+        await page.locator('.board-options summary').click();
+        await cell(page, 0, 0).scrollIntoViewIfNeeded();
+        await touch(cdp, 'touchStart', await point(page, 1, 1));
+        await touch(cdp, 'touchMove', await point(page, 3, 2));
+        await touch(cdp, 'touchEnd');
+        await expect(page.locator('.endpoint-dot')).toHaveCount(3);
+        await expect(page.locator('.cell-guide, .endpoint-preview')).toHaveCount(0);
         await cdp.detach();
     });
 
