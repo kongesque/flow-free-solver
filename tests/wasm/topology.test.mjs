@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
 import createModule from '../../public/wasm/flow_solver_c.mjs';
-import { warpRows, bridgeCross, largeBridgeCover } from '../fixtures/topology-puzzles.mjs';
+import { warpRows, warpSnake, bridgeCross, largeBridgeCover } from '../fixtures/topology-puzzles.mjs';
 import { assertTopologySolution, decodeNativeSolution } from '../fixtures/assert-topology-solution.mjs';
 
 const module = await createModule();
@@ -12,7 +12,7 @@ const wire = ({ mode, topology }) => `V1\nMODE,${mode === 'warps' ? 'W' : 'B'}\n
   [...topology.bridges].reverse().map(b => `B,${b.x},${b.y},${b.over === 'horizontal' ? 'H' : 'V'}\n`).join('') +
   topology.warps.map(w => `S,${w.axis === 'horizontal' ? 'H' : 'V'},${w.index}\n`).join('');
 
-for (const fixture of [warpRows(), warpRows(8, 5), warpRows(15, 15), warpRows(8, 5, true), bridgeCross(), bridgeCross(true), bridgeCross(false, 'vertical'), largeBridgeCover()]) {
+for (const fixture of [warpRows(), warpRows(8, 5), warpRows(15, 15), warpRows(19, 16), warpRows(19, 16, true), warpSnake(), warpRows(8, 5, true), bridgeCross(), bridgeCross(true), bridgeCross(false, 'vertical'), largeBridgeCover(), largeBridgeCover(19)]) {
   test(`real C graph cover: ${fixture.mode} ${fixture.width}x${fixture.height}`, () => {
     const result = JSON.parse(solve(fixture.input, wire(fixture)));
     assert.equal(result.status, 'solved');

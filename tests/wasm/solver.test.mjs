@@ -14,6 +14,8 @@ for (const name of readdirSync(fixtures).filter(name => name.endsWith('.txt')).s
     const result = solve(input);
     if (name.startsWith('unsolvable')) {
       assert.match(result, /^Error: No solution found \(result code 1\)/);
+    } else if (name.startsWith('search_limit')) {
+      assert.equal(result, 'Error: No solution found (result code 2)');
     } else {
       assert.ok(!result.startsWith('Error'), result);
       assertSolution(input, JSON.parse(result));
@@ -21,7 +23,7 @@ for (const name of readdirSync(fixtures).filter(name => name.endsWith('.txt')).s
   });
 }
 
-test('solves the maximum 15×15 board', () => {
+test('solves a 15×15 row cover', () => {
   const input = [...'RBYGOCMmPAWgTbc'].map(color => `${color}${'.'.repeat(13)}${color}`).join('\n') + '\n';
   assertSolution(input, JSON.parse(solve(input)));
 });
@@ -31,7 +33,7 @@ test('accepts a board fully solved by initial forced moves', () => {
   assertSolution(input, JSON.parse(solve(input)));
 });
 
-for (const [width, height] of [[2, 15], [15, 2], [5, 8], [8, 5], [7, 10], [10, 7], [15, 14], [14, 15]]) {
+for (const [width, height] of [[2, 15], [15, 2], [5, 8], [8, 5], [7, 10], [10, 7], [15, 14], [14, 15], [19, 2], [19, 16]]) {
   test(`compiled C solver: rectangular ${width}x${height}`, () => {
     const colors = 'RBYGOCMmPAWgTbcp';
     const input = Array.from({ length: height }, (_, y) =>
@@ -45,8 +47,8 @@ for (const [width, height] of [[2, 15], [15, 2], [5, 8], [8, 5], [7, 10], [10, 7
 }
 
 for (const [name, input] of Object.entries({
-  empty: '', missingRows: 'R.R\n', extraRows: 'R.R\n' + '...\n'.repeat(15),
-  oversized: `${'R'.repeat(16)}\n`.repeat(16), unknownColor: 'Q.Q\n...\n...\n',
+  empty: '', missingRows: 'R.R\n', extraRows: 'R.R\n' + '...\n'.repeat(19),
+  oversized: `${'R'.repeat(20)}\n`.repeat(20), unknownColor: 'Q.Q\n...\n...\n',
   missingEndpoint: 'R..\n...\n...\n', extraEndpoint: 'RRR\n...\n...\n',
   nonSquare: 'R.R\n..\n...\n', invalidCharacter: 'R.R\n.!.\n...\n',
 })) {
@@ -61,3 +63,12 @@ test('supports repeated calls on the same Wasm instance', () => {
   const input = readFileSync(new URL('regular_5x5_01.txt', fixtures), 'utf8');
   for (let count = 0; count < 30; count++) assertSolution(input, JSON.parse(solve(input)));
 });
+
+for (const [width, height] of [[5, 19], [16, 19]]) {
+  test(`compiled C solver: transposed boundary ${width}x${height}`, () => {
+    const colors = 'RBYGOCMmPAWgTbcp';
+    const input = Array.from({ length: height }, (_, y) =>
+      y === 0 || y === height - 1 ? colors.slice(0, width) : '.'.repeat(width)).join('\n');
+    assertSolution(input, JSON.parse(solve(input)));
+  });
+}

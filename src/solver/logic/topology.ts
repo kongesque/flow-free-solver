@@ -1,3 +1,4 @@
+import { MAX_BOARD_SIZE } from './board-limits';
 import type { Board } from './astar-solver';
 import type { GameMode } from './game-modes';
 import { hasWall, normalizeWalls, type Wall } from './walls';
@@ -11,8 +12,8 @@ export const seamKey = ({ axis, index }: WarpSeam) => `${axis},${index}`;
 export const nodeKey = ({ x, y, lane }: PathNode) => `${x},${y},${lane}`;
 
 export function validateBoard(board: unknown): asserts board is Board {
-    if (!Array.isArray(board) || board.length < 2 || board.length > 15 ||
-        !Array.isArray(board[0]) || board[0].length < 2 || board[0].length > 15 ||
+    if (!Array.isArray(board) || board.length < 2 || board.length > MAX_BOARD_SIZE ||
+        !Array.isArray(board[0]) || board[0].length < 2 || board[0].length > MAX_BOARD_SIZE ||
         board.some(column => !Array.isArray(column) || column.length !== board[0].length ||
             column.some(value => !Number.isInteger(value) || value < 0 || value > 16))) {
         throw new Error('Invalid board format');

@@ -1,4 +1,5 @@
 import type { GameMode } from './game-modes';
+import { COLOR_PLACEMENT_ORDER } from './color-order';
 import { createPuzzleRandom, generateRectangularPuzzle, validateGeneratorInputs, type GeneratedPuzzle } from './puzzle-generator';
 import { boardToSolution, solutionBoard, validateSolution, type PuzzleSolution } from './solution';
 import { normalizeTopology, topologyGraph, seamKey, type PuzzleTopology } from './topology';
@@ -53,7 +54,8 @@ export function generateModePuzzle(width: number, height: number, mode: GameMode
     } else {
         // A straight route crosses row routes through an interior column.
         // Join two boundary fragments to neighboring row routes to keep the
-        // cover within the editor's 16 colors, even on a 15x15 board.
+        // cover within the editor's colors. Larger boards join row routes
+        // at the border; the vertical crossing route keeps its own color.
         const transpose = random(2) === 1;
         const w = transpose ? height : width, h = transpose ? width : height;
         const column = 2 + random(w - 4);
@@ -77,6 +79,32 @@ export function generateModePuzzle(width: number, height: number, mode: GameMode
         paths.push(Array.from({ length: bottom - top + 1 }, (_, i) =>
             i === 0 || i === bottom - top ? (top + i) * w + column : w * h + i - 1));
 
+        const maxPairs = COLOR_PLACEMENT_ORDER.length;
+        const minPairs = Math.ceil(Math.min(width, height) / 2);
+        const targetPairs = width > maxPairs && height > maxPairs ? minPairs + random(maxPairs - minPairs + 1) : maxPairs;
+        while (paths.length > targetPairs) {
+            let joined = false;
+            for (let a = 0; a < paths.length - 2 && !joined; a++) {
+                for (let b = a + 1; b < paths.length - 1 && !joined; b++) {
+                    for (const reverseA of [false, true]) for (const reverseB of [false, true]) {
+                        if (joined) break;
+                        const end = reverseA ? paths[a][0] : paths[a].at(-1)!;
+                        const start = reverseB ? paths[b].at(-1)! : paths[b][0];
+                        if (!graph.edges[end].includes(start)) continue;
+                        const first = reverseA ? [...paths[a]].reverse() : paths[a];
+                        const second = reverseB ? [...paths[b]].reverse() : paths[b];
+                        paths[a] = [...first, ...second];
+                        paths.splice(b, 1);
+                        joined = true;
+                    }
+                }
+            }
+            if (!joined) {
+                if (paths.length > maxPairs) throw new Error('Could not join bridge row routes');
+                break;
+            }
+        }
+
         const owner = new Int16Array(graph.nodes.length);
         paths.forEach((path, color) => path.forEach(id => { owner[id] = color; }));
         for (let attempt = 0; attempt < graph.nodes.length * 400; attempt++) {
@@ -94,7 +122,7 @@ export function generateModePuzzle(width: number, height: number, mode: GameMode
             if (front) path.unshift(id); else path.push(id);
             owner[id] = color;
         }
-        const colors = paths.map((_, i) => i + 1);
+        const colors = COLOR_PLACEMENT_ORDER.slice(0, paths.length);
         for (let i = colors.length - 1; i > 0; i--) {
             const j = random(i + 1);
             [colors[i], colors[j]] = [colors[j], colors[i]];

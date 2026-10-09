@@ -6,12 +6,19 @@ import { assertTopologySolution } from '../fixtures/assert-topology-solution.mjs
 import type { PuzzleSolution } from '../../src/solver/logic/solution';
 
 const cell = (page: Page, x: number, y: number) => page.locator(`[data-cell="${x},${y}"]`);
+const placementColors = [1, 4, 2, 3, 5, 6, 7, 8, 9, 11, 10, 12, 13, 14, 15, 16];
+function editorFixture(fixture: TopologyFixture): TopologyFixture {
+    return { ...fixture,
+        board: fixture.board.map(column => column.map(color => color ? placementColors[color - 1] : 0)),
+        solution: { ...fixture.solution, paths: fixture.solution.paths.map(path => ({ ...path, color: placementColors[path.color - 1] })) },
+    };
+}
 async function recreate(page: Page, fixture: TopologyFixture) {
     await openBoardOptions(page);
     await page.getByRole('combobox', { name: 'Game Mode' }).selectOption(fixture.mode);
     await page.getByRole('combobox', { name: 'Grid Width' }).selectOption(String(fixture.width));
     await page.getByRole('combobox', { name: 'Grid Height' }).selectOption(String(fixture.height));
-    const colors = [...new Set(fixture.board.flat())].filter(Boolean).sort((a, b) => a - b);
+    const colors = placementColors.filter(color => fixture.board.some(column => column.includes(color)));
     for (const color of colors) for (let y = 0; y < fixture.height; y++) for (let x = 0; x < fixture.width; x++) {
         if (fixture.board[x][y] === color) await cell(page, x, y).click();
     }
@@ -107,7 +114,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
     test(`horizontal bridge arches preserve both lane routes and board position at ${viewport.width}px`, async ({ page }) => {
         await page.setViewportSize(viewport);
         await page.goto('./');
-        const fixture = bridgeCross();
+        const fixture = editorFixture(bridgeCross());
         await recreate(page, fixture);
         await expect(page.getByRole('combobox', { name: 'Bridge on top' })).toHaveCount(0);
         await expect(page.getByRole('button', { name: 'Rotate bridges', exact: true })).toHaveCount(0);
@@ -136,7 +143,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
         }
         await page.screenshot({ path: test.info().outputPath('bridge-editor.png'), fullPage: true });
         await solveAndValidate(page, fixture);
-        await expect(cell(page, 2, 2)).toHaveAccessibleName(/Bridge horizontal on top; vertical Color 1; horizontal Color 2/);
+        await expect(cell(page, 2, 2)).toHaveAccessibleName(/Bridge horizontal on top; vertical Color 1; horizontal Color 4/);
         expect(await rails.evaluateAll(elements => elements.map(element => element.getAttribute('d')))).toEqual(railShapes.map(rail => rail.d));
         // The opaque deck hides the vertical route at the raised crossing,
         // while leaving its continuation visible below the arch.
@@ -178,7 +185,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
     });
 }
 
-for (const fixture of [warpRows(), warpRows(8, 5, true), bridgeCross(), bridgeCross(true)]) {
+for (const fixture of [warpRows(), warpRows(8, 5, true), bridgeCross(), bridgeCross(true)].map(editorFixture)) {
     test(`edit, solve, reload and preserve ${fixture.mode} ${fixture.width}x${fixture.height} through real workers`, async ({ page }) => {
         const errors: string[] = [];
         page.on('pageerror', e => errors.push(e.message));
@@ -259,7 +266,7 @@ test('variant solver worker refuses unsupported algorithms', async ({ page }) =>
     });
     await page.goto('./'); await cell(page, 0, 0).click(); await cell(page, 4, 0).click();
     await page.getByRole('button', { name: 'Solve', exact: true }).click();
-    await expect(page.getByRole('status')).toContainText('requires the C/Wasm solver');
+    await expect(page.getByRole('status')).toContainText('A* does not support this board');
 });
 
 test('mobile bridge editing and warp targets work with touch without page overflow', async ({ browser }) => {
@@ -287,7 +294,7 @@ test('Cancel preserves a variant puzzle and a fresh worker can solve it', async 
         await gate; await route.continue().catch(() => {});
     });
     try {
-        const fixture = bridgeCross();
+        const fixture = editorFixture(bridgeCross());
         await page.goto('./'); await recreate(page, fixture);
         const request = page.waitForRequest(/solver\.worker/);
         await page.getByRole('button', { name: 'Solve', exact: true }).click();
@@ -320,7 +327,7 @@ test('legacy Warps placeholder preserves its old puzzle as the Standard draft', 
     });
     await page.reload(); await openBoardOptions(page);
     await expect(page.getByRole('combobox', { name: 'Game Mode' })).toHaveValue('warps');
-    await expect(page.getByRole('combobox', { name: 'Solver Algorithm' })).toHaveCount(0);
+    await expect(page.getByRole('combobox', { name: 'Solver Algorithm' })).toHaveValue('heuristic_bfs');
     await expect(page.locator('.endpoint-dot')).toHaveCount(0);
     await page.getByRole('button', { name: 'Warps', exact: true }).click();
     await page.getByRole('button', { name: 'Row 3 warp, left', exact: true }).click();

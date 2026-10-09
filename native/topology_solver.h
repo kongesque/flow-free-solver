@@ -1,8 +1,8 @@
 /* Variant graph search. Included by flow_solver.c; shares its color/input contract.
  * This module is covered by the same Matt Zucker CC BY-NC 2.0 exception.
- * It deliberately does not use Standard's packed positions or geometric pruning.
+ * It deliberately does not use Classic's grid positions or geometric pruning.
  */
-#define TOPO_MAX 450
+#define TOPO_MAX (2 * MAX_CELLS)
 #define TOPO_NONE UINT16_MAX
 #define TOPO_NODE_LIMIT 2000000u
 
@@ -122,7 +122,7 @@ const char *solve_puzzle_topology_wasm(const char *board_text, const char *topol
   if (!game_read_buffer(board_text, &info, &state) || !topology_text || strlen(topology_text) > 16384) return invalid;
   topology_search_t *s = calloc(1, sizeof(*s));
   if (!s) return "{\"version\":1,\"status\":\"error\"}";
-  uint8_t bridge[225] = {0}, wall[225] = {0}, rows[15] = {0}, cols[15] = {0};
+  uint8_t bridge[MAX_CELLS] = {0}, wall[MAX_CELLS] = {0}, rows[MAX_SIZE] = {0}, cols[MAX_SIZE] = {0};
   int mode = 0, line_index = 0, valid = 1; unsigned records = 0;
   const char *cursor = topology_text;
   while (*cursor && valid) {
@@ -167,7 +167,7 @@ const char *solve_puzzle_topology_wasm(const char *board_text, const char *topol
   if (!valid || line_index < 2) { free(s); return invalid; }
   s->width = info.width; s->height = info.height; s->area = info.width * info.height; s->count = s->area; s->colors = info.num_colors;
   memset(s->neighbors, 0xff, sizeof(s->neighbors)); memset(s->mate, 0xff, sizeof(s->mate)); memset(s->owner, -1, sizeof(s->owner));
-  uint16_t vertical[225]; memset(vertical, 0xff, sizeof(vertical));
+  uint16_t vertical[MAX_CELLS]; memset(vertical, 0xff, sizeof(vertical));
   for (uint16_t id = 0; id < s->area; id++) if (bridge[id]) {
     if (wall[id]) { free(s); return invalid; }
     vertical[id] = s->count++; s->mate[id] = vertical[id]; s->mate[vertical[id]] = id;

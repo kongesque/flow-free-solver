@@ -11,7 +11,7 @@ const cell = (page: Page, x: number, y: number) => grid(page).getByRole('button'
 
 async function place(page: Page, input: string) {
     const rows = input.trim().split('\n');
-    for (const color of colors.slice(1)) {
+    for (const color of [1, 4, 2, 3, 5, 6, 7, 8, 9, 11, 10, 12, 13, 14, 15, 16].map(id => colors[id])) {
         for (let y = 0; y < rows.length; y++) {
             for (let x = 0; x < rows[y].length; x++) {
                 if (rows[y][x] === color) await cell(page, x, y).click();
@@ -64,7 +64,8 @@ for (const [width, height] of [[5, 5], [5, 8], [8, 5]]) {
         if (width === height) await page.getByRole('combobox', { name: 'Solver Algorithm' }).selectOption('astar');
         await place(page, fixture.input);
         await drawWithKeyboard(page, fixture.walls);
-        await expect(page.getByRole('combobox', { name: 'Solver Algorithm' })).toHaveCount(0);
+        await expect(page.getByRole('combobox', { name: 'Solver Algorithm' })).toHaveValue('heuristic_bfs');
+        await expect(page.getByRole('combobox', { name: 'Solver Algorithm' }).locator('option[value="z3"]')).toHaveCount(1);
         await expect(page.getByRole('button', { name: 'Generate', exact: true })).toBeDisabled();
         await expect.poll(async () => (await saved(page))?.walls?.length).toBe(fixture.walls.length);
         await page.reload();
@@ -170,7 +171,7 @@ test('wall edits invalidate generated solutions and remain invalidated after und
     expect((await saved(page))?.generatedSolution).toBeNull();
 });
 
-for (const requested of ['astar', 'z3', 'malformed']) {
+for (const requested of ['astar', 'malformed']) {
     test(`real solver worker rejects ${requested} wall requests instead of ignoring walls`, async ({ page }) => {
         await page.addInitScript(requested => {
             const Base = window.Worker;
@@ -188,7 +189,7 @@ for (const requested of ['astar', 'z3', 'malformed']) {
         await place(page, fixture.input);
         await drawWithKeyboard(page, fixture.walls);
         await page.getByRole('button', { name: 'Solve', exact: true }).click();
-        await expect(page.getByRole('status')).toContainText(requested === 'malformed' ? 'Invalid wall boundary' : 'Boards with walls require the C/Wasm solver');
+        await expect(page.getByRole('status')).toContainText(requested === 'malformed' ? 'Invalid wall boundary' : 'A* does not support this board');
         await expect(page.getByRole('button', { name: 'Edit', exact: true })).toHaveCount(0);
     });
 }

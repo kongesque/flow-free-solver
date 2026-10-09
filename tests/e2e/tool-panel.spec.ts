@@ -103,7 +103,7 @@ for (const width of [390, 1280]) {
             await page.getByRole('combobox', { name: 'Game Mode' }).selectOption(mode);
             await expect(options).not.toHaveAttribute('open', '');
             await expect(page.getByRole('button', { name: 'Generate', exact: true })).toBeVisible();
-            await expect(page.getByRole('combobox', { name: 'Solver Algorithm' })).toHaveCount(0);
+            await expect(page.getByRole('combobox', { name: 'Solver Algorithm' })).toBeHidden();
             await page.getByRole('button', { name: tool, exact: true }).click();
             await expect(page.getByRole('button', { name: tool, exact: true })).toHaveAttribute('aria-pressed', 'true');
             await expect(page.getByRole('button', { name: tool, exact: true })).toHaveCSS('background-color', 'rgb(48, 57, 55)');

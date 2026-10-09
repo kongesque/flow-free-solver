@@ -53,7 +53,8 @@ for (const [width, height] of [[5, 8], [8, 5], [7, 10], [10, 7]]) {
         await openBoardOptions(page);
         await page.getByRole('combobox', { name: 'Solver Algorithm' }).selectOption('astar');
         await dimensions(page, width, height);
-        await expect(page.getByRole('combobox', { name: 'Solver Algorithm' })).toHaveCount(0);
+        await expect(page.getByRole('combobox', { name: 'Solver Algorithm' })).toHaveValue('heuristic_bfs');
+        await expect(page.getByRole('combobox', { name: 'Solver Algorithm' }).locator('option[value="z3"]')).toHaveCount(1);
         const grid = page.getByRole('article', { name: 'Puzzle Grid Board' });
         const bounds = await grid.boundingBox();
         expect(bounds).not.toBeNull();

@@ -1,6 +1,6 @@
+import { MAX_BOARD_SIZE } from '../logic/board-limits';
 export const DEFAULT_SIZE = 5;
-export const SIZE_OPTIONS = [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
-export const RESTRICT_Z3_TO_LARGE_GRIDS = false;
+export const SIZE_OPTIONS = Array.from({ length: MAX_BOARD_SIZE - 4 }, (_, i) => i + 5);
 
 export const COLORS: Record<number, string> = {
     1: '#FF0000',  // R - Red
@@ -21,7 +21,7 @@ export const COLORS: Record<number, string> = {
     16: '#FFC0CB', // p - Pink
 };
 
-// Display letters are independent of the stable solver color IDs and saved boards.
+// Display letters match Flow Free while solver color IDs and saved boards stay stable.
 export const COLOR_LABELS: Record<number, { letter: string; name: string }> = {
     1: { letter: 'A', name: 'Bright Red' },
     4: { letter: 'B', name: 'Dark Green' },
@@ -41,7 +41,7 @@ export const COLOR_LABELS: Record<number, { letter: string; name: string }> = {
     16: { letter: 'P', name: 'Light Pink' },
 };
 
-export type SolverType = 'astar' | 'z3' | 'heuristic_bfs';
+export type { SolverType } from '../logic/solver-options';
 
 export type DotLabels = 'none' | 'letters';
 export const isDotLabels = (value: unknown): value is DotLabels => value === 'none' || value === 'letters';

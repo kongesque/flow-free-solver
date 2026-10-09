@@ -1,8 +1,10 @@
+import { MAX_BOARD_SIZE } from '../logic/board-limits';
 import { isDotLabels, type DotLabels } from './constants';
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { savePuzzleState, loadPuzzleState, type PuzzleDraft } from '@/hooks/useStorage';
 
-import { DEFAULT_SIZE, RESTRICT_Z3_TO_LARGE_GRIDS, SolverType } from './constants';
+import { DEFAULT_SIZE, SolverType } from './constants';
+import { compatibleSolver } from '../logic/solver-options';
 import SolverHeader from './SolverHeader';
 import PuzzleGrid from './PuzzleGrid';
 import StatusIndicator from './StatusIndicator';
@@ -12,6 +14,7 @@ import { normalizeTopology, validateBoard, seamKey, type Bridge, type WarpSeam, 
 import { boardToSolution, solutionBoard, validateSolution, type PuzzleSolution } from '../logic/solution';
 import type { GeneratedModePuzzle } from '../logic/variant-generator';
 import { type Wall, type EditTool } from '../logic/walls';
+import { nextPlacementColor } from '../logic/color-order';
 
 type EditorSnapshot = { board: number[][]; walls: Wall[]; bridges: Bridge[]; warps: WarpSeam[]; activeColor: number; isPlacingSecond: boolean };
 
@@ -59,7 +62,6 @@ const FlowSolver = () => {
     const [editTool, setEditTool] = useState<EditTool>('dots');
     const isStandard = mode === 'standard';
     const isAvailable = GAME_MODES[mode].available;
-    const wasmOnly = width !== height || !isStandard || walls.length > 0;
     const [board, setBoard] = useState<number[][]>(() => initializeBoard(DEFAULT_SIZE));
     const [solvedBoard, setSolvedBoard] = useState<number[][] | null>(null);
     const [generatedSolution, setGeneratedSolution] = useState<number[][] | null>(null);
@@ -87,10 +89,11 @@ const FlowSolver = () => {
     const restoreDraft = (draft: PuzzleDraft, draftMode: GameMode) => {
         setWidth(draft.width); setHeight(draft.height); setBoard(draft.board);
         setWalls(draft.walls); setBridges(draft.bridges.map(bridge => ({ ...bridge, over: 'horizontal' }))); setWarps(draft.warps);
-        setActiveColor(draft.activeColor); setIsPlacingSecond(draft.isPlacingSecond);
+        const placementColor = countColor(draft.board, draft.activeColor) === 1 ? draft.activeColor : nextPlacementColor(draft.board);
+        setActiveColor(placementColor); setIsPlacingSecond(countColor(draft.board, placementColor) === 1);
         setGeneratedSolution(draft.generatedSolution);
         setGeneratedPathSolution(draft.generatedPathSolution ?? null);
-        setSolverType(draftMode !== 'standard' || draft.width !== draft.height || draft.walls.length ? 'heuristic_bfs' : draft.solverType);
+        setSolverType(compatibleSolver(draft.solverType, draftMode, draft.width, draft.height, draft.walls.length));
     };
 
     // Ignore loads from an earlier mount, including the development StrictMode probe.
@@ -117,7 +120,7 @@ const FlowSolver = () => {
                     const drafts = legacy ? { standard: initial } : { ...saved.drafts, [currentMode]: initial };
                     for (const [key, draft] of Object.entries(drafts)) {
                         if (!draft || !GAME_MODES[key as GameMode]?.available) throw new Error('Invalid saved mode');
-                        if (![draft.width, draft.height].every(n => Number.isInteger(n) && n >= 5 && n <= 15) ||
+                        if (![draft.width, draft.height].every(n => Number.isInteger(n) && n >= 5 && n <= MAX_BOARD_SIZE) ||
                             draft.board.length !== draft.width || draft.board[0]?.length !== draft.height) throw new Error('Invalid saved dimensions');
                         if (!['heuristic_bfs', 'astar', 'z3'].includes(draft.solverType) ||
                             !Number.isInteger(draft.activeColor) || draft.activeColor < 1 || draft.activeColor > 17 ||
@@ -191,10 +194,12 @@ const FlowSolver = () => {
         setIsPlacingSecond(false);
         setError(null);
         setSolveTime(null);
+        const nextSolver = compatibleSolver(solverType, mode, newWidth, newHeight, 0);
+        setSolverType(nextSolver);
         if (invalidSavedWalls) draftsRef.current = {};
         const draft: PuzzleDraft = { width: newWidth, height: newHeight, board: initializeBoard(newWidth, newHeight), walls: [], bridges: [], warps: [],
             activeColor: 1, isPlacingSecond: false, generatedSolution: null,
-            solverType: mode !== 'standard' || newWidth !== newHeight ? 'heuristic_bfs' : solverType };
+            solverType: nextSolver };
         draftsRef.current[mode] = draft; historiesRef.current[mode] = [];
         savePuzzleState({ ...draft, mode, schemaVersion: 2, drafts: draftsRef.current });
         // Re-enable hover preview after React has completed the render cycle
@@ -214,9 +219,6 @@ const FlowSolver = () => {
             !window.confirm('Resize this puzzle? This will clear its endpoints, walls, bridges, warps, and saved solution.')) return;
         setWidth(newWidth);
         setHeight(newHeight);
-        if (newWidth !== newHeight || (RESTRICT_Z3_TO_LARGE_GRIDS && newWidth !== 15)) {
-            setSolverType('heuristic_bfs');
-        }
         resetBoard(newWidth, newHeight);
     };
 
@@ -229,19 +231,13 @@ const FlowSolver = () => {
         setIsSolving(false); setIsGenerating(false); setSolvedBoard(null); setPathSolution(null);
         setError(null); setSolveTime(null); setEditTool('dots');
         const draft = draftsRef.current[next] ?? { width, height, board: initializeBoard(width, height),
-            walls: [], bridges: [], warps: [], solverType: 'heuristic_bfs', activeColor: 1, isPlacingSecond: false, generatedSolution: null };
+            walls: [], bridges: [], warps: [], solverType: compatibleSolver(solverType, next, width, height, 0), activeColor: 1, isPlacingSecond: false, generatedSolution: null };
         restoreDraft(draft, next); setMode(next); setEditHistory(historiesRef.current[next] ?? []);
-        if (next !== 'standard') setSolverType('heuristic_bfs');
     };
 
     const handleSolverTypeChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
         const newType = event.target.value as SolverType;
-        if (wasmOnly && newType !== 'heuristic_bfs') return;
-        if (RESTRICT_Z3_TO_LARGE_GRIDS && newType === 'z3' && (width !== 15 || height !== 15)) {
-            setError('Z3 is for 15x15 only');
-            setSolverType('heuristic_bfs');
-            return;
-        }
+        if (!['astar', 'z3', 'heuristic_bfs'].includes(newType) || compatibleSolver(newType, mode, width, height, walls.length) !== newType) return;
         setSolverType(newType);
         setError(null);
     };
@@ -273,9 +269,8 @@ const FlowSolver = () => {
                 setActiveColor(cellValue);
                 setIsPlacingSecond(true);
             } else if (remaining === 0) {
-                // Both removed - find the lowest incomplete color
-                let lowestIncomplete = 1;
-                while (countColor(newBoard, lowestIncomplete) === 2) lowestIncomplete++;
+                // Both removed - return to the first unfinished letter.
+                const lowestIncomplete = nextPlacementColor(newBoard);
                 setActiveColor(lowestIncomplete);
                 setIsPlacingSecond(countColor(newBoard, lowestIncomplete) === 1);
             }
@@ -286,8 +281,7 @@ const FlowSolver = () => {
             const currentCount = countColor(board, activeColor);
             if (currentCount >= 2) {
                 // Color is complete - find next available
-                let nextColor = activeColor;
-                while (countColor(board, nextColor) >= 2 && nextColor <= 16) nextColor++;
+                const nextColor = nextPlacementColor(board);
                 if (nextColor > 16) return;
                 setActiveColor(nextColor);
                 setIsPlacingSecond(countColor(board, nextColor) === 1);
@@ -298,10 +292,9 @@ const FlowSolver = () => {
 
             if (currentCount === 1) {
                 // This was the 2nd endpoint - advance to next color
-                let nextColor = activeColor + 1;
-                while (countColor(newBoard, nextColor) >= 2 && nextColor <= 16) nextColor++;
+                const nextColor = nextPlacementColor(newBoard);
                 setActiveColor(nextColor);
-                setIsPlacingSecond(false);
+                setIsPlacingSecond(countColor(newBoard, nextColor) === 1);
             } else {
                 // This was the 1st endpoint
                 setIsPlacingSecond(true);
@@ -323,7 +316,7 @@ const FlowSolver = () => {
         if (JSON.stringify(next) === JSON.stringify({ walls, bridges, warps })) return;
         recordEdit(); setWalls(next.walls); setBridges(next.bridges); setWarps(next.warps);
         setGeneratedSolution(null); setGeneratedPathSolution(null); setSolvedBoard(null); setPathSolution(null); setSolveTime(null); setError(null);
-        if (mode !== 'standard' || next.walls.length) setSolverType('heuristic_bfs');
+        setSolverType(compatibleSolver(solverType, mode, width, height, next.walls.length));
     };
     const applyWalls = (next: Wall[]) => applyTopology({ walls: next, bridges, warps });
     const toggleBridge = (x: number, y: number) => applyTopology({ walls, warps, bridges:
@@ -342,7 +335,7 @@ const FlowSolver = () => {
         setGeneratedSolution(null); setGeneratedPathSolution(null);
         setError(null);
         setSolveTime(null);
-        if (previous.walls.length) setSolverType('heuristic_bfs');
+        setSolverType(compatibleSolver(solverType, mode, width, height, previous.walls.length));
         setEditHistory(history => history.slice(0, -1));
     };
 
@@ -401,7 +394,7 @@ const FlowSolver = () => {
                 setEditHistory([]);
                 setGeneratedSolution(puzzle.solution); setGeneratedPathSolution(puzzle.pathSolution);
                 setEditTool('dots'); setSolvedBoard(null); setPathSolution(null); setSolveTime(null);
-                setActiveColor(puzzle.pairCount + 1); setIsPlacingSecond(false);
+                setActiveColor(nextPlacementColor(puzzle.board)); setIsPlacingSecond(false);
             });
     };
 
@@ -440,16 +433,17 @@ const FlowSolver = () => {
             setSolvedBoard(resultBoard); setPathSolution(solution); setSolveTime(performance.now() - startTime);
         };
         runWorker(() => new Worker(new URL('../workers/solver.worker.ts', import.meta.url), { type: 'module' }),
-            { board, type: solverType, mode, walls, bridges, warps }, 'solve',
+            { board, type: solverType, mode, walls, bridges, warps, allowFallback: generatedSolution === null,
+                satCandidate: solverType === 'z3' ? generatedPathSolution : null }, 'solve',
             (result: { board: number[][] | null; solution?: PuzzleSolution | null; timedOut?: boolean; error?: string }) => {
                 if (!result || typeof result !== 'object' || !('board' in result)) throw new Error('Invalid solver response');
                 if (result.board) acceptSolution(result.board, result.solution);
                 else if (generatedSolution && (result.timedOut || /result code 2/.test(result.error ?? ''))) {
                     acceptSolution(generatedSolution, generatedPathSolution);
                 } else if (result.timedOut) {
-                    setError(mode !== 'standard' ? 'Search limit reached. Your puzzle is preserved.' : solverType === 'astar' ? 'Timed out. Try Heuristic BFS.' : 'Timed out (15s limit)');
+                    setError(solverType === 'astar' ? 'Search limit reached. Try Heuristic BFS.' : 'Search limit reached. Your puzzle is preserved.');
                 } else if (result.error) setError('Solver error: ' + result.error);
-                else setError(isStandard && !walls.length && solverType === 'heuristic_bfs' && width === 15 && height === 15 ? 'No solution. Try Z3.' : 'No solution found');
+                else setError('No solution found');
             });
     };
 

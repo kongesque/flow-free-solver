@@ -1,7 +1,7 @@
 import React from 'react';
 import { ChevronDown, Undo2, Trash2 } from 'lucide-react';
 import { GAME_MODES, type GameMode } from '../logic/game-modes';
-import { SIZE_OPTIONS, RESTRICT_Z3_TO_LARGE_GRIDS, SolverType, type DotLabels } from './constants';
+import { SIZE_OPTIONS, SolverType, type DotLabels } from './constants';
 import type { WarpSeam } from '../logic/topology';
 import type { EditTool } from '../logic/walls';
 
@@ -72,7 +72,7 @@ const SolverControls = ({
 }: SolverControlsProps) => {
     const isBusy = isSolving || isGenerating || !isLoaded || invalidSavedWalls;
     const unavailable = !GAME_MODES[mode].available;
-    const wasmOnly = width !== height || mode !== 'standard' || wallCount > 0;
+    const supportsAStar = width === height && mode === 'standard' && wallCount === 0;
     const editingDisabled = isBusy || unavailable || showingSolution;
     const working = isSolving || isGenerating;
     const tools: EditTool[] = ['dots', 'walls', ...(mode === 'bridges' ? ['bridges' as const] : mode === 'warps' ? ['warps' as const] : [])];
@@ -136,14 +136,16 @@ const SolverControls = ({
                                 </label>
                             ))}
                         </div>
-                        {!wasmOnly && <label className="control-field">
+                        <label className="control-field">
                             <span>Solver</span><span className="select-wrap">
                                 <select value={solverType} onChange={onSolverTypeChange} aria-label="Solver Algorithm"
-                                    disabled={isBusy || (RESTRICT_Z3_TO_LARGE_GRIDS && width !== 15)}>
-                                    <option value="heuristic_bfs">Heuristic BFS (recommended)</option><option value="astar">A*</option><option value="z3">SAT (Z3)</option>
+                                    disabled={isBusy || unavailable}>
+                                    <option value="heuristic_bfs">Heuristic BFS (recommended)</option>
+                                    {supportsAStar && <option value="astar">A*</option>}
+                                    <option value="z3">SAT (Z3)</option>
                                 </select><ChevronDown aria-hidden="true" />
                             </span>
-                        </label>}
+                        </label>
                         {!showingSolution && editTool === 'warps' && <div className="wall-context">
                             <div className="warp-actions">
                                 <button type="button" className="control-button" disabled={editingDisabled} onClick={() => onWarpsChange([

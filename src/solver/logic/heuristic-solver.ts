@@ -1,8 +1,10 @@
+import { MAX_BOARD_SIZE } from './board-limits';
 import type { Board } from './astar-solver';
 import { normalizeWalls, type Wall } from './walls';
 import { normalizeTopology, topologyGraph, type PuzzleTopology } from './topology';
 import { validateSolution, type PuzzleSolution } from './solution';
 import type { GameMode } from './game-modes';
+import { SearchLimitError } from './solver-errors';
 
 export const COLOR_CHARS = ['', 'R', 'B', 'Y', 'G', 'O', 'C', 'M', 'm', 'P', 'A', 'W', 'g', 'T', 'b', 'c', 'p'];
 
@@ -15,8 +17,8 @@ let modulePromise: Promise<FlowModule> | undefined;
 export function serializeBoard(board: Board): string {
   const width = board.length;
   const height = board[0]?.length ?? 0;
-  if ([width, height].some(dimension => dimension < 2 || dimension > 15) || board.some(column => column.length !== height)) {
-    throw new Error('The C solver requires a rectangular board with each dimension between 2 and 15.');
+  if ([width, height].some(dimension => dimension < 2 || dimension > MAX_BOARD_SIZE) || board.some(column => column.length !== height)) {
+    throw new Error(`The C solver requires a rectangular board with each dimension between 2 and ${MAX_BOARD_SIZE}.`);
   }
   const counts = new Map<number, number>();
   for (const value of board.flat()) {
@@ -35,6 +37,7 @@ export function serializeBoard(board: Board): string {
 
 export function parseSolution(result: string, width: number, height = width): Board | null {
   if (result.startsWith('Error: No solution found (result code 1)')) return null;
+  if (result === 'Error: No solution found (result code 2)') throw new SearchLimitError();
   if (result.startsWith('Error')) throw new Error(result);
   const rows: unknown = JSON.parse(result);
   if (!Array.isArray(rows) || rows.length !== height || rows.some(row => !Array.isArray(row) || row.length !== width)) {
