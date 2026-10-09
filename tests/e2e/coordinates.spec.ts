@@ -191,7 +191,7 @@ test.describe('Touch placement guides', () => {
         await expect(cell(page, 4, 4)).toHaveAttribute('aria-label', 'Cell 4,4 Color 1');
         await cell(page, 4, 3).tap();
         await expect(page.locator('.endpoint-dot')).toHaveCount(3);
-        await expect(cell(page, 4, 3)).toHaveAttribute('aria-label', 'Cell 4,3 Color 2');
+        await expect(cell(page, 4, 3)).toHaveAttribute('aria-label', 'Cell 4,3 Color 4');
         await page.locator('.board-options summary').click();
         await cell(page, 0, 0).scrollIntoViewIfNeeded();
         await touch(cdp, 'touchStart', await point(page, 1, 1));

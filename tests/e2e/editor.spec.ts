@@ -264,14 +264,14 @@ test('keeps the familiar automatic endpoint sequence and repairs removed pairs',
     await cell(4, 1).click();
     await expect(cell(0, 0, 'Color 1')).toBeVisible();
     await expect(cell(4, 0, 'Color 1')).toBeVisible();
-    await expect(cell(0, 1, 'Color 2')).toBeVisible();
-    await expect(cell(4, 1, 'Color 2')).toBeVisible();
+    await expect(cell(0, 1, 'Color 4')).toBeVisible();
+    await expect(cell(4, 1, 'Color 4')).toBeVisible();
     await cell(0, 0, 'Color 1').click();
     await expect(page.getByRole('status')).toContainText('End');
     await cell(1, 0).click();
     await expect(cell(1, 0, 'Color 1')).toBeVisible();
     await cell(0, 2).click();
-    await expect(cell(0, 2, 'Color 3')).toBeVisible();
+    await expect(cell(0, 2, 'Color 2')).toBeVisible();
 });
 
 test.describe('touch input', () => {

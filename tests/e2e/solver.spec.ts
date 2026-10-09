@@ -8,7 +8,7 @@ const colors = ['', 'R', 'B', 'Y', 'G', 'O', 'C', 'M', 'm', 'P', 'A', 'W', 'g', 
 
 async function placePuzzle(page: Page) {
   const rows = input.trim().split('\n');
-  for (const color of colors.slice(1, 6)) {
+  for (const color of [1, 4, 2, 3, 5].map(id => colors[id])) {
     for (let y = 0; y < 5; y++) {
       for (let x = 0; x < 5; x++) {
         if (rows[y][x] === color) await page.getByRole('button', { name: `Cell ${x},${y} Empty`, exact: true }).click();

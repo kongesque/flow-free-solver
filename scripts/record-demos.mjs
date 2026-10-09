@@ -7,6 +7,7 @@ import { execFileSync } from 'node:child_process';
 import { chromium, expect } from '@playwright/test';
 import { demoPuzzles } from './demo-puzzles.mjs';
 import { assertTopologySolution } from '../tests/fixtures/assert-topology-solution.mjs';
+import { COLOR_PLACEMENT_ORDER } from '../src/solver/logic/color-order.ts';
 
 // Run against npm run dev -- --host 127.0.0.1 --port 4173.
 // Requires the project's installed Chromium and ffmpeg on PATH.
@@ -42,7 +43,7 @@ try {
       };
       const cell = (x, y) => page.locator(`[data-cell="${x},${y}"]`);
       await capture(1);
-      for (const color of [...new Set(puzzle.board.flat())].filter(Boolean).sort((a, b) => a - b)) {
+      for (const color of COLOR_PLACEMENT_ORDER.filter(color => puzzle.board.some(column => column.includes(color)))) {
         for (let y = 0; y < puzzle.height; y++) for (let x = 0; x < puzzle.width; x++) {
           if (puzzle.board[x][y] !== color) continue;
           await cell(x, y).click();

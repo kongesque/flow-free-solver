@@ -1,4 +1,5 @@
 import type { GameMode } from './game-modes';
+import { COLOR_PLACEMENT_ORDER } from './color-order';
 import { createPuzzleRandom, generateRectangularPuzzle, validateGeneratorInputs, type GeneratedPuzzle } from './puzzle-generator';
 import { boardToSolution, solutionBoard, validateSolution, type PuzzleSolution } from './solution';
 import { normalizeTopology, topologyGraph, seamKey, type PuzzleTopology } from './topology';
@@ -94,7 +95,7 @@ export function generateModePuzzle(width: number, height: number, mode: GameMode
             if (front) path.unshift(id); else path.push(id);
             owner[id] = color;
         }
-        const colors = paths.map((_, i) => i + 1);
+        const colors = COLOR_PLACEMENT_ORDER.slice(0, paths.length);
         for (let i = colors.length - 1; i > 0; i--) {
             const j = random(i + 1);
             [colors[i], colors[j]] = [colors[j], colors[i]];

@@ -12,6 +12,7 @@ import { normalizeTopology, validateBoard, seamKey, type Bridge, type WarpSeam, 
 import { boardToSolution, solutionBoard, validateSolution, type PuzzleSolution } from '../logic/solution';
 import type { GeneratedModePuzzle } from '../logic/variant-generator';
 import { type Wall, type EditTool } from '../logic/walls';
+import { nextPlacementColor } from '../logic/color-order';
 
 type EditorSnapshot = { board: number[][]; walls: Wall[]; bridges: Bridge[]; warps: WarpSeam[]; activeColor: number; isPlacingSecond: boolean };
 
@@ -87,7 +88,8 @@ const FlowSolver = () => {
     const restoreDraft = (draft: PuzzleDraft, draftMode: GameMode) => {
         setWidth(draft.width); setHeight(draft.height); setBoard(draft.board);
         setWalls(draft.walls); setBridges(draft.bridges.map(bridge => ({ ...bridge, over: 'horizontal' }))); setWarps(draft.warps);
-        setActiveColor(draft.activeColor); setIsPlacingSecond(draft.isPlacingSecond);
+        const placementColor = countColor(draft.board, draft.activeColor) === 1 ? draft.activeColor : nextPlacementColor(draft.board);
+        setActiveColor(placementColor); setIsPlacingSecond(countColor(draft.board, placementColor) === 1);
         setGeneratedSolution(draft.generatedSolution);
         setGeneratedPathSolution(draft.generatedPathSolution ?? null);
         setSolverType(draftMode !== 'standard' || draft.width !== draft.height || draft.walls.length ? 'heuristic_bfs' : draft.solverType);
@@ -273,9 +275,8 @@ const FlowSolver = () => {
                 setActiveColor(cellValue);
                 setIsPlacingSecond(true);
             } else if (remaining === 0) {
-                // Both removed - find the lowest incomplete color
-                let lowestIncomplete = 1;
-                while (countColor(newBoard, lowestIncomplete) === 2) lowestIncomplete++;
+                // Both removed - return to the first unfinished letter.
+                const lowestIncomplete = nextPlacementColor(newBoard);
                 setActiveColor(lowestIncomplete);
                 setIsPlacingSecond(countColor(newBoard, lowestIncomplete) === 1);
             }
@@ -286,8 +287,7 @@ const FlowSolver = () => {
             const currentCount = countColor(board, activeColor);
             if (currentCount >= 2) {
                 // Color is complete - find next available
-                let nextColor = activeColor;
-                while (countColor(board, nextColor) >= 2 && nextColor <= 16) nextColor++;
+                const nextColor = nextPlacementColor(board);
                 if (nextColor > 16) return;
                 setActiveColor(nextColor);
                 setIsPlacingSecond(countColor(board, nextColor) === 1);
@@ -298,10 +298,9 @@ const FlowSolver = () => {
 
             if (currentCount === 1) {
                 // This was the 2nd endpoint - advance to next color
-                let nextColor = activeColor + 1;
-                while (countColor(newBoard, nextColor) >= 2 && nextColor <= 16) nextColor++;
+                const nextColor = nextPlacementColor(newBoard);
                 setActiveColor(nextColor);
-                setIsPlacingSecond(false);
+                setIsPlacingSecond(countColor(newBoard, nextColor) === 1);
             } else {
                 // This was the 1st endpoint
                 setIsPlacingSecond(true);
@@ -401,7 +400,7 @@ const FlowSolver = () => {
                 setEditHistory([]);
                 setGeneratedSolution(puzzle.solution); setGeneratedPathSolution(puzzle.pathSolution);
                 setEditTool('dots'); setSolvedBoard(null); setPathSolution(null); setSolveTime(null);
-                setActiveColor(puzzle.pairCount + 1); setIsPlacingSecond(false);
+                setActiveColor(nextPlacementColor(puzzle.board)); setIsPlacingSecond(false);
             });
     };
 

@@ -11,7 +11,7 @@ const cell = (page: Page, x: number, y: number) => grid(page).getByRole('button'
 
 async function place(page: Page, input: string) {
     const rows = input.trim().split('\n');
-    for (const color of colors.slice(1)) {
+    for (const color of [1, 4, 2, 3, 5, 6, 7, 8, 9, 11, 10, 12, 13, 14, 15, 16].map(id => colors[id])) {
         for (let y = 0; y < rows.length; y++) {
             for (let x = 0; x < rows[y].length; x++) {
                 if (rows[y][x] === color) await cell(page, x, y).click();

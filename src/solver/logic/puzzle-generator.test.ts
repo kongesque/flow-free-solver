@@ -39,7 +39,7 @@ for (let size = 5; size <= 15; size++) {
             expect(puzzle.board.flat().filter(Boolean)).toHaveLength(size * 2);
             expect(puzzle.pairCount).toBe(size);
             // Three cells or more per path, so pairs never start already connected.
-            for (let color = 1; color <= size; color++) {
+            for (const color of new Set(puzzle.board.flat().filter(Boolean))) {
                 expect(puzzle.solution.flat().filter(c => c === color).length).toBeGreaterThanOrEqual(3);
             }
         }

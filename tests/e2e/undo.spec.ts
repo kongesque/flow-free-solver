@@ -30,7 +30,7 @@ for (const width of [390, 1280]) {
         await cell(page, 0, 0).click();
         await cell(page, 4, 0).click();
         await cell(page, 0, 1).click();
-        await expect(cell(page, 0, 1)).toHaveAttribute('aria-label', 'Cell 0,1 Color 2');
+        await expect(cell(page, 0, 1)).toHaveAttribute('aria-label', 'Cell 0,1 Color 4');
         await selectWallTool(page);
         await cell(page, 0, 0).focus();
         await page.keyboard.press('Shift+ArrowRight');
@@ -42,9 +42,9 @@ for (const width of [390, 1280]) {
         await expect(page.locator('[data-wall]')).toHaveCount(1);
         await undo(page).click(); // Wall stroke.
         await expect(page.locator('[data-wall]')).toHaveCount(0);
-        await expect(cell(page, 0, 1)).toHaveAttribute('aria-label', 'Cell 0,1 Color 2');
+        await expect(cell(page, 0, 1)).toHaveAttribute('aria-label', 'Cell 0,1 Color 4');
         await cell(page, 0, 0).focus();
-        await page.keyboard.press('Control+z'); // First blue endpoint.
+        await page.keyboard.press('Control+z'); // First green endpoint.
         await expect(cell(page, 0, 1)).toHaveAttribute('aria-label', 'Cell 0,1 Empty');
         await page.keyboard.press('Meta+z'); // Second red endpoint.
         await expect(cell(page, 4, 0)).toHaveAttribute('aria-label', 'Cell 4,0 Empty');

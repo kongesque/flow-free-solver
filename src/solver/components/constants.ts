@@ -21,7 +21,7 @@ export const COLORS: Record<number, string> = {
     16: '#FFC0CB', // p - Pink
 };
 
-// Display letters are independent of the stable solver color IDs and saved boards.
+// Display letters match Flow Free while solver color IDs and saved boards stay stable.
 export const COLOR_LABELS: Record<number, { letter: string; name: string }> = {
     1: { letter: 'A', name: 'Bright Red' },
     4: { letter: 'B', name: 'Dark Green' },
