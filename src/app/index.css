@@ -226,6 +226,7 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
   .solver-header { padding-inline: 0; }
   .solver-header p { font-size: clamp(10px, 2.8vw, 11px); }
   .solver-header h1 { letter-spacing: .06em; }
+  .solver-about { font-size: clamp(10px, 2.8vw, 11px); }
 }
 
 @media (max-height: 700px) {

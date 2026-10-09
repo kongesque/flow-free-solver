@@ -162,6 +162,9 @@ test.describe('Touch placement guides', () => {
         await cell(page, 4, 4).tap();
         await expect(page.locator('.endpoint-dot')).toHaveCount(2);
         await expect(cell(page, 4, 4)).toHaveAttribute('aria-label', 'Cell 4,4 Color 1');
+        await cell(page, 4, 3).tap();
+        await expect(page.locator('.endpoint-dot')).toHaveCount(3);
+        await expect(cell(page, 4, 3)).toHaveAttribute('aria-label', 'Cell 4,3 Color 2');
         await cdp.detach();
     });
 

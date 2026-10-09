@@ -263,6 +263,13 @@ const PuzzleGrid = ({
         data-solution={solution ? JSON.stringify(solution) : undefined}
         className={`puzzle-grid ${editingWalls ? 'editing-walls' : ''} ${showBoardGuides && editing && (editTool === 'dots' || editTool === 'bridges') ? 'placing-touch' : ''}`}
         onClick={handleGridClick}
+        onTouchStartCapture={event => {
+            // Treat a new touch as a fresh gesture after pointer capture was cancelled.
+            if (event.touches.length === 1 && !placement.current && !stroke.current) {
+                suppressClickUntil.current = 0;
+                cancelledPlacement.current = null;
+            }
+        }}
         onPointerDown={event => {
             // A fresh gesture must not inherit the previous gesture's compatibility-click guard.
             suppressClickUntil.current = 0;
