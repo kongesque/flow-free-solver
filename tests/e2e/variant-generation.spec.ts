@@ -2,9 +2,10 @@ import { GENERATOR_WORKER_REQUEST } from './worker-requests';
 import { optIntoGenerator } from './board-options';
 import { test, expect, type Page } from '@playwright/test';
 import { openBoardOptions } from './board-options';
-import { assertTopologySolution } from '../fixtures/assert-topology-solution.mjs';
+import { assertInducedTopologySolution as assertTopologySolution } from '../fixtures/assert-topology-solution.mjs';
 import type { PuzzleDraft } from '../../src/hooks/useStorage';
 import type { PuzzleSolution } from '../../src/solver/logic/solution';
+import type { GeneratedModePuzzle } from '../../src/solver/logic/variant-generator';
 
 async function saved(page: Page): Promise<PuzzleDraft> {
     return page.evaluate(async () => {
@@ -130,6 +131,42 @@ for (const mode of ['bridges', 'warps'] as const) {
         expect(paths).toEqual(draft.generatedPathSolution);
         assertTopologySolution({ width: 5, height: 5, board: draft.board, mode, input: '', solution: paths,
             topology: { walls: draft.walls, bridges: draft.bridges, warps: draft.warps } }, paths);
+    });
+}
+
+for (const mode of ['bridges', 'warps'] as const) {
+    test(`${mode} generated and displayed paths keep exact neighbor degrees across seeds`, async ({ page }) => {
+        await page.addInitScript(() => {
+            const state = window as unknown as { generationSeed: number; lastGenerated: unknown };
+            const Original = Worker;
+            window.Worker = class extends Original {
+                constructor(url: string | URL, options?: WorkerOptions) {
+                    super(url, options);
+                    this.addEventListener('message', event => {
+                        if (event.data.puzzle) state.lastGenerated = event.data.puzzle;
+                    });
+                }
+                postMessage(message: any) {
+                    super.postMessage('seed' in message ? { ...message, seed: state.generationSeed } : message);
+                }
+            };
+        });
+        await page.goto('./');
+        await page.getByRole('combobox', { name: 'Game Mode' }).selectOption(mode);
+        for (let seed = 0; seed < 12; seed++) {
+            await page.evaluate(seed => {
+                const state = window as unknown as { generationSeed: number; lastGenerated: unknown };
+                state.generationSeed = seed; state.lastGenerated = null;
+            }, seed);
+            await page.getByRole('button', { name: 'Generate', exact: true }).click();
+            await expect(page.getByRole('status')).toContainText('Generated');
+            const puzzle = await page.evaluate(() => (window as unknown as { lastGenerated: GeneratedModePuzzle }).lastGenerated);
+            const fixture = { ...puzzle, mode, input: '' };
+            assertTopologySolution(fixture, puzzle.pathSolution);
+            await page.getByRole('button', { name: 'Solve', exact: true }).click();
+            await expect(page.getByRole('status')).toContainText('Solved', { timeout: 30_000 });
+            assertTopologySolution(fixture, JSON.parse((await page.locator('.puzzle-grid').getAttribute('data-solution'))!) as PuzzleSolution);
+        }
     });
 }
 

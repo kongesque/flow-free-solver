@@ -11,7 +11,7 @@ import StatusIndicator from './StatusIndicator';
 import SolverControls from './SolverControls';
 import { GAME_MODES, type GameMode } from '../logic/game-modes';
 import { normalizeTopology, validateBoard, seamKey, type Bridge, type WarpSeam, type PuzzleTopology } from '../logic/topology';
-import { boardToSolution, solutionBoard, validateSolution, type PuzzleSolution } from '../logic/solution';
+import { boardToSolution, preferInducedGeneratedSolution, solutionBoard, validateInducedSolution, validateSolution, type PuzzleSolution } from '../logic/solution';
 import type { GeneratedModePuzzle } from '../logic/variant-generator';
 import { type Wall, type EditTool } from '../logic/walls';
 import { nextPlacementColor } from '../logic/color-order';
@@ -393,7 +393,7 @@ const FlowSolver = () => {
                 if (!puzzle) { setError(generationError || 'Could not generate puzzle. Try Generate again.'); return; }
                 if (puzzle.mode !== mode || puzzle.width !== width || puzzle.height !== height) throw new Error('Generator returned a different puzzle mode or size');
                 const topology = normalizeTopology(puzzle.topology, puzzle.board, mode);
-                validateSolution(puzzle.board, topology, puzzle.pathSolution);
+                validateInducedSolution(puzzle.board, topology, puzzle.pathSolution);
                 validateBoard(puzzle.solution);
                 if (JSON.stringify(solutionBoard(puzzle.board, puzzle.pathSolution)) !== JSON.stringify(puzzle.solution) ||
                     puzzle.pairCount !== puzzle.pathSolution.paths.length) throw new Error('Invalid generated solution');
@@ -438,7 +438,8 @@ const FlowSolver = () => {
             const solution = paths ?? boardToSolution(board, resultBoard, topology);
             validateSolution(board, topology, solution);
             if (JSON.stringify(solutionBoard(board, solution)) !== JSON.stringify(resultBoard)) throw new Error('Invalid solution matrix');
-            setSolvedBoard(resultBoard); setPathSolution(solution); setSolveTime(performance.now() - startTime);
+            const display = preferInducedGeneratedSolution(board, topology, solution, generatedPathSolution);
+            setSolvedBoard(solutionBoard(board, display)); setPathSolution(display); setSolveTime(performance.now() - startTime);
         };
         runWorker(() => createRunWorker(solverWorkerUrl),
             { board, type: solverType, mode, walls, bridges, warps, allowFallback: generatedSolution === null,

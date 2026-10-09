@@ -1,6 +1,6 @@
 import { generateModePuzzle } from './variant-generator';
 import { maxGeneratedPairs } from './puzzle-generator';
-import { assertTopologySolution } from '../../../tests/fixtures/assert-topology-solution.mjs';
+import { assertInducedTopologySolution as assertTopologySolution } from '../../../tests/fixtures/assert-topology-solution.mjs';
 
 for (const mode of ['bridges', 'warps'] as const) for (let width = 5; width <= 19; width++) {
     test(`${mode} width ${width}: validates every height, random pair counts and sparse crossings`, () => {
