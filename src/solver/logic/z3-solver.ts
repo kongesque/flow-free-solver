@@ -10,6 +10,9 @@ import { boardToSolution } from './solution';
 
 export async function createZ3Context() {
     const baseUrl = import.meta.env.BASE_URL;
+    // Safari checks COEP on the pthread entry response. Some CDNs omit it
+    // from 304s, so each run gets a fresh script URL while Wasm stays cached.
+    const threadScriptUrl = baseUrl + 'wasm/z3-built.js?worker=' + crypto.randomUUID();
     if (import.meta.env.DEV) console.log('[Z3Solver] Dynamically importing Z3 module');
 
     // dynamic import z3 bc it's huge
@@ -34,7 +37,7 @@ export async function createZ3Context() {
             if (import.meta.env.DEV) console.log(`[Z3Solver] locateFile for unknown: ${path}`);
             return path;
         },
-        mainScriptUrlOrBlob: baseUrl + 'wasm/z3-built.js'
+        mainScriptUrlOrBlob: threadScriptUrl
     });
 
     // Build low-level API from the initialized Emscripten module

@@ -26,6 +26,15 @@
                     "value": "public, max-age=0, must-revalidate"
                 }
             ]
+        },
+        {
+            "source": "/wasm/z3-built.js",
+            "headers": [
+                {
+                    "key": "Cache-Control",
+                    "value": "no-store"
+                }
+            ]
         }
     ]
 }
