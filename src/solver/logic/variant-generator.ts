@@ -1,8 +1,8 @@
 import type { GameMode } from './game-modes';
-import { COLOR_PLACEMENT_ORDER } from './color-order';
+import { generateBridgeCover } from './bridge-generator';
 import { createPuzzleRandom, generateRectangularPuzzle, validateGeneratorInputs, type GeneratedPuzzle } from './puzzle-generator';
 import { boardToSolution, solutionBoard, validateSolution, type PuzzleSolution } from './solution';
-import { normalizeTopology, topologyGraph, seamKey, type PuzzleTopology } from './topology';
+import { normalizeTopology, seamKey, type PuzzleTopology } from './topology';
 
 export type GeneratedModePuzzle = GeneratedPuzzle & {
     mode: GameMode;
@@ -52,86 +52,7 @@ export function generateModePuzzle(width: number, height: number, mode: GameMode
         }
         board = endpoints(width, height, pathSolution);
     } else {
-        // A straight route crosses row routes through an interior column.
-        // Join two boundary fragments to neighboring row routes to keep the
-        // cover within the editor's colors. Larger boards join row routes
-        // at the border; the vertical crossing route keeps its own color.
-        const transpose = random(2) === 1;
-        const w = transpose ? height : width, h = transpose ? width : height;
-        const column = 2 + random(w - 4);
-        const top = random(h - 2), bottom = top + 2 + random(h - top - 2);
-        topology.bridges = Array.from({ length: bottom - top - 1 }, (_, i) => ({
-            x: column, y: top + i + 1, over: 'horizontal' as const,
-        }));
-        const graph = topologyGraph(w, h, topology);
-        const row = (y: number, from = 0, to = w) => Array.from({ length: to - from }, (_, i) => y * w + from + i);
-        const paths: number[][] = [];
-        for (let y = 0; y < h; y++) {
-            if (y === top) paths.push(row(y, column + 1));
-            else if (y === bottom) paths.push(row(y, 0, column));
-            else {
-                let path = row(y);
-                if (y === top + 1) path = [...row(top, 0, column).reverse(), ...path];
-                if (y === bottom - 1) path = [...path, ...row(bottom, column + 1).reverse()];
-                paths.push(path);
-            }
-        }
-        paths.push(Array.from({ length: bottom - top + 1 }, (_, i) =>
-            i === 0 || i === bottom - top ? (top + i) * w + column : w * h + i - 1));
-
-        const maxPairs = COLOR_PLACEMENT_ORDER.length;
-        const minPairs = Math.ceil(Math.min(width, height) / 2);
-        const targetPairs = width > maxPairs && height > maxPairs ? minPairs + random(maxPairs - minPairs + 1) : maxPairs;
-        while (paths.length > targetPairs) {
-            let joined = false;
-            for (let a = 0; a < paths.length - 2 && !joined; a++) {
-                for (let b = a + 1; b < paths.length - 1 && !joined; b++) {
-                    for (const reverseA of [false, true]) for (const reverseB of [false, true]) {
-                        if (joined) break;
-                        const end = reverseA ? paths[a][0] : paths[a].at(-1)!;
-                        const start = reverseB ? paths[b].at(-1)! : paths[b][0];
-                        if (!graph.edges[end].includes(start)) continue;
-                        const first = reverseA ? [...paths[a]].reverse() : paths[a];
-                        const second = reverseB ? [...paths[b]].reverse() : paths[b];
-                        paths[a] = [...first, ...second];
-                        paths.splice(b, 1);
-                        joined = true;
-                    }
-                }
-            }
-            if (!joined) {
-                if (paths.length > maxPairs) throw new Error('Could not join bridge row routes');
-                break;
-            }
-        }
-
-        const owner = new Int16Array(graph.nodes.length);
-        paths.forEach((path, color) => path.forEach(id => { owner[id] = color; }));
-        for (let attempt = 0; attempt < graph.nodes.length * 400; attempt++) {
-            const color = random(paths.length), path = paths[color], front = random(2) === 0;
-            const end = front ? path[0] : path.at(-1)!;
-            const adjacent = graph.edges[end], id = adjacent[random(adjacent.length)];
-            const donorColor = owner[id], donor = paths[donorColor];
-            if (donorColor === color || donor.length <= 3 || graph.nodes[id].lane !== 'cell') continue;
-            const donorFront = donor[0] === id;
-            if (!donorFront && donor.at(-1) !== id) continue;
-            // An endpoint may never stop on one of the crossing's lanes.
-            const next = donorFront ? donor[1] : donor[donor.length - 2];
-            if (graph.nodes[next].lane !== 'cell' || graph.edges[id].filter(n => owner[n] === color).length !== 1) continue;
-            if (donorFront) donor.shift(); else donor.pop();
-            if (front) path.unshift(id); else path.push(id);
-            owner[id] = color;
-        }
-        const colors = COLOR_PLACEMENT_ORDER.slice(0, paths.length);
-        for (let i = colors.length - 1; i > 0; i--) {
-            const j = random(i + 1);
-            [colors[i], colors[j]] = [colors[j], colors[i]];
-        }
-        pathSolution = { version: 1, paths: paths.map((path, i) => ({ color: colors[i], nodes: path.map(id => {
-            const node = graph.nodes[id];
-            return transpose ? { x: node.y, y: node.x, lane: node.lane === 'cell' ? 'cell' : node.lane === 'horizontal' ? 'vertical' : 'horizontal' } : { ...node };
-        }) })) };
-        if (transpose) topology.bridges = topology.bridges.map(({ x, y }) => ({ x: y, y: x, over: 'horizontal' }));
+        ({ topology, pathSolution } = generateBridgeCover(width, height, random));
         board = endpoints(width, height, pathSolution);
     }
     topology = normalizeTopology(topology, board, mode);

@@ -30,6 +30,11 @@ export function createPuzzleRandom(seed: number): (limit: number) => number {
     };
 }
 
+/** Match the board's usual color limit, capped by the editor's palette. */
+export function maxGeneratedPairs(width: number, height: number): number {
+    return Math.min(COLOR_PLACEMENT_ORDER.length, Math.max(width, height));
+}
+
 /** Build a full path cover, then expose only each path's two endpoints.
  * Moving a cell between path endpoints preserves coverage and connectivity.
  * The degree check prevents paths from touching themselves or branching.
@@ -44,23 +49,15 @@ export function generateRectangularPuzzle(width: number, height: number, seed = 
         return [x > 0 ? cell - 1 : -1, x < width - 1 ? cell + 1 : -1,
             y > 0 ? cell - width : -1, y < height - 1 ? cell + width : -1].filter(n => n >= 0);
     });
-    const maxPairs = COLOR_PLACEMENT_ORDER.length;
-    let vertical = random(2) === 1;
-    if (width > maxPairs && height <= maxPairs) vertical = false;
-    if (height > maxPairs && width <= maxPairs) vertical = true;
-    const paths = width > maxPairs && height > maxPairs ? ringCover(width, height) :
-        Array.from({ length: vertical ? width : height }, (_, line) =>
-            Array.from({ length: vertical ? height : width }, (_, offset) => vertical ? offset * width + line : line * width + offset));
-    // Large boards start from an induced ring cover. Split its paths to vary
-    // the pair count up to the full palette without losing a known solution.
-    if (width > maxPairs && height > maxPairs) {
-        const target = paths.length + random(maxPairs - paths.length + 1);
-        while (paths.length < target) {
-            const candidates = paths.map((path, index) => path.length >= 6 ? index : -1).filter(index => index >= 0);
-            const index = candidates[random(candidates.length)];
-            const path = paths[index], cut = 3 + random(path.length - 5);
-            paths.splice(index, 1, path.slice(0, cut), path.slice(cut));
-        }
+    const paths = ringCover(width, height);
+    // Every size varies its pair count. Splitting an induced cover preserves
+    // solvability without merging rows into paths that touch themselves.
+    const target = paths.length + random(maxGeneratedPairs(width, height) - paths.length + 1);
+    while (paths.length < target) {
+        const candidates = paths.map((path, index) => path.length >= 6 ? index : -1).filter(index => index >= 0);
+        const index = candidates[random(candidates.length)];
+        const path = paths[index], cut = 3 + random(path.length - 5);
+        paths.splice(index, 1, path.slice(0, cut), path.slice(cut));
     }
     const pairCount = paths.length;
     const owner = new Int16Array(width * height);
@@ -77,7 +74,7 @@ export function generateRectangularPuzzle(width: number, height: number, seed = 
         const donorColor = owner[cell];
         if (donorColor === color) continue;
         const donor = paths[donorColor];
-        // Keep at least three cells per pair, with distinct, non-adjacent endpoints.
+        // Donating paths retain at least three cells; a center pair may start with two.
         if (donor.length <= 3) continue;
         const donorFront = donor[0] === cell;
         if (!donorFront && donor[donor.length - 1] !== cell) continue;
@@ -105,7 +102,7 @@ export function generateRectangularPuzzle(width: number, height: number, seed = 
     return { width, height, board, solution, seed, pairCount };
 }
 
-/** Nested open rings cover large boards with at most 11 colors. Each ring
+/** Nested open rings cover a board with at most 11 colors. Each ring
  * leaves one cell for the next path, preventing a cycle or self-touching.
  */
 function ringCover(width: number, height: number): number[][] {

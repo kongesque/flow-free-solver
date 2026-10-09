@@ -43,7 +43,8 @@ test('Z3 selection survives walls, rectangular resizing, mode changes and reload
 test('generated 17x17, 18x18 and 19x19 puzzles in every mode solve with actual Z3 verification', async ({ page }) => {
     test.setTimeout(120_000);
     page.on('dialog', dialog => dialog.accept());
-    const requests: string[] = [], errors: string[] = [];
+    const requests: string[] = [], workers: string[] = [], errors: string[] = [];
+    page.on('worker', worker => workers.push(worker.url()));
     page.on('request', request => requests.push(request.url())); page.on('pageerror', error => errors.push(error.message));
     await page.addInitScript(() => {
         Object.defineProperty(crypto, 'getRandomValues', { value: (array: Uint32Array) => { array[0] = 42; return array; } });
@@ -72,6 +73,12 @@ test('generated 17x17, 18x18 and 19x19 puzzles in every mode solve with actual Z
     }
     expect(requests.some(url => url.includes('z3-built.wasm'))).toBe(true);
     expect(requests.some(url => url.includes('flow_solver_c.wasm'))).toBe(false);
+    for (const name of ['generator', 'solver']) {
+        const scripts = workers.filter(url => url.includes(`${name}.worker`));
+        expect(scripts).toHaveLength(9);
+        expect(new Set(scripts).size).toBe(9);
+        for (const script of scripts) expect(new URL(script).searchParams.get('run')).toBeTruthy();
+    }
     expect(errors).toEqual([]);
 });
 

@@ -35,6 +35,15 @@
                     "value": "no-store"
                 }
             ]
+        },
+        {
+            "source": "/assets/:file(.*\\.worker-.*\\.js)",
+            "headers": [
+                {
+                    "key": "Cache-Control",
+                    "value": "no-store"
+                }
+            ]
         }
     ]
 }

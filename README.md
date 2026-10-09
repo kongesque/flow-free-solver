@@ -45,7 +45,8 @@ the board. Each mode saves its own puzzle on your device.
 Select **Generate** to create a puzzle in any supported mode. Remove existing
 walls before generating a new puzzle.
 
-17×17, 18×18, and 19×19 generation varies the number of pairs up to 16 colors.
+Every board size generates a random number of pairs within its color limit,
+capped at 16. Bridges puzzles use 1–3 spaced crossings.
 Every generated puzzle has a validated full-board solution.
 
 ### Editor tools
@@ -73,7 +74,7 @@ Ctrl/⌘ + Z undoes the last edit.
 
 ## Solver algorithms
 
-**Heuristic BFS** is the default solver. **SAT (Z3)** is available in Board
+**Heuristic BFS** is the default solver. **Z3 SAT (exact solver)** is available in Board
 options for Classic, walls, Bridges, and Warps on square or rectangular boards
 from 5×5 to 19×19. **A\*** is available for Classic square boards without walls.
 
@@ -85,7 +86,7 @@ a search timeout preserves the editable puzzle.
 | --- | --- |
 | **Heuristic BFS** | C compiled to WebAssembly, adapted from [Matt Zucker's flow_solver](https://github.com/mzucker/flow_solver). |
 | **A\*** | Heuristic search written in TypeScript. |
-| **SAT (Z3)** | Constraint solving with [Z3](https://github.com/Z3Prover/z3), compiled to WebAssembly. |
+| **Z3 SAT (exact solver)** | Constraint solving with [Z3](https://github.com/Z3Prover/z3), compiled to WebAssembly. |
 
 All solvers run in background Web Workers so the editor stays responsive.
 

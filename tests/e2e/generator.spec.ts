@@ -29,10 +29,13 @@ async function generate(page: Page, size: number) {
         page.once('dialog', dialog => dialog.accept());
     }
     await page.getByRole('button', { name: 'Generate', exact: true }).click();
-    await expect(page.getByRole('status')).toContainText(`Generated · ${size} pairs`);
+    await expect(page.getByRole('status')).toContainText('Generated');
     const board = await readGrid(page, size);
-    expect(board.flat().filter(Boolean)).toHaveLength(size * 2);
-    for (const color of [1, 4, 2, 3, 5, 6, 7, 8, 9, 11, 10, 12, 13, 14, 15, 16].slice(0, size)) {
+    const pairCount = new Set(board.flat().filter(Boolean)).size;
+    expect(pairCount).toBeLessThanOrEqual(Math.min(16, size));
+    expect(board.flat().filter(Boolean)).toHaveLength(pairCount * 2);
+    await expect(page.getByRole('status')).toContainText(`Generated · ${pairCount} pairs`);
+    for (const color of [1, 4, 2, 3, 5, 6, 7, 8, 9, 11, 10, 12, 13, 14, 15, 16].slice(0, pairCount)) {
         expect(board.flat().filter(c => c === color)).toHaveLength(2);
     }
     return board;
@@ -86,7 +89,9 @@ for (const algorithm of ['heuristic_bfs', 'astar', 'z3']) {
         await page.getByRole('button', { name: 'Generate', exact: true }).click();
         await expect(page.getByRole('status')).toContainText('Generated');
         await expect(page.getByRole('button', { name: 'Solve', exact: true })).toBeVisible();
-        expect((await readGrid(page, 5)).flat().filter(Boolean)).toHaveLength(10);
+        const next = (await readGrid(page, 5)).flat().filter(Boolean);
+        expect(next.length).toBe(new Set(next).size * 2);
+        expect(new Set(next).size).toBeLessThanOrEqual(5);
     });
 }
 
@@ -257,7 +262,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
             expect((await readGrid(page, 5)).flat().filter(color => color === pendingColor)).toHaveLength(2);
             page.once('dialog', dialog => dialog.accept());
             await page.getByRole('button', { name: 'Generate', exact: true }).click();
-            await expect(page.getByRole('status')).toContainText('Generated · 5 pairs');
+            await expect(page.getByRole('status')).toContainText('Generated');
             expect(workers).toBe(previousWorkers + 1);
             const generated = await readGrid(page, 5);
             await solve(page);
