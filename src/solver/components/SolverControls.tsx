@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronDown, Undo2, Brush } from 'lucide-react';
+import { ChevronDown, Undo2, Trash2 } from 'lucide-react';
 import { GAME_MODES, type GameMode } from '../logic/game-modes';
 import { SIZE_OPTIONS, RESTRICT_Z3_TO_LARGE_GRIDS, SolverType, type DotLabels } from './constants';
 import type { WarpSeam } from '../logic/topology';
@@ -172,7 +172,7 @@ const SolverControls = ({
                     <button type="button" className="control-button icon-action undo-action" disabled={!canUndo || editingDisabled} onClick={onUndo}
                         aria-label="Undo" aria-keyshortcuts="Control+Z Meta+Z" title="Undo last edit (Ctrl+Z / ⌘Z)"><Undo2 aria-hidden="true" /></button>
                     <button type="button" className="control-button icon-action reset-action" onClick={onReset} disabled={!isLoaded || unavailable}
-                        aria-label="Reset" title="Reset puzzle"><Brush aria-hidden="true" /></button>
+                        aria-label="Reset" title="Reset puzzle"><Trash2 aria-hidden="true" /></button>
                 </div>
             </div>
             <div className="solver-about selectable-text">
