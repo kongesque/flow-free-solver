@@ -333,6 +333,7 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
 .seam-target[data-axis="vertical"]::after { left: 32%; right: 32%; height: 1px; top: 50%; }
 .seam-target.paired { background: rgb(43 158 168 / .1); outline: 1px solid var(--color-stoic-accent); outline-offset: -1px; }
 
+.settings-toggles { display: grid; gap: 0; }
 .label-setting { text-align: left; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; cursor: pointer; }
 .label-setting-title { display: block; font-size: 12px; color: var(--color-stoic-primary); }
 .label-setting input { appearance: none; flex-shrink: 0; width: 32px; height: 18px; margin: 0; padding: 2px; border: 1px solid var(--color-stoic-block-border); border-radius: 10px; background: var(--color-stoic-block-bg); cursor: pointer; transition: background-color .15s, border-color .15s; }

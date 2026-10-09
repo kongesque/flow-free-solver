@@ -149,14 +149,16 @@ const SolverControls = ({
                                     ...warps.filter(w => w.axis !== 'vertical'), ...Array.from({ length: width }, (_, index) => ({ axis: 'vertical' as const, index }))])}>Open all top/bottom</button>
                             </div>
                         </div>}
-                        <label className="label-setting">
-                            <span className="label-setting-title">Color label</span>
-                            <input type="checkbox" role="switch" aria-label="Color label" checked={dotLabels === 'letters'} onChange={event => onDotLabelsChange(event.target.checked ? 'letters' : 'none')} />
-                        </label>
-                        <label className="label-setting">
-                            <span className="label-setting-title">Puzzle generator</span>
-                            <input type="checkbox" role="switch" aria-label="Puzzle generator" checked={showGenerator} onChange={event => onShowGeneratorChange(event.target.checked)} />
-                        </label>
+                        <div className="settings-toggles">
+                            <label className="label-setting">
+                                <span className="label-setting-title">Color label</span>
+                                <input type="checkbox" role="switch" aria-label="Color label" checked={dotLabels === 'letters'} onChange={event => onDotLabelsChange(event.target.checked ? 'letters' : 'none')} />
+                            </label>
+                            <label className="label-setting">
+                                <span className="label-setting-title">Puzzle generator</span>
+                                <input type="checkbox" role="switch" aria-label="Puzzle generator" checked={showGenerator} onChange={event => onShowGeneratorChange(event.target.checked)} />
+                            </label>
+                        </div>
                     </fieldset>
                 </details>
                 <div className="edit-history" role="group" aria-label="Edit history">
