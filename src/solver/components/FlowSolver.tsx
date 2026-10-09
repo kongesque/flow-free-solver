@@ -15,6 +15,15 @@ import { boardToSolution, solutionBoard, validateSolution, type PuzzleSolution }
 import type { GeneratedModePuzzle } from '../logic/variant-generator';
 import { type Wall, type EditTool } from '../logic/walls';
 import { nextPlacementColor } from '../logic/color-order';
+import generatorWorkerUrl from '../workers/generator.worker.ts?worker&url';
+import solverWorkerUrl from '../workers/solver.worker.ts?worker&url';
+
+const createRunWorker = (source: string) => {
+    const url = new URL(source, window.location.href);
+    // Avoid older cached responses whose 304 metadata loses COEP on Safari.
+    url.searchParams.set('run', crypto.randomUUID());
+    return new Worker(url, { type: 'module' });
+};
 
 type EditorSnapshot = { board: number[][]; walls: Wall[]; bridges: Bridge[]; warps: WarpSeam[]; activeColor: number; isPlacingSecond: boolean };
 
@@ -341,7 +350,6 @@ const FlowSolver = () => {
 
     // Every exit releases the worker and busy state. Late events from a cancelled
     // mode are ignored, and invalid responses never reach React's render path.
-    // Factories keep Vite's required new Worker(new URL(...)) pattern intact.
     const runWorker = <T,>(createWorker: () => Worker, request: unknown, operation: 'solve' | 'generate', onResult: (result: T) => void) => {
         workerRef.current?.terminate();
         workerRef.current = null;
@@ -379,7 +387,7 @@ const FlowSolver = () => {
         if (!generatedSolution && (board.flat().some(Boolean) || bridges.length || warps.length) &&
             !window.confirm(isStandard ? 'Replace your endpoints with a generated puzzle?' : 'Replace your puzzle with a generated puzzle?')) return;
         setError(null);
-        runWorker(() => new Worker(new URL('../workers/generator.worker.ts', import.meta.url), { type: 'module' }),
+        runWorker(() => createRunWorker(generatorWorkerUrl),
             { width, height, mode, walls, seed: crypto.getRandomValues(new Uint32Array(1))[0] }, 'generate',
             ({ puzzle, error: generationError }: { puzzle?: GeneratedModePuzzle; error?: string }) => {
                 if (!puzzle) { setError(generationError || 'Could not generate puzzle. Try Generate again.'); return; }
@@ -432,7 +440,7 @@ const FlowSolver = () => {
             if (JSON.stringify(solutionBoard(board, solution)) !== JSON.stringify(resultBoard)) throw new Error('Invalid solution matrix');
             setSolvedBoard(resultBoard); setPathSolution(solution); setSolveTime(performance.now() - startTime);
         };
-        runWorker(() => new Worker(new URL('../workers/solver.worker.ts', import.meta.url), { type: 'module' }),
+        runWorker(() => createRunWorker(solverWorkerUrl),
             { board, type: solverType, mode, walls, bridges, warps, allowFallback: generatedSolution === null,
                 satCandidate: solverType === 'z3' ? generatedPathSolution : null }, 'solve',
             (result: { board: number[][] | null; solution?: PuzzleSolution | null; timedOut?: boolean; error?: string }) => {
