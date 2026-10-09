@@ -1,3 +1,4 @@
+import { GENERATOR_WORKER_REQUEST, SOLVER_WORKER_REQUEST } from './worker-requests';
 import { expect, test, type Page } from '@playwright/test';
 import { openBoardOptions } from './board-options';
 import { assertTopologySolution } from '../fixtures/assert-topology-solution.mjs';
@@ -81,7 +82,7 @@ test('a malformed solve response leaves the board usable and a real worker can r
     await page.addInitScript(() => localStorage.setItem('flow-show-generator', 'true'));
     await page.goto('./');
     const draft = await generate(page);
-    await page.route(/solver\.worker/, route => route.fulfill({
+    await page.route(SOLVER_WORKER_REQUEST, route => route.fulfill({
         contentType: 'text/javascript', headers: { 'Cross-Origin-Embedder-Policy': 'require-corp' },
         body: 'self.onmessage = () => self.postMessage({ board: [[1]] });',
     }));
@@ -90,7 +91,7 @@ test('a malformed solve response leaves the board usable and a real worker can r
     await expect(button(page, 'Solve')).toBeEnabled();
     await expect(page.locator('.endpoint-dot')).toHaveCount(draft.generatedPathSolution!.paths.length * 2);
     expect(errors).toEqual([]);
-    await page.unroute(/solver\.worker/);
+    await page.unroute(SOLVER_WORKER_REQUEST);
     await solve(page, draft);
     expect(errors).toEqual([]);
 });
@@ -129,7 +130,7 @@ for (const operation of ['Solve', 'Generate'] as const) {
         });
         await page.goto('./');
         const standard = operation === 'Solve' ? await generate(page) : null;
-        const workerURL = operation === 'Solve' ? /solver\.worker/ : /generator\.worker/;
+        const workerURL = operation === 'Solve' ? SOLVER_WORKER_REQUEST : GENERATOR_WORKER_REQUEST;
         let release!: () => void;
         const gate = new Promise<void>(resolve => { release = resolve; });
         await page.route(workerURL, async route => {
