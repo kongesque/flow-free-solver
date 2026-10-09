@@ -127,6 +127,12 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
 .solver-workspace { width: min(100%, var(--board-space)); flex: none; display: flex; flex-direction: column; gap: var(--workspace-gap); }
 .board-area { min-width: 0; width: var(--play-area-size); margin-inline: calc((100% - var(--play-area-size)) / 2); aspect-ratio: 1; display: grid; place-items: center; }
 .board-viewport { width: 100%; height: 100%; display: grid; place-items: center; min-width: 0; }
+.puzzle-grid-frame { position: relative; margin-inline: auto; }
+.board-coordinates { position: absolute; display: grid; pointer-events: none; color: var(--color-stoic-secondary); font-size: 11px; line-height: 14px; }
+.board-coordinates span { display: flex; align-items: center; justify-content: center; }
+.board-coordinates .coordinate-active { color: var(--color-stoic-accent); }
+.board-columns { top: -17px; left: 0; right: 0; height: 14px; }
+.board-rows { left: -16px; top: 0; bottom: 0; width: 14px; }
 .puzzle-grid {
   position: relative;
   display: grid;
@@ -135,7 +141,7 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
   background: var(--color-stoic-line);
   border-radius: 3px;
   overflow: hidden;
-  width: var(--grid-width);
+  width: 100%;
   margin-inline: auto;
 }
 .wall-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3; }
@@ -149,6 +155,10 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
 .puzzle-grid button { position: relative; }
 .puzzle-grid button:active:not(:disabled) { background: #252b29; }
 .puzzle-grid button:focus-visible { outline-offset: -3px; z-index: 1; }
+.puzzle-grid button.cell-guide { background: color-mix(in srgb, var(--color-stoic-block-bg) 92%, var(--color-stoic-accent)); }
+.puzzle-grid button.cell-guide-active { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-stoic-accent) 50%, transparent); }
+.puzzle-grid button.touch-preview .endpoint-preview, .puzzle-grid button:focus-visible .endpoint-preview { opacity: .4; }
+.puzzle-grid.placing-touch { touch-action: none; }
 .puzzle-grid button:disabled { opacity: 1; cursor: default; }
 .endpoint-preview { opacity: 0; }
 @media (hover: hover) and (pointer: fine) {
@@ -225,7 +235,7 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
 @media (max-width: 600px) and (orientation: portrait) {
   /* Browser toolbars change viewport height; keep the portrait play area tied to width. */
   .solver-shell {
-    --board-space: calc(100vw - 4px);
+    --board-space: calc(100vw - var(--shell-left) - var(--shell-right));
     --play-area-size: var(--board-space);
     --shell-top: max(28px, env(safe-area-inset-top));
     --workspace-gap: 12px;

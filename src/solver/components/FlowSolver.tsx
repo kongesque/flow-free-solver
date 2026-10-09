@@ -36,6 +36,13 @@ const FlowSolver = () => {
     const [dotLabels, setDotLabels] = useState<DotLabels>(() => {
         try { const saved = localStorage.getItem('flow-dot-labels'); return isDotLabels(saved) ? saved : 'none'; } catch { return 'none'; }
     });
+    const [showCoordinates, setShowCoordinates] = useState(() => {
+        try { return localStorage.getItem('flow-coordinates') === 'true'; } catch { return false; }
+    });
+    const changeCoordinates = (value: boolean) => {
+        setShowCoordinates(value);
+        try { localStorage.setItem('flow-coordinates', String(value)); } catch { /* Retain the session preference. */ }
+    };
     const changeDotLabels = (value: DotLabels) => {
         setDotLabels(value);
         setError(null);
@@ -483,6 +490,7 @@ const FlowSolver = () => {
                             width={width}
                             height={height}
                             dotLabels={dotLabels}
+                            showCoordinates={showCoordinates}
                             activeColor={activeColor}
                             currentBoard={currentBoard}
                             solvedBoard={solvedBoard}
@@ -501,6 +509,8 @@ const FlowSolver = () => {
                 </section>
                 <section aria-label="Game Controls" className="game-controls">
                     <SolverControls
+                        showCoordinates={showCoordinates}
+                        onCoordinatesChange={changeCoordinates}
                         showGenerator={showGenerator} onShowGeneratorChange={changeShowGenerator}
                         dotLabels={dotLabels} onDotLabelsChange={changeDotLabels}
                         onEdit={() => { setSolvedBoard(null); setPathSolution(null); setSolveTime(null); setError(null); }}

@@ -13,6 +13,8 @@ const toolGlyphs: Record<EditTool, React.ReactNode> = {
 };
 
 interface SolverControlsProps {
+    showCoordinates: boolean;
+    onCoordinatesChange: (value: boolean) => void;
     showGenerator: boolean;
     onShowGeneratorChange: (value: boolean) => void;
     dotLabels: DotLabels;
@@ -46,6 +48,7 @@ interface SolverControlsProps {
 }
 
 const SolverControls = ({
+    showCoordinates, onCoordinatesChange,
     dotLabels, onDotLabelsChange, showGenerator, onShowGeneratorChange,
     onEdit,
     width,
@@ -150,6 +153,10 @@ const SolverControls = ({
                             </div>
                         </div>}
                         <div className="settings-toggles">
+                            <label className="label-setting">
+                                <span className="label-setting-title">Coordinates</span>
+                                <input type="checkbox" role="switch" aria-label="Coordinates" checked={showCoordinates} onChange={event => onCoordinatesChange(event.target.checked)} />
+                            </label>
                             <label className="label-setting">
                                 <span className="label-setting-title">Color label</span>
                                 <input type="checkbox" role="switch" aria-label="Color label" checked={dotLabels === 'letters'} onChange={event => onDotLabelsChange(event.target.checked ? 'letters' : 'none')} />

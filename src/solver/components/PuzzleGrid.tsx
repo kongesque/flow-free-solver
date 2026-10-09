@@ -7,6 +7,7 @@ import { wallAtPoint, wallBetween, wallKey, type Wall, type EditTool } from '../
 
 interface PuzzleGridProps {
     dotLabels: DotLabels;
+    showCoordinates: boolean;
     width: number;
     height: number;
     currentBoard: number[][];
@@ -28,6 +29,7 @@ interface PuzzleGridProps {
 
 const PuzzleGrid = ({
     dotLabels,
+    showCoordinates,
     width,
     height,
     currentBoard,
@@ -44,34 +46,59 @@ const PuzzleGrid = ({
     const [preview, setPreview] = useState<Wall | null>(null);
     const [draft, setDraft] = useState<Wall[] | null>(null);
     const [announcement, setAnnouncement] = useState('');
+    const [guideCell, setGuideCell] = useState<[number, number] | null>(null);
+    const [touchPreview, setTouchPreview] = useState(false);
+    const [coordinateStep, setCoordinateStep] = useState({ column: 1, row: 1 });
+    const placement = useRef<{ pointerId: number; tool: 'dots' | 'bridges' } | null>(null);
+    const suppressClickUntil = useRef(0);
     const stroke = useRef<{ pointerId: number; adding: boolean; walls: Wall[]; seen: Set<string>; point: [number, number]; side: Wall['side'] } | null>(null);
     const editingWalls = editTool === 'walls' && !isSolving && !solvedBoard;
+    const editing = !isSolving && !solvedBoard;
     const visibleWalls = draft ?? walls;
     const cancelStroke = useCallback(() => {
-        const pointerId = stroke.current?.pointerId;
+        const pointerId = stroke.current?.pointerId ?? placement.current?.pointerId;
         stroke.current = null;
+        placement.current = null;
         if (pointerId !== undefined && gridRef.current?.hasPointerCapture(pointerId)) {
             gridRef.current.releasePointerCapture(pointerId);
         }
         setDraft(null);
         setPreview(null);
+        setGuideCell(null);
+        setTouchPreview(false);
     }, []);
     // Cancel an in-flight stroke when the board or its screen geometry changes.
     useEffect(() => {
         cancelStroke();
         setHighlightSeam(null);
-    }, [cancelStroke, walls, width, height, editTool, isSolving, solvedBoard]);
+    }, [cancelStroke, walls, width, height, editTool, isSolving, solvedBoard, isResetting]);
     useEffect(() => {
         const grid = gridRef.current;
         if (!grid) return;
-        window.addEventListener('resize', cancelStroke);
-        const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(cancelStroke);
+        let previous: DOMRect | null = null;
+        const resize = () => {
+            const bounds = grid.getBoundingClientRect();
+            if (previous && (bounds.width !== previous.width || bounds.height !== previous.height || bounds.left !== previous.left || bounds.top !== previous.top)) cancelStroke();
+            previous = bounds;
+            if (!bounds.width || !bounds.height) return;
+            const column = Math.max(1, Math.ceil(14 * width / bounds.width));
+            const row = Math.max(1, Math.ceil(14 * height / bounds.height));
+            setCoordinateStep(current => current.column === column && current.row === row ? current : { column, row });
+        };
+        resize();
+        window.addEventListener('resize', resize);
+        const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(resize);
         observer?.observe(grid);
         return () => {
-            window.removeEventListener('resize', cancelStroke);
+            window.removeEventListener('resize', resize);
             observer?.disconnect();
         };
-    }, [cancelStroke]);
+    }, [cancelStroke, width, height]);
+    const showCoordinate = (index: number, count: number, step: number, active: number | undefined) => {
+        if (active !== undefined && index === active) return true;
+        if (active !== undefined && Math.abs(index - active) < step) return false;
+        return index === count - 1 || (index % step === 0 && (index === count - 1 || count - 1 - index >= step));
+    };
     const announce = (wall: Wall, adding: boolean) => {
         const nx = wall.x + (wall.side === 'right' ? 1 : 0), ny = wall.y + (wall.side === 'down' ? 1 : 0);
         setAnnouncement(`Wall ${adding ? 'added' : 'removed'} between column ${wall.x + 1}, row ${wall.y + 1} and column ${nx + 1}, row ${ny + 1}.`);
@@ -79,6 +106,38 @@ const PuzzleGrid = ({
     const pointerPoint = (event: PointerEvent<HTMLElement>): [number, number] => {
         const bounds = event.currentTarget.getBoundingClientRect();
         return [(event.clientX - bounds.left) / bounds.width * width, (event.clientY - bounds.top) / bounds.height * height];
+    };
+    const pointerCell = (event: PointerEvent<HTMLElement>): [number, number] | null => {
+        const [x, y] = pointerPoint(event);
+        return x >= 0 && y >= 0 && x < width && y < height ? [Math.floor(x), Math.floor(y)] : null;
+    };
+    const updateGuide = (cell: [number, number] | null) => {
+        setGuideCell(current => current?.[0] === cell?.[0] && current?.[1] === cell?.[1] ? current : cell);
+    };
+    const startPlacement = (event: PointerEvent<HTMLElement>) => {
+        if (!editing || event.pointerType === 'mouse' || event.button !== 0 || !event.isPrimary ||
+            (editTool !== 'dots' && editTool !== 'bridges') ||
+            stroke.current || placement.current) return;
+        const cell = pointerCell(event);
+        if (!cell) return;
+        event.preventDefault();
+        suppressClickUntil.current = performance.now() + 500;
+        placement.current = { pointerId: event.pointerId, tool: editTool };
+        updateGuide(cell); setTouchPreview(true);
+        event.currentTarget.setPointerCapture(event.pointerId);
+    };
+    const finishPlacement = (event: PointerEvent<HTMLElement>, cancel = false) => {
+        const active = placement.current;
+        if (!active || active.pointerId !== event.pointerId) return;
+        const cell = cancel ? null : pointerCell(event);
+        placement.current = null;
+        setTouchPreview(false); updateGuide(cell);
+        suppressClickUntil.current = performance.now() + 500;
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+        if (cell) {
+            if (active.tool === 'dots') onCellClick(...cell);
+            else onBridgeClick(...cell);
+        }
     };
     const paint = (point: [number, number]) => {
         const active = stroke.current;
@@ -113,6 +172,12 @@ const PuzzleGrid = ({
         announce(wall, adding);
     };
     const movePointer = (event: PointerEvent<HTMLElement>) => {
+        const cell = editing ? pointerCell(event) : null;
+        if (editing) updateGuide(cell);
+        if (placement.current?.pointerId === event.pointerId) {
+            setTouchPreview(cell !== null);
+            return;
+        }
         if (!editingWalls) return;
         const point = pointerPoint(event);
         if (stroke.current?.pointerId === event.pointerId) paint(point);
@@ -130,6 +195,7 @@ const PuzzleGrid = ({
     };
     // Grid lines belong to the nearest cell, so small touch targets have no dead gaps.
     const handleGridClick = (event: MouseEvent<HTMLElement>) => {
+        if (event.detail !== 0 && performance.now() < suppressClickUntil.current) return;
         if (editTool !== 'dots' || event.target !== event.currentTarget || isSolving || solvedBoard) return;
         const bounds = event.currentTarget.getBoundingClientRect();
         const x = Math.min(width - 1, Math.floor((event.clientX - bounds.left) / bounds.width * width));
@@ -175,24 +241,39 @@ const PuzzleGrid = ({
         gridRef.current?.querySelectorAll<HTMLButtonElement>('[data-cell]')[index]?.focus();
     };
     return (
+    <div className="puzzle-grid-frame" style={{ width: `${100 * width / Math.max(width, height)}%` }}>
+    {showCoordinates && <>
+        <div className="board-coordinates board-columns" aria-hidden="true" style={{ gridTemplateColumns: `repeat(${width}, minmax(0, 1fr))` }}>
+            {Array.from({ length: width }, (_, x) => <span key={x} className={editing && guideCell?.[0] === x ? 'coordinate-active' : undefined}>{showCoordinate(x, width, coordinateStep.column, editing ? guideCell?.[0] : undefined) ? String.fromCharCode(65 + x) : ''}</span>)}
+        </div>
+        <div className="board-coordinates board-rows" aria-hidden="true" style={{ gridTemplateRows: `repeat(${height}, minmax(0, 1fr))` }}>
+            {Array.from({ length: height }, (_, y) => <span key={y} className={editing && guideCell?.[1] === y ? 'coordinate-active' : undefined}>{showCoordinate(y, height, coordinateStep.row, editing ? guideCell?.[1] : undefined) ? y + 1 : ''}</span>)}
+        </div>
+    </>}
     <article
         ref={gridRef}
         aria-label="Puzzle Grid Board"
         aria-describedby="board-instructions board-keyboard-help"
         data-solution={solution ? JSON.stringify(solution) : undefined}
-        className={`puzzle-grid ${editingWalls ? 'editing-walls' : ''}`}
+        className={`puzzle-grid ${editingWalls ? 'editing-walls' : ''} ${editing && (editTool === 'dots' || editTool === 'bridges') ? 'placing-touch' : ''}`}
         onClick={handleGridClick}
-        onPointerDown={startStroke}
+        onPointerDown={event => { startPlacement(event); startStroke(event); }}
         onPointerMove={movePointer}
-        onPointerUp={event => finishStroke(event)}
-        onPointerCancel={event => finishStroke(event, true)}
-        onLostPointerCapture={event => finishStroke(event, true)}
-        onPointerLeave={() => { if (!stroke.current) setPreview(null); }}
+        onPointerUp={event => {
+            if (event.pointerType !== 'mouse') suppressClickUntil.current = performance.now() + 500;
+            finishPlacement(event); finishStroke(event);
+        }}
+        onPointerCancel={event => { finishPlacement(event, true); finishStroke(event, true); }}
+        onLostPointerCapture={event => { finishPlacement(event, true); finishStroke(event, true); }}
+        onPointerLeave={() => {
+            if (!stroke.current) setPreview(null);
+            if (!placement.current && !gridRef.current?.contains(document.activeElement)) updateGuide(null);
+        }}
+        onBlurCapture={event => { if (!event.currentTarget.contains(event.relatedTarget)) updateGuide(null); }}
         style={{
             gridTemplateColumns: `repeat(${width}, minmax(0, 1fr))`,
             gridTemplateRows: `repeat(${height}, minmax(0, 1fr))`,
             '--cell-size': `calc(var(--play-area-size) / ${Math.max(width, height)})`,
-            '--grid-width': `${100 * width / Math.max(width, height)}%`,
             aspectRatio: `${width} / ${height}`,
         } as CSSProperties}
     >
@@ -211,7 +292,7 @@ const PuzzleGrid = ({
                         type="button"
                         disabled={isSolving || solvedBoard !== null}
                         tabIndex={y * width + x === Math.min(focusedCell, width * height - 1) ? 0 : -1}
-                        onFocus={() => setFocusedCell(y * width + x)}
+                        onFocus={() => { setFocusedCell(y * width + x); if (editing) updateGuide([x, y]); }}
                         onKeyDown={event => moveFocus(event, x, y)}
                         className={`
                             group
@@ -223,13 +304,17 @@ const PuzzleGrid = ({
                             touch-manipulation
                             select-none
                             ${solvedBoard ? 'cursor-default' : 'hover:bg-stoic-block-hover active:bg-stoic-block-hover'}
+                            ${editing && guideCell && (guideCell[0] === x || guideCell[1] === y) ? 'cell-guide' : ''}
+                            ${editing && guideCell?.[0] === x && guideCell?.[1] === y ? `cell-guide-active ${touchPreview ? 'touch-preview' : ''}` : ''}
                         `}
-                        onClick={() => {
+                        onClick={event => {
+                            if (event.detail !== 0 && performance.now() < suppressClickUntil.current) return;
                             if (isSolving || solvedBoard) return;
                             if (editTool === 'dots') onCellClick(x, y);
                             if (editTool === 'bridges') { onBridgeClick(x, y); setAnnouncement(`Bridge toggled, column ${x + 1}, row ${y + 1}.`); }
                         }}
                         aria-label={`Cell ${x},${y} ${bridge ? `Bridge ${bridge.over} on top${laneColors.map(p => `; ${p.nodes.find(n => n.x === x && n.y === y)?.lane} Color ${p.color}`).join('')}` : hasColor ? `Color ${cellValue}` : 'Empty'}`}
+                        aria-description={showCoordinates ? `${String.fromCharCode(65 + x)}${y + 1}` : undefined}
                     >
                         {endpoint ? (
                             <span
@@ -237,7 +322,7 @@ const PuzzleGrid = ({
                                 style={{ backgroundColor: COLORS[endpoint] || '#888', color: dotLabelColor(endpoint) }}
                                 aria-hidden="true"
                             >{dotLabel(endpoint, dotLabels)}</span>
-                        ) : !bridge && editTool === 'dots' && !solvedBoard && !isResetting && (
+                        ) : !bridge && editTool === 'dots' && activeColor <= 16 && !solvedBoard && !isResetting && (
                             <span
                                 className="endpoint-preview rounded-full w-[70%] h-[70%] transition-opacity duration-75"
                                 style={{ backgroundColor: COLORS[activeColor] || '#888' }}
@@ -289,6 +374,7 @@ const PuzzleGrid = ({
         </svg>
         <span aria-live="polite" aria-atomic="true" className="sr-only">{announcement}</span>
     </article>
+    </div>
 );
 };
 

@@ -148,10 +148,10 @@ for (const viewport of [
         const stableControls = await layoutBounds(page.getByRole('region', { name: 'Game Controls' }));
         const heading = await layoutBounds(page.getByRole('heading', { name: /Flow Free Solver/i }));
         if (phonePortrait) {
-            expect(frame.x).toBeGreaterThanOrEqual(2);
-            expect(frame.width).toBeLessThanOrEqual(viewport.width - 4);
-            expect(frame.x).toBeCloseTo(2, 1);
-            expect(frame.width).toBeCloseTo(viewport.width - 4, 1);
+            expect(frame.x).toBeGreaterThanOrEqual(16);
+            expect(frame.width).toBeLessThanOrEqual(viewport.width - 32);
+            expect(frame.x).toBeCloseTo(16, 1);
+            expect(frame.width).toBeCloseTo(viewport.width - 32, 1);
             expect(stableControls.x).toBeGreaterThanOrEqual(16);
             expect(stableControls.x + stableControls.width).toBeLessThanOrEqual(viewport.width - 16);
         }
@@ -165,8 +165,8 @@ for (const viewport of [
             expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(viewport.width);
             expect(bounds!.width / bounds!.height).toBeCloseTo(width / height, 1);
             if (phonePortrait && width >= height) {
-                expect(bounds.x).toBeCloseTo(2, 1);
-                expect(bounds.width).toBeCloseTo(viewport.width - 4, 1);
+                expect(bounds.x).toBeCloseTo(16, 1);
+                expect(bounds.width).toBeCloseTo(viewport.width - 32, 1);
             }
             expect(bounds!.width).toBeLessThanOrEqual(frame!.width + 1);
             expect(bounds!.height).toBeLessThanOrEqual(frame!.height + 1);
