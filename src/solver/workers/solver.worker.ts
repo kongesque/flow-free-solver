@@ -1,11 +1,22 @@
-import { solve as solveAStar, type Board } from '../logic/astar-solver';
+import type { Board } from '../logic/astar-solver';
 import { serializeBoard, solveHeuristicBFS, solveTopology } from '../logic/heuristic-solver';
 import { requireStandardMode, type GameMode } from '../logic/game-modes';
-import { normalizeTopology, validateBoard } from '../logic/topology';
+import { normalizeTopology, validateBoard, type PuzzleTopology } from '../logic/topology';
 import { boardToSolution, solutionBoard, validateSolution, type PuzzleSolution } from '../logic/solution';
 import { SearchLimitError } from '../logic/solver-errors';
-import { solveZ3Topology } from '../logic/z3-topology-solver';
-import { solveZ3 } from '../logic/z3-solver';
+import type { Wall } from '../logic/walls';
+
+// Heuristic solves should not download or parse the SAT API. Load each other
+// solver only when selected or when heuristic search actually needs fallback.
+async function solveZ3(board: Board, walls: Wall[]) {
+    const { solveZ3 } = await import('../logic/z3-solver');
+    return solveZ3(board, walls);
+}
+
+async function solveZ3Topology(board: Board, topology: PuzzleTopology, classicDegree = false, candidate?: PuzzleSolution) {
+    const { solveZ3Topology } = await import('../logic/z3-topology-solver');
+    return solveZ3Topology(board, topology, classicDegree, candidate);
+}
 
 self.onmessage = async (event: MessageEvent<{
     board: Board; type: 'astar' | 'z3' | 'heuristic_bfs'; mode?: GameMode;
@@ -52,7 +63,7 @@ self.onmessage = async (event: MessageEvent<{
                 return solveZ3(board, topology.walls);
             }
         };
-        const result = type === 'astar' ? solveAStar(board) : {
+        const result = type === 'astar' ? (await import('../logic/astar-solver')).solve(board) : {
             board: await solveClassic(),
             timedOut: false, timeTaken: 0, nodeCount: 0,
         };
