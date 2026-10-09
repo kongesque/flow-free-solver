@@ -24,39 +24,60 @@ static int topo_usable(const topology_search_t *s, uint16_t id, int color) {
 
 /* Necessary degree and reachability conditions only; unselected adjacency is
  * allowed. In particular, there is no planar, parity, or same-color touch test. */
-static int topo_viable(const topology_search_t *s) {
+static int topo_viable(const topology_search_t *s, uint16_t forced[MAX_COLORS]) {
   uint8_t available[TOPO_MAX] = {0};
+  int8_t heads[TOPO_MAX];
+  memset(heads, -1, sizeof(heads));
+  memset(forced, 0xff, MAX_COLORS * sizeof(*forced));
   for (int c = 0; c < (int)s->colors; c++) if (!(s->complete & (1u << c))) {
     available[s->head[c]] = available[s->goal[c]] = 1;
+    heads[s->head[c]] = c;
   }
   for (uint16_t id = 0; id < s->count; id++) if (s->owner[id] < 0) {
     int degree = 0;
     for (int d = 0; d < 4; d++) {
       uint16_t n = s->neighbors[id][d];
+      // A two-cell wrapped dimension can name the same neighbor twice.
+      if ((d & 1) && s->neighbors[id][d ^ 1] == n) continue;
       degree += n != TOPO_NONE && (s->owner[n] < 0 || available[n]);
     }
     if (degree < 2) return 0;
+    if (degree == 2) {
+      // A free vertex with just two possible neighbors must use both edges.
+      // If either is an unfinished head, its next move is therefore forced.
+      // This also applies to bridge lanes and odd wrapped cycles: no planar
+      // or same-color contact assumption is involved.
+      for (int d = 0; d < 4; d++) {
+        uint16_t n = s->neighbors[id][d];
+        int c = n == TOPO_NONE ? -1 : heads[n];
+        if (c < 0) continue;
+        if (forced[c] != TOPO_NONE && forced[c] != id) return 0;
+        forced[c] = id;
+      }
+    }
   }
+  uint8_t seen[TOPO_MAX] = {0};
+  uint16_t queue[TOPO_MAX];
   for (int c = 0; c < (int)s->colors; c++) if (!(s->complete & (1u << c))) {
-    uint8_t seen[TOPO_MAX] = {0};
-    uint16_t queue[TOPO_MAX];
+    uint8_t stamp = c + 1;
     size_t read = 0, write = 0;
-    queue[write++] = s->head[c]; seen[s->head[c]] = 1;
-    while (read < write) {
+    queue[write++] = s->head[c]; seen[s->head[c]] = stamp;
+    // Reachability needs only a witness, not the entire reachable component.
+    while (read < write && seen[s->goal[c]] != stamp) {
       uint16_t id = queue[read++];
       for (int d = 0; d < 4; d++) {
         uint16_t n = s->neighbors[id][d];
-        if (n != TOPO_NONE && !seen[n] && topo_usable(s, n, c)) {
-          seen[n] = 1; queue[write++] = n;
+        if (n != TOPO_NONE && seen[n] != stamp && topo_usable(s, n, c)) {
+          seen[n] = stamp; queue[write++] = n;
         }
       }
     }
-    if (!seen[s->goal[c]]) return 0;
+    if (seen[s->goal[c]] != stamp) return 0;
   }
   /* Each remaining component needs an unfinished endpoint/head to enter it. */
-  uint8_t seen[TOPO_MAX] = {0};
+  memset(seen, 0, sizeof(seen));
   for (uint16_t root = 0; root < s->count; root++) if (s->owner[root] < 0 && !seen[root]) {
-    uint16_t queue[TOPO_MAX]; size_t read = 0, write = 0; int touches = 0;
+    size_t read = 0, write = 0; int touches = 0;
     seen[root] = 1; queue[write++] = root;
     while (read < write) {
       uint16_t id = queue[read++];
@@ -72,25 +93,45 @@ static int topo_viable(const topology_search_t *s) {
   return 1;
 }
 
+static int topo_choose(const topology_search_t *s, const uint16_t *forced, int *best_out) {
+  int chosen = -1, best = 5;
+  for (int c = 0; c < (int)s->colors; c++) if (!(s->complete & (1u << c))) {
+    int moves = 0;
+    for (int d = 0; d < 4; d++) {
+      uint16_t n = s->neighbors[s->head[c]][d];
+      moves += (!forced || forced[c] == TOPO_NONE || forced[c] == n) && topo_usable(s, n, c);
+    }
+    if (!moves) return -1;
+    if (moves < best) { best = moves; chosen = c; }
+  }
+  *best_out = best;
+  return chosen;
+}
+
 static int topo_search(topology_search_t *s) {
   if (++s->visits > TOPO_NODE_LIMIT ||
       ((s->visits & 255u) == 0 && (double)(clock() - s->started) / CLOCKS_PER_SEC > 10.0)) {
     s->limit = 1; return 0;
   }
   if (s->complete == (uint16_t)((1u << s->colors) - 1u)) return s->free_count == 0;
-  if (!topo_viable(s)) return 0;
-  int chosen = -1, best = 5;
-  for (int c = 0; c < (int)s->colors; c++) if (!(s->complete & (1u << c))) {
-    int moves = 0;
-    for (int d = 0; d < 4; d++) moves += topo_usable(s, s->neighbors[s->head[c]][d], c);
-    if (!moves) return 0;
-    if (moves < best) { best = moves; chosen = c; }
+  int best, chosen = topo_choose(s, NULL, &best);
+  if (chosen < 0) return 0;
+  uint16_t next = TOPO_NONE;
+  if (best > 1) {
+    uint16_t forced[MAX_COLORS];
+    if (!topo_viable(s, forced)) return 0;
+    chosen = topo_choose(s, forced, &best);
+    if (chosen < 0) return 0;
+    next = forced[chosen];
   }
+  // With one legal move, a complete cover has to take it. Defer flood fills
+  // until the next branch instead of repeating them along every forced lane.
   uint16_t old_head = s->head[chosen];
   /* Try filling space before closing a path, so covers are found sooner. */
   for (int pass = 0; pass < 2; pass++) for (int d = 0; d < 4; d++) {
     uint16_t n = s->neighbors[old_head][d];
-    if (!topo_usable(s, n, chosen) || (n == s->goal[chosen]) != pass) continue;
+    if ((next != TOPO_NONE && next != n) ||
+        !topo_usable(s, n, chosen) || (n == s->goal[chosen]) != pass) continue;
     int finishing = n == s->goal[chosen];
     s->head[chosen] = n; s->path[chosen][s->length[chosen]++] = n;
     if (finishing) s->complete |= 1u << chosen;

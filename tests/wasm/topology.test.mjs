@@ -119,3 +119,66 @@ test('graph pruning agrees with a tiny exhaustive oracle, including odd wrapped 
     if (result.status === 'solved') assertTopologySolution(f, decodeNativeSolution(f, result));
   }
 });
+
+test('forced bridge moves agree with exhaustive covers and never self-cross', () => {
+  // Ten logical vertices: cell 4 is the horizontal lane, 9 the vertical lane.
+  // Enumerate paths independently of the solver's reachability/degree pruning.
+  function oracle(board, walls) {
+    const neighbors = Array.from({ length: 10 }, () => []);
+    for (let y = 0; y < 3; y++) for (let x = 0; x < 3; x++) {
+      for (const [dx, dy, side] of [[1, 0, 'right'], [0, 1, 'down']]) {
+        if (x + dx >= 3 || y + dy >= 3 || walls.some(w => w.x === x && w.y === y && w.side === side)) continue;
+        const id = y * 3 + x, next = (y + dy) * 3 + x + dx;
+        const a = dy && id === 4 ? 9 : id, b = dy && next === 4 ? 9 : next;
+        neighbors[a].push(b); neighbors[b].push(a);
+      }
+    }
+    const pairs = [1, 2].map(color => Array.from({ length: 9 }, (_, id) => id)
+      .filter(id => board[id % 3][Math.floor(id / 3)] === color));
+    const owner = Array(10).fill(-1);
+    pairs.forEach((pair, color) => pair.forEach(id => { owner[id] = color; }));
+    let filled = 4;
+    function nextColor(color) {
+      if (color === 2) return filled === 10;
+      const [start, goal] = pairs[color];
+      function path(id) {
+        for (const n of neighbors[id]) {
+          if (n === goal) { if (nextColor(color + 1)) return true; }
+          else if (owner[n] === -1 && !(n === 4 && owner[9] === color) && !(n === 9 && owner[4] === color)) {
+            owner[n] = color; filled++;
+            if (path(n)) return true;
+            owner[n] = -1; filled--;
+          }
+        }
+        return false;
+      }
+      return path(start);
+    }
+    return nextColor(0);
+  }
+  let seed = 7193, solved = 0, unsatisfiable = 0;
+  const random = n => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return Math.floor(seed / 2 ** 32 * n); };
+  for (let i = 0; i < 300; i++) {
+    const cells = [0, 1, 2, 3, 5, 6, 7, 8];
+    for (let j = 7; j > 0; j--) { const k = random(j + 1); [cells[j], cells[k]] = [cells[k], cells[j]]; }
+    if (i === 0) cells.splice(0, 8, 0, 8, 2, 6, 1, 3, 5, 7);
+    const board = Array.from({ length: 3 }, () => Array(3).fill(0));
+    cells.slice(0, 4).forEach((id, j) => { board[id % 3][Math.floor(id / 3)] = Math.floor(j / 2) + 1; });
+    const walls = [];
+    for (let y = 0; y < 3; y++) for (let x = 0; x < 3; x++) {
+      for (const [dx, dy, side] of [[1, 0, 'right'], [0, 1, 'down']]) {
+        if (x + dx >= 3 || y + dy >= 3 || x === 1 && y === 1 || x + dx === 1 && y + dy === 1) continue;
+        if (random(5) === 0) walls.push({ x, y, side });
+      }
+    }
+    if (i === 0) walls.length = 0;
+    const fixture = { width: 3, height: 3, mode: 'bridges', board,
+      input: Array.from({ length: 3 }, (_, y) => board.map(column => '.RBY'[column[y]]).join('')).join('\n'),
+      topology: { walls, warps: [], bridges: [{ x: 1, y: 1, over: i % 2 ? 'horizontal' : 'vertical' }] } };
+    const expected = oracle(board, walls), result = JSON.parse(solve(fixture.input, wire(fixture)));
+    assert.equal(result.status, expected ? 'solved' : 'unsatisfiable', `Bridge oracle disagreement at case ${i}`);
+    if (expected) { solved++; assertTopologySolution(fixture, decodeNativeSolution(fixture, result)); }
+    else unsatisfiable++;
+  }
+  assert.ok(solved > 0 && unsatisfiable > 0, 'The corpus must exercise both outcomes');
+});
