@@ -1,3 +1,4 @@
+import { GENERATOR_WORKER_REQUEST } from './worker-requests';
 import { optIntoGenerator } from './board-options';
 import { test, expect, type Page } from '@playwright/test';
 import { openBoardOptions } from './board-options';
@@ -77,21 +78,21 @@ for (const mode of ['bridges', 'warps'] as const) {
         expect((await saved(page))[mode]).toEqual(before[mode]);
         let release!: () => void;
         const gate = new Promise<void>(resolve => { release = resolve; });
-        await page.route(/generator\.worker/, async route => { await gate; await route.continue().catch(() => {}); });
+        await page.route(GENERATOR_WORKER_REQUEST, async route => { await gate; await route.continue().catch(() => {}); });
         try {
             page.once('dialog', dialog => dialog.accept());
-            const request = page.waitForRequest(/generator\.worker/);
+            const request = page.waitForRequest(GENERATOR_WORKER_REQUEST);
             await page.getByRole('button', { name: 'Generate', exact: true }).click();
             await request;
             await page.getByRole('button', { name: 'Cancel', exact: true }).click();
-            release(); await page.unroute(/generator\.worker/);
+            release(); await page.unroute(GENERATOR_WORKER_REQUEST);
             expect((await saved(page))[mode]).toEqual(before[mode]);
-            await page.route(/generator\.worker/, route => route.abort());
+            await page.route(GENERATOR_WORKER_REQUEST, route => route.abort());
             page.once('dialog', dialog => dialog.accept());
             await page.getByRole('button', { name: 'Generate', exact: true }).click();
             await expect(page.getByRole('status')).toContainText('Could not generate');
             expect((await saved(page))[mode]).toEqual(before[mode]);
-            await page.unroute(/generator\.worker/);
+            await page.unroute(GENERATOR_WORKER_REQUEST);
             page.once('dialog', dialog => dialog.accept());
             await page.getByRole('button', { name: 'Generate', exact: true }).click();
             await expect(page.getByRole('status')).toContainText('Generated');
@@ -102,7 +103,7 @@ for (const mode of ['bridges', 'warps'] as const) {
             await expect.poll(async () => (await saved(page))?.generatedPathSolution).toBeNull();
             await page.getByRole('button', { name: 'Undo', exact: true }).click();
             await expect.poll(async () => (await saved(page))?.generatedPathSolution).toBeNull();
-        } finally { release(); await page.unroute(/generator\.worker/); }
+        } finally { release(); await page.unroute(GENERATOR_WORKER_REQUEST); }
     });
 
     test(`${mode} retains both lane paths when independent search reaches its limit after reload`, async ({ page }) => {

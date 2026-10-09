@@ -1,3 +1,4 @@
+import { GENERATOR_WORKER_REQUEST } from './worker-requests';
 import { optIntoGenerator } from './board-options';
 import { openBoardOptions } from './board-options';
 import { test, expect, type Page } from '@playwright/test';
@@ -127,7 +128,7 @@ test('generated endpoints and solution survive reload; editing invalidates the s
 test('primary Cancel stops generation without moving the action or changing endpoints', async ({ page }) => {
     let release!: () => void;
     const gate = new Promise<void>(resolve => { release = resolve; });
-    await page.route(/generator\.worker/, async route => {
+    await page.route(GENERATOR_WORKER_REQUEST, async route => {
         await gate;
         await route.continue().catch(() => {});
     });
@@ -138,7 +139,7 @@ test('primary Cancel stops generation without moving the action or changing endp
         const action = page.locator('.primary-action');
         const originalBounds = await action.boundingBox();
         page.once('dialog', dialog => dialog.accept());
-        const request = page.waitForRequest(/generator\.worker/);
+        const request = page.waitForRequest(GENERATOR_WORKER_REQUEST);
         await page.getByRole('button', { name: 'Generate', exact: true }).click();
         await request;
         const cancel = page.getByRole('button', { name: 'Cancel', exact: true });
@@ -149,7 +150,7 @@ test('primary Cancel stops generation without moving the action or changing endp
         expect(await action.boundingBox()).toEqual(originalBounds);
         await expect(page.getByRole('button', { name: /Cell .* Color 1$/ })).toHaveCount(2);
         release();
-        await page.unroute(/generator\.worker/);
+        await page.unroute(GENERATOR_WORKER_REQUEST);
         const input = await generate(page, 5);
         await solve(page);
         validateSolution(input, await readGrid(page, 5));
@@ -159,13 +160,13 @@ test('primary Cancel stops generation without moving the action or changing endp
 test('Reset cancels generation and a fresh generation succeeds', async ({ page }) => {
     let release!: () => void;
     const gate = new Promise<void>(resolve => { release = resolve; });
-    await page.route(/generator\.worker/, async route => {
+    await page.route(GENERATOR_WORKER_REQUEST, async route => {
         await gate;
         await route.continue().catch(() => {});
     });
     try {
         await page.goto('./');
-        const request = page.waitForRequest(/generator\.worker/);
+        const request = page.waitForRequest(GENERATOR_WORKER_REQUEST);
         await page.getByRole('button', { name: 'Generate', exact: true }).click();
         await request;
         await expect(page.getByRole('status')).toContainText('Generating');
@@ -192,12 +193,12 @@ test('Reset cancels generation and a fresh generation succeeds', async ({ page }
 test('failed generator worker preserves the board and allows retry', async ({ page }) => {
     await page.goto('./');
     await page.getByRole('button', { name: 'Cell 0,0 Empty', exact: true }).click();
-    await page.route(/generator\.worker/, route => route.abort());
+    await page.route(GENERATOR_WORKER_REQUEST, route => route.abort());
     page.once('dialog', dialog => dialog.accept());
     await page.getByRole('button', { name: 'Generate', exact: true }).click();
     await expect(page.getByRole('status')).toContainText('Could not generate puzzle');
     await expect(page.getByRole('button', { name: 'Cell 0,0 Color 1', exact: true })).toBeVisible();
-    await page.unroute(/generator\.worker/);
+    await page.unroute(GENERATOR_WORKER_REQUEST);
     await generate(page, 5);
 });
 

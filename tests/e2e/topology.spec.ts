@@ -1,3 +1,4 @@
+import { SOLVER_WORKER_REQUEST } from './worker-requests';
 import { optIntoGenerator } from './board-options';
 import { expect, test, type Page } from '@playwright/test';
 import { openBoardOptions } from './board-options';
@@ -290,13 +291,13 @@ test('mobile bridge editing and warp targets work with touch without page overfl
 test('Cancel preserves a variant puzzle and a fresh worker can solve it', async ({ page }) => {
     let release!: () => void;
     const gate = new Promise<void>(resolve => { release = resolve; });
-    await page.route(/solver\.worker/, async route => {
+    await page.route(SOLVER_WORKER_REQUEST, async route => {
         await gate; await route.continue().catch(() => {});
     });
     try {
         const fixture = editorFixture(bridgeCross());
         await page.goto('./'); await recreate(page, fixture);
-        const request = page.waitForRequest(/solver\.worker/);
+        const request = page.waitForRequest(SOLVER_WORKER_REQUEST);
         await page.getByRole('button', { name: 'Solve', exact: true }).click();
         await request;
         await expect(page.getByRole('status')).toContainText('Solving');
@@ -308,7 +309,7 @@ test('Cancel preserves a variant puzzle and a fresh worker can solve it', async 
         await page.getByRole('button', { name: 'Cancel', exact: true }).click();
         await expect(page.getByRole('button', { name: 'Solve', exact: true })).toBeEnabled();
         await expect(page.locator('[data-bridge]')).toHaveCount(1);
-        release(); await page.unroute(/solver\.worker/);
+        release(); await page.unroute(SOLVER_WORKER_REQUEST);
         await solveAndValidate(page, fixture);
     } finally { release(); }
 });

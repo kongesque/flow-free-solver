@@ -2,6 +2,7 @@ name: Verify solver and web app
 
 on:
   push:
+    branches: [main]
   pull_request:
 
 permissions:
@@ -9,7 +10,12 @@ permissions:
 
 jobs:
   verify:
+    name: Verify (${{ matrix.hosting }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        hosting: [production, development, subpath]
     env:
       # CI checks root hosting explicitly; GITHUB_ACTIONS otherwise selects Pages.
       VITE_BASE_PATH: /
@@ -20,6 +26,7 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - name: Install Emscripten
+        if: matrix.hosting == 'production'
         run: |
           git clone --depth 1 https://github.com/emscripten-core/emsdk.git "$RUNNER_TEMP/emsdk"
           "$RUNNER_TEMP/emsdk/emsdk" install "$(cat .emscripten-version)"
@@ -27,18 +34,21 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium webkit
       - name: Compile C and verify production web app
+        if: matrix.hosting == 'production'
         run: |
           source "$RUNNER_TEMP/emsdk/emsdk_env.sh"
           npm run check
       - name: Verify development web app
+        if: matrix.hosting == 'development'
         run: E2E_SERVER=dev npm run test:e2e
       - name: Verify subpath hosting
+        if: matrix.hosting == 'subpath'
         run: |
           VITE_BASE_PATH=/flow-free-solver/ npm run build
           VITE_BASE_PATH=/flow-free-solver/ npm run test:e2e
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: browser-test-results
+          name: browser-test-results-${{ matrix.hosting }}
           path: test-results/
           if-no-files-found: ignore
