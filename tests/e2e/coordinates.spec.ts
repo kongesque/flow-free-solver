@@ -155,8 +155,13 @@ test.describe('Touch placement guides', () => {
         await touch(cdp, 'touchStart', await point(page, 1, 1));
         await touch(cdp, 'touchMove', await point(page, 2, 2));
         await expect(cell(page, 2, 2)).toHaveClass(/touch-preview/);
-        await toggle.uncheck();
+        // Use the keyboard while the touch is held. A simultaneous emulated mouse
+        // click can make Chromium's touch-end compatibility click hit the toggle again.
+        await toggle.focus();
+        await toggle.press('Space');
+        await expect(toggle).not.toBeChecked();
         await touch(cdp, 'touchEnd');
+        await expect(toggle).not.toBeChecked();
         await expect(page.locator('.endpoint-dot')).toHaveCount(1);
         await expect(page.locator('.cell-guide, .endpoint-preview')).toHaveCount(0);
         await cell(page, 4, 4).tap();
