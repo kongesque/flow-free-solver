@@ -1,0 +1,325 @@
+[
+  {
+    "name": "sparse walls 13x13 seed 16",
+    "input": ".............\n.MC.C.GY.....\n..........B..\nBO.O.........\n.............\n.........W...\n..R...mW.R..G\n....A........\n...........P.\n.............\n.m....M......\n.P.AY........\n.............",
+    "walls": [
+      {
+        "x": 3,
+        "y": 0,
+        "side": "down"
+      },
+      {
+        "x": 10,
+        "y": 0,
+        "side": "down"
+      },
+      {
+        "x": 3,
+        "y": 1,
+        "side": "down"
+      },
+      {
+        "x": 10,
+        "y": 1,
+        "side": "down"
+      },
+      {
+        "x": 3,
+        "y": 2,
+        "side": "down"
+      },
+      {
+        "x": 10,
+        "y": 2,
+        "side": "down"
+      },
+      {
+        "x": 0,
+        "y": 3,
+        "side": "right"
+      },
+      {
+        "x": 3,
+        "y": 3,
+        "side": "right"
+      },
+      {
+        "x": 3,
+        "y": 3,
+        "side": "down"
+      },
+      {
+        "x": 10,
+        "y": 3,
+        "side": "right"
+      },
+      {
+        "x": 11,
+        "y": 3,
+        "side": "right"
+      },
+      {
+        "x": 3,
+        "y": 4,
+        "side": "down"
+      },
+      {
+        "x": 3,
+        "y": 8,
+        "side": "down"
+      },
+      {
+        "x": 3,
+        "y": 9,
+        "side": "down"
+      },
+      {
+        "x": 0,
+        "y": 10,
+        "side": "right"
+      },
+      {
+        "x": 1,
+        "y": 10,
+        "side": "right"
+      },
+      {
+        "x": 3,
+        "y": 10,
+        "side": "down"
+      },
+      {
+        "x": 5,
+        "y": 10,
+        "side": "right"
+      },
+      {
+        "x": 10,
+        "y": 10,
+        "side": "right"
+      },
+      {
+        "x": 10,
+        "y": 10,
+        "side": "down"
+      },
+      {
+        "x": 11,
+        "y": 10,
+        "side": "right"
+      },
+      {
+        "x": 10,
+        "y": 11,
+        "side": "down"
+      }
+    ],
+    "known": [
+      "BBBBBBGGGGGGG",
+      "BMCCCBGYYYYYG",
+      "BMMMMBBBBBBYG",
+      "BOOOMMMMMMMYG",
+      "AAAAAWWWWWMYG",
+      "AmmmAWmmmWMYG",
+      "AmRmAWmWmRMYG",
+      "AmRmAWWWmRMYY",
+      "AmRmmmmmmRMPY",
+      "AmRRRRRRRRMPY",
+      "AmPPPPMMMMMPY",
+      "APPAYPPPPPPPY",
+      "AAAAYYYYYYYYY"
+    ]
+  },
+  {
+    "name": "sparse walls 13x19 seed 42",
+    "input": "W............\n.....P.....B.\n...T.....g...\n.............\n......g......\n...........P.\n...G.Y.......\n......A......\n..R......T...\n..m....O.....\n...G.........\n.............\n..m...CY.....\n.....C.A.....\n...M......B..\n......MO..W..\n..........R..\n.............\n.............",
+    "walls": [
+      {
+        "x": 0,
+        "y": 0,
+        "side": "right"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "side": "right"
+      },
+      {
+        "x": 7,
+        "y": 0,
+        "side": "down"
+      },
+      {
+        "x": 7,
+        "y": 3,
+        "side": "down"
+      },
+      {
+        "x": 7,
+        "y": 4,
+        "side": "down"
+      },
+      {
+        "x": 7,
+        "y": 5,
+        "side": "down"
+      },
+      {
+        "x": 0,
+        "y": 7,
+        "side": "right"
+      },
+      {
+        "x": 1,
+        "y": 7,
+        "side": "right"
+      },
+      {
+        "x": 2,
+        "y": 7,
+        "side": "right"
+      },
+      {
+        "x": 3,
+        "y": 7,
+        "side": "right"
+      },
+      {
+        "x": 4,
+        "y": 7,
+        "side": "right"
+      },
+      {
+        "x": 6,
+        "y": 7,
+        "side": "right"
+      },
+      {
+        "x": 7,
+        "y": 7,
+        "side": "right"
+      },
+      {
+        "x": 8,
+        "y": 7,
+        "side": "right"
+      },
+      {
+        "x": 9,
+        "y": 7,
+        "side": "right"
+      },
+      {
+        "x": 10,
+        "y": 7,
+        "side": "right"
+      },
+      {
+        "x": 11,
+        "y": 7,
+        "side": "right"
+      },
+      {
+        "x": 7,
+        "y": 8,
+        "side": "down"
+      },
+      {
+        "x": 7,
+        "y": 10,
+        "side": "down"
+      },
+      {
+        "x": 7,
+        "y": 12,
+        "side": "down"
+      },
+      {
+        "x": 0,
+        "y": 14,
+        "side": "right"
+      },
+      {
+        "x": 1,
+        "y": 14,
+        "side": "right"
+      },
+      {
+        "x": 2,
+        "y": 14,
+        "side": "right"
+      },
+      {
+        "x": 3,
+        "y": 14,
+        "side": "right"
+      },
+      {
+        "x": 7,
+        "y": 14,
+        "side": "right"
+      },
+      {
+        "x": 7,
+        "y": 14,
+        "side": "down"
+      },
+      {
+        "x": 8,
+        "y": 14,
+        "side": "right"
+      },
+      {
+        "x": 9,
+        "y": 14,
+        "side": "right"
+      },
+      {
+        "x": 10,
+        "y": 14,
+        "side": "right"
+      },
+      {
+        "x": 11,
+        "y": 14,
+        "side": "right"
+      },
+      {
+        "x": 7,
+        "y": 15,
+        "side": "down"
+      },
+      {
+        "x": 7,
+        "y": 16,
+        "side": "down"
+      },
+      {
+        "x": 7,
+        "y": 17,
+        "side": "down"
+      }
+    ],
+    "known": [
+      "WPPPPPWWWWWWW",
+      "WPWWWPWTTTTBW",
+      "WPWTWWWTggTBW",
+      "WPWTTTTTgTTBW",
+      "WPWWWWgggTBBW",
+      "WPRRRWWWWTBPW",
+      "WPRGRYYYWTBPW",
+      "WPRGRAAYWTBPW",
+      "WPRGRAYYWTBPW",
+      "WPmGRAYOWWBPW",
+      "WPmGRAYOOWBPW",
+      "WPmRRAYYOWBPW",
+      "WPmRAACYOWBPW",
+      "WPRRACCAOWBPW",
+      "WPRMAAAAOWBPW",
+      "WPRMMMMOOWWPW",
+      "WPRRRRRRRRRPW",
+      "WPPPPPPPPPPPW",
+      "WWWWWWWWWWWWW"
+    ]
+  }
+]

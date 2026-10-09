@@ -121,6 +121,10 @@ typedef struct game_info_struct {
   uint8_t walls[MAX_CELLS];
   size_t num_walls;
 
+  // Immutable movement graph, built once after reading walls. Hot search loops
+  // can use positions directly without decoding coordinates or testing walls.
+  pos_t neighbors[MAX_CELLS][4];
+
   // Number of colors present
   size_t num_colors;
 
@@ -160,8 +164,7 @@ typedef struct game_state_struct {
 typedef struct color_features_struct {
   int index;
   int user_index;
-  int wall_dist[2];
-  int min_dist;
+  int start_wall_dist;
 } color_features_t;
 
 // Disjoint-set data structure for connected component analysis of free
@@ -329,25 +332,15 @@ int coords_valid(const game_info_t *info, int x, int y) {
 // Compote an offset as a position and return whether valid or not
 
 pos_t offset_pos(const game_info_t *info, int x, int y, int dir) {
-
-  int offset_x = x + DIR_DELTA[dir][0];
-  int offset_y = y + DIR_DELTA[dir][1];
-
-  return coords_valid(info, x, y) &&
-                 !(info->walls[pos_from_coords(x, y)] & (1 << dir)) &&
-                 coords_valid(info, offset_x, offset_y)
-             ? pos_from_coords(offset_x, offset_y)
-             : INVALID_POS;
+  return coords_valid(info, x, y)
+             ? info->neighbors[pos_from_coords(x, y)][dir] : INVALID_POS;
 }
 
 //////////////////////////////////////////////////////////////////////
 // Compote an offset as a position and return whether valid or not
 
 pos_t pos_offset_pos(const game_info_t *info, pos_t pos, int dir) {
-
-  int x, y;
-  pos_get_coords(pos, &x, &y);
-  return offset_pos(info, x, y, dir);
+  return info->neighbors[pos][dir];
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -445,21 +438,11 @@ int game_can_move(const game_info_t *info, const game_state_t *state, int color,
 
   assert(!(state->completed & (1 << color)));
 
-  // Get cur pos x, y
-  int cur_x, cur_y;
-  pos_get_coords(state->pos[color], &cur_x, &cur_y);
-
-  // Get new x, y
-  int new_x = cur_x + DIR_DELTA[dir][0];
-  int new_y = cur_y + DIR_DELTA[dir][1];
-
-  // If outside bounds, not legal
-  if (offset_pos(info, cur_x, cur_y, dir) == INVALID_POS) {
+  pos_t new_pos = pos_offset_pos(info, state->pos[color], dir);
+  if (new_pos == INVALID_POS) {
     return 0;
   }
 
-  // Create a new position
-  pos_t new_pos = pos_from_coords(new_x, new_y);
   assert(new_pos < MAX_CELLS);
 
   if (!g_options.node_check_touch && new_pos == info->goal_pos[color]) {
@@ -480,7 +463,7 @@ int game_can_move(const game_info_t *info, const game_state_t *state, int color,
     for (int dir = 0; dir < 4; ++dir) {
 
       // Assemble position
-      pos_t neighbor_pos = offset_pos(info, new_x, new_y, dir);
+      pos_t neighbor_pos = pos_offset_pos(info, new_pos, dir);
 
       // If valid non-empty cell and not cur_pos and not goal_pos and
       // has our color, then fail
@@ -543,11 +526,12 @@ int game_num_free_coords(const game_info_t *info, const game_state_t *state,
 
 int game_num_free_pos(const game_info_t *info, const game_state_t *state,
                       pos_t pos) {
-
-  int x, y;
-
-  pos_get_coords(pos, &x, &y);
-  return game_num_free_coords(info, state, x, y);
+  int num_free = 0;
+  for (int dir = 0; dir < 4; ++dir) {
+    pos_t neighbor = pos_offset_pos(info, pos, dir);
+    num_free += neighbor != INVALID_POS && state->cells[neighbor] == 0;
+  }
+  return num_free;
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -562,21 +546,8 @@ double game_make_move(const game_info_t *info, game_state_t *state, int color,
   // Update the cell with the new cell value
   cell_t move = cell_create(TYPE_PATH, color, dir);
 
-  // Get current x, y
-  int cur_x, cur_y;
-  pos_get_coords(state->pos[color], &cur_x, &cur_y);
-
-  // Assemble new x, y
-  int new_x = cur_x + DIR_DELTA[dir][0];
-  int new_y = cur_y + DIR_DELTA[dir][1];
-
-  // Make sure valid
-  assert(new_x >= 0 && new_x < (int)info->width && new_y >= 0 &&
-         new_y < (int)info->height);
-  assert(offset_pos(info, cur_x, cur_y, dir) != INVALID_POS);
-
-  // Make position
-  pos_t new_pos = pos_from_coords(new_x, new_y);
+  pos_t new_pos = pos_offset_pos(info, state->pos[color], dir);
+  assert(new_pos != INVALID_POS);
   assert(new_pos < MAX_CELLS);
 
   if (!g_options.node_check_touch && new_pos == info->goal_pos[color]) {
@@ -601,7 +572,7 @@ double game_make_move(const game_info_t *info, game_state_t *state, int color,
 
   if (g_options.node_check_touch) {
     for (int dir = 0; dir < 4; ++dir) {
-      if (offset_pos(info, new_x, new_y, dir) == info->goal_pos[color]) {
+      if (pos_offset_pos(info, new_pos, dir) == info->goal_pos[color]) {
         goal_dir = dir;
         break;
       }
@@ -617,7 +588,7 @@ double game_make_move(const game_info_t *info, game_state_t *state, int color,
 
   } else {
 
-    int num_free = game_num_free_coords(info, state, new_x, new_y);
+    int num_free = game_num_free_pos(info, state, new_pos);
 
     if (g_options.node_penalize_exploration && num_free == 2) {
       action_cost = 2;
@@ -793,6 +764,21 @@ int game_read_walls(const char *input, game_info_t *info) {
   return 1;
 }
 
+static void game_build_neighbors(game_info_t *info) {
+  memset(info->neighbors, 0xff, sizeof(info->neighbors));
+  for (int y = 0; y < (int)info->height; ++y) {
+    for (int x = 0; x < (int)info->width; ++x) {
+      pos_t pos = pos_from_coords(x, y);
+      for (int dir = 0; dir < 4; ++dir) {
+        int nx = x + DIR_DELTA[dir][0], ny = y + DIR_DELTA[dir][1];
+        if (!(info->walls[pos] & (1 << dir)) && coords_valid(info, nx, ny)) {
+          info->neighbors[pos][dir] = pos_from_coords(nx, ny);
+        }
+      }
+    }
+  }
+}
+
 // Adjacent endpoints complete only when their shared boundary is open.
 void game_complete_adjacent(const game_info_t *info, game_state_t *state) {
   for (size_t color = 0; color < info->num_colors; ++color) {
@@ -906,19 +892,12 @@ int color_features_compare(const void *vptr_a, const void *vptr_b) {
     return u;
   }
 
-  int w = cmp(a->wall_dist[0], b->wall_dist[0]);
+  int w = cmp(a->start_wall_dist, b->start_wall_dist);
   if (w) {
     return w;
   }
 
-  int g = -cmp(a->wall_dist[1], b->wall_dist[1]);
-  if (g) {
-    return g;
-  }
-
-  int distance = -cmp(a->min_dist, b->min_dist);
-  // Preserve original color order on ties, as the former stable sort did.
-  return distance ? distance : cmp(a->index, b->index);
+  return cmp(a->index, b->index);
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -952,18 +931,10 @@ void game_order_colors(game_info_t *info, game_state_t *state,
 
       for (size_t color = 0; color < info->num_colors; ++color) {
 
-        int x[2], y[2];
-
-        for (int i = 0; i < 2; ++i) {
-          pos_t endpoint = i == 0 ? info->init_pos[color] : info->goal_pos[color];
-          pos_get_coords(endpoint, x + i, y + i);
-          cf[color].wall_dist[i] = get_wall_dist(info, x[i], y[i]);
-        }
-
-        int dx = abs(x[1] - x[0]);
-        int dy = abs(y[1] - y[0]);
-
-        cf[color].min_dist = dx + dy;
+        // Prefer the starting endpoint nearest the boundary, retaining input
+        // order on ties. Goal distance tie-breakers substantially increase the
+        // search tree on the puzzle corpus; they are not correctness checks.
+        cf[color].start_wall_dist = pos_get_wall_dist(info, state->pos[color]);
       }
     }
 
@@ -2220,6 +2191,7 @@ static const char *solve_puzzle(const char *input_str, const char *wall_str) {
     sprintf(result_json, "Error: Invalid walls");
     return result_json;
   }
+  game_build_neighbors(&info);
   game_complete_adjacent(&info, &state);
 
   game_order_colors(&info, &state, NULL);

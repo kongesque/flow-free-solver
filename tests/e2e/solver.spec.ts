@@ -21,6 +21,8 @@ for (const algorithm of ['heuristic_bfs', 'astar', 'z3']) {
   test(`${algorithm}: edit, solve with a real worker, reset`, async ({ page }) => {
     const errors: string[] = [];
     page.on('pageerror', error => errors.push(error.message));
+    const requestedAssets: string[] = [];
+    page.on('request', request => requestedAssets.push(request.url()));
     const failedAssets: string[] = [];
     page.on('response', response => {
       if (response.status() >= 400 && /wasm|worker/.test(response.url())) failedAssets.push(response.url());
@@ -33,6 +35,9 @@ for (const algorithm of ['heuristic_bfs', 'astar', 'z3']) {
     await placePuzzle(page);
     await page.getByRole('button', { name: 'Solve', exact: true }).click();
     await expect(page.getByRole('status')).toContainText('Solved', { timeout: 45_000 });
+    if (algorithm === 'heuristic_bfs') {
+      expect(requestedAssets.filter(url => /z3|astar-solver/.test(url))).toEqual([]);
+    }
     const labels = await page.getByRole('article', { name: 'Puzzle Grid Board' }).getByRole('button').evaluateAll(
       cells => cells.map(cell => cell.getAttribute('aria-label')!),
     );
