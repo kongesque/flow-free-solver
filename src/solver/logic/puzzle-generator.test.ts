@@ -1,15 +1,18 @@
-import { generatePuzzle, generateRectangularPuzzle } from './puzzle-generator';
+import { generatePuzzle, generateRectangularPuzzle, maxGeneratedPairs } from './puzzle-generator';
 import { serializeBoard } from './heuristic-solver';
 import { assertSolution } from '../../../tests/fixtures/assert-solution.mjs';
 
 const codes = ' RBYGOCMmPAWgTbcp';
 
 for (let width = 5; width <= 19; width++) {
-    test(`rectangular width ${width}: validates all other heights for three seeds`, () => {
+    test(`rectangular width ${width}: validates all other heights and varies pair counts`, () => {
         for (let height = 5; height <= 19; height++) {
             if (width === height) continue;
-            for (let seed = 0; seed < 3; seed++) {
+            const counts = new Set<number>();
+            for (let seed = 0; seed < 12; seed++) {
                 const puzzle = generateRectangularPuzzle(width, height, seed);
+                counts.add(puzzle.pairCount);
+                expect(puzzle.pairCount).toBeLessThanOrEqual(maxGeneratedPairs(width, height));
                 expect(puzzle.board).toHaveLength(width);
                 expect(puzzle.board.every(column => column.length === height)).toBe(true);
                 expect(puzzle.board.flat().filter(Boolean)).toHaveLength(puzzle.pairCount * 2);
@@ -17,6 +20,7 @@ for (let width = 5; width <= 19; width++) {
                     Array.from({ length: width }, (_, x) => codes.charCodeAt(puzzle.solution[x][y])));
                 assertSolution(serializeBoard(puzzle.board), solution);
             }
+            expect(counts.size).toBeGreaterThan(1);
         }
     });
 }
@@ -30,6 +34,7 @@ test('rejects invalid rectangular dimensions independently', () => {
 
 for (let size = 5; size <= 19; size++) {
     test(`generates valid full-board ${size}x${size} path covers for 30 seeds`, () => {
+        const counts = new Set<number>();
         for (let seed = 0; seed < 30; seed++) {
             const puzzle = generatePuzzle(size, seed);
             const input = serializeBoard(puzzle.board);
@@ -37,13 +42,15 @@ for (let size = 5; size <= 19; size++) {
                 Array.from({ length: size }, (_, x) => codes.charCodeAt(puzzle.solution[x][y])));
             assertSolution(input, solution);
             expect(puzzle.board.flat().filter(Boolean)).toHaveLength(puzzle.pairCount * 2);
-            expect(puzzle.pairCount).toBeLessThanOrEqual(16);
-            if (size <= 16) expect(puzzle.pairCount).toBe(size);
+            counts.add(puzzle.pairCount);
+            expect(puzzle.pairCount).toBeLessThanOrEqual(maxGeneratedPairs(size, size));
             // The nested cover may finish with an adjacent pair at its center.
             for (const color of new Set(puzzle.board.flat().filter(Boolean))) {
-                expect(puzzle.solution.flat().filter(c => c === color).length).toBeGreaterThanOrEqual(size <= 16 ? 3 : 2);
+                expect(puzzle.solution.flat().filter(c => c === color).length).toBeGreaterThanOrEqual(2);
             }
         }
+        expect(counts.size).toBeGreaterThan(1);
+        expect(counts.has(maxGeneratedPairs(size, size))).toBe(true);
     });
 }
 

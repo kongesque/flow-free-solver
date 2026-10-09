@@ -1,25 +1,18 @@
 import { solve } from './astar-solver';
+import { generatePuzzle } from './puzzle-generator';
+import { serializeBoard } from './heuristic-solver';
+import { assertSolution } from '../../../tests/fixtures/assert-solution.mjs';
 
 describe('Solver', () => {
     test('solves a simple 2x2 board', () => {
-        // Solvable 2x2 case where path must snake to fill board:
-        // 1 1
-        // 0 0
-        // Path 1 needs to go from (0,0) to (0,1).
-        // Direct path is length 2 (leaves 2 empty).
-        // Snake path: (0,0) -> (1,0) -> (1,1) -> (0,1). Length 4. Fills board.
-
         const simpleBoard = [
             [1, 1],
-            [0, 0]
+            [4, 4]
         ];
 
         const result = solve(simpleBoard);
         expect(result.board).not.toBeNull();
-        // Verify it's full (all cells are 1 because 0s are filled)
-        if (result.board) {
-            expect(result.board.flat().every(c => c === 1)).toBe(true);
-        }
+        expect(result.board).toEqual(simpleBoard);
     });
 
     test('returns null for unsolvable board', () => {
@@ -31,5 +24,17 @@ describe('Solver', () => {
         ];
         const result = solve(unsolvable);
         expect(result.board).toBeNull();
+    });
+
+    test('random pair counts preserve sparse palette IDs and produce unbranched full covers', () => {
+        const codes = ' RBYGOCMmPAWgTbcp';
+        for (let seed = 0; seed < 100; seed++) {
+            const puzzle = generatePuzzle(5, seed), input = structuredClone(puzzle.board);
+            const result = solve(puzzle.board);
+            expect(result.board, `seed ${seed}`).not.toBeNull();
+            const rows = Array.from({ length: 5 }, (_, y) => Array.from({ length: 5 }, (_, x) => codes.charCodeAt(result.board![x][y])));
+            assertSolution(serializeBoard(input), rows);
+            expect(puzzle.board).toEqual(input);
+        }
     });
 });

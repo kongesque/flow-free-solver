@@ -280,8 +280,12 @@ const explorePathsForNumber = (
 
         const isEnd = (nx === endCell[0] && ny === endCell[1]);
         if (board[nx][ny] === 0 || isEnd) {
-          // heuristic neighbor check
-          // prevent creating walls/bottlenecks. keep it simple for now
+          // A matrix solution must form one unbranched path per color.
+          // Once beside the endpoint, finish there; don't pass it and create
+          // a second connection later. Reject touches to earlier path cells.
+          const besideEnd = Math.abs(cx - endCell[0]) + Math.abs(cy - endCell[1]) === 1;
+          if (besideEnd && !isEnd) continue;
+          if (path.some(([x, y], i) => i < path.length - 1 && Math.abs(nx - x) + Math.abs(ny - y) === 1)) continue;
 
           queue.push([nx, ny, [...path, [nx, ny]]]);
         }
@@ -339,7 +343,13 @@ export const solve = (board: any): SolveResult => {
     // Ensure board is number[][]
     // The component passes number[][] so it's fine.
 
-    const [solvedBoard, finalNodeCount, timeTaken] = solveBoard(board);
+    // Palette IDs are stable but need not be consecutive (A/B/C use 1/4/2).
+    // The search indexes pairs from 1..N, then restores the original colors.
+    const colors = [...new Set<number>((board as Board).flat())].filter(Boolean).sort((a, b) => a - b);
+    const indices = new Map(colors.map((color, i) => [color, i + 1]));
+    const indexedBoard = (board as Board).map(column => column.map(color => indices.get(color) ?? 0));
+    const [indexedSolution, finalNodeCount, timeTaken] = solveBoard(indexedBoard);
+    const solvedBoard = indexedSolution?.map(column => column.map(index => colors[index - 1])) ?? null;
     const timedOut = solvedBoard === null && timeTaken >= 14900; // ~15s timeout
     console.log(`Solved in ${timeTaken.toFixed(2)}ms, nodes: ${finalNodeCount}`);
     return { board: solvedBoard, timedOut, timeTaken, nodeCount: finalNodeCount };

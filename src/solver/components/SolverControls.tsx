@@ -142,7 +142,7 @@ const SolverControls = ({
                                     disabled={isBusy || unavailable}>
                                     <option value="heuristic_bfs">Heuristic BFS (recommended)</option>
                                     {supportsAStar && <option value="astar">A*</option>}
-                                    <option value="z3">SAT (Z3)</option>
+                                    <option value="z3">Z3 SAT (exact solver)</option>
                                 </select><ChevronDown aria-hidden="true" />
                             </span>
                         </label>
