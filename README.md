@@ -1,6 +1,6 @@
 # Flow Free Solver
 
-A free, open-source solver for Flow Free and Numberlink. Recreate a puzzle,
+An open-source solver for Flow Free and Numberlink. Recreate a puzzle,
 place its matching dots, and find a solution right in your browser.
 
 Supports **Classic, walls, Bridges, and Warps**, with square or rectangular
