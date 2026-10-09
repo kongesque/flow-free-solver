@@ -63,7 +63,7 @@ export function boardToSolution(board: Board, solved: Board, topology: PuzzleTop
             seen.add(id); nodes.push(graph.nodes[id]);
             if (id === pair[1]) break;
             const neighbors = graph.edges[id].filter(n => n !== previous && solved[graph.nodes[n].x]?.[graph.nodes[n].y] === color);
-            if (neighbors.length !== 1) throw new Error('Invalid Standard path degree');
+            if (neighbors.length !== 1) throw new Error('Invalid Classic path degree');
             previous = id; id = neighbors[0];
         }
         solution.paths.push({ color, nodes });

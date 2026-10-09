@@ -45,14 +45,14 @@ Try it online: **[https://flow.kongesque.com](https://flow.kongesque.com)**
 
 - **Instant AI Solutions**: Solves complex Number Link puzzles in milliseconds using the Z3 SMT Solver (compiled to Wasm).
 - **Interactive Editor**: Draw your own puzzles or test specific configurations on grids up to 15x15.
-- **Puzzle Generator**: Create random solvable Standard, Bridges, and Warps puzzles from 5×5 to 15×15, including rectangular boards. Each generated puzzle retains a validated complete solution.
+- **Puzzle Generator**: Create random solvable Classic, Bridges, and Warps puzzles from 5×5 to 15×15, including rectangular boards. Each generated puzzle retains a validated complete solution.
 - **Multiple Algorithms**: Compare the performance of heuristic search (A*), constraint satisfaction (SAT), and optimized C BFS.
 
 ---
 
 ## 🎮 How to Use
 
-1.  **Select Dimensions**: Choose a square **Grid Size** preset, or open **Board options** to set **Width** and **Height** independently from 5 to 15. Rectangular boards automatically select **Heuristic BFS**, the C/Wasm solver. A* and Z3 remain available for Standard square boards.
+1.  **Select Dimensions**: Choose a square **Grid Size** preset, or open **Board options** to set **Width** and **Height** independently from 5 to 15. Rectangular boards automatically select **Heuristic BFS**, the C/Wasm solver. A* and Z3 remain available for Classic square boards.
 2.  **Generate a Puzzle**: Click **Generate** for a new solvable puzzle. If you have placed or edited endpoints, confirm before replacing them; Cancel keeps your board and current color. The puzzle and its generated solution are saved locally across reloads.
 3.  **Paint the Board**: Alternatively, click an empty cell to place an endpoint, or click a filled cell to remove it. Editing a generated puzzle discards its saved solution.
     - With a keyboard, Tab enters the board, arrow keys move between cells, and Enter or Space places or removes a dot. Home and End move to the edges of a row.
@@ -61,7 +61,7 @@ Try it online: **[https://flow.kongesque.com](https://flow.kongesque.com)**
 
 Generation runs in a dedicated Web Worker. It starts with a complete path cover
 and randomly transfers cells between path endpoints while preserving full-board
-coverage, connectivity, and path degree. Standard colors retain at least three cells.
+coverage, connectivity, and path degree. Classic colors retain at least three cells.
 The remaining endpoints therefore always have a valid solution. Puzzles may have
 multiple solutions; the generator does not certify uniqueness or difficulty.
 Warps shift a complete cover across board borders and open the seams its paths
@@ -93,12 +93,12 @@ a fresh history for the affected draft. Undoing an edit does not restore a disca
 
 ## Board modes
 
-**Standard**, **Bridges**, and **Warps** support square and rectangular boards from
+**Classic**, **Bridges**, and **Warps** support square and rectangular boards from
 5×5 through 15×15. **Hexes** remains unavailable. Each implemented mode has its
 own locally saved draft and session Undo history. Switching modes restores its
 dimensions, endpoints, and topology. Reset and confirmed resizing clear only the
 active draft. Legacy square saves still load; an old variant placeholder's
-endpoint puzzle becomes its Standard draft, with an empty variant draft.
+endpoint puzzle becomes its Classic draft, with an empty variant draft.
 
 In **Warps**, choose the **Warps** editing tool and tap the border of a row or
 column to connect it to the opposite edge. Both matching border controls open or
@@ -147,7 +147,7 @@ for the data model, solver design, fixtures, and verification results.
 Rectangular and variant solving use the C/Wasm backend only. The generator
 remains TypeScript in a dedicated worker; it constructs solutions without search.
 Worker requests carry the mode and reject unsupported algorithms and unavailable
-modes instead of silently applying Standard rules. Generated ordered paths and
+modes instead of silently applying Classic rules. Generated ordered paths and
 topology survive reload and mode switching; endpoint/topology edits discard the
 retained solution. See [issue #2](https://github.com/kongesque/flow-free-solver/issues/2).
 
@@ -291,7 +291,7 @@ and repeated calls. CI runs these checks for production, development, and subpat
 hosting. Z3 uses shared memory and requires cross-origin isolation; preserve the
 COOP/COEP headers in `vite.config.js` and `vercel.json`.
 
-Generator tests independently validate 330 square and 330 rectangular Standard
+Generator tests independently validate 330 square and 330 rectangular Classic
 boards, plus 726 seeded variant covers across all supported dimension pairs.
 Browser tests generate and independently solve through real workers, solve
 generated puzzles with all three algorithms, and check reload, editing,

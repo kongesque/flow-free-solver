@@ -33,7 +33,7 @@ const StatusIndicator = ({
     <div role="status" className="solver-status selectable-text" aria-live="polite" aria-atomic="true">
         {unavailableMode ? (
             <span className="text-stoic-secondary text-xs">
-                {unavailableMode} is coming soon. Switch to Standard to edit or solve.
+                {unavailableMode} is coming soon. Switch to Classic to edit or solve.
             </span>
         ) : isSolving || isGenerating ? (
             <span className='text-stoic-accent text-sm font-semibold flex items-center gap-2'>
