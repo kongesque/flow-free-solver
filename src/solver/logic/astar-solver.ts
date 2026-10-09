@@ -1,3 +1,4 @@
+import { normalizeBlocks, type Block } from './blocks';
 export type Cell = [number, number];
 export type Board = number[][];
 
@@ -181,7 +182,8 @@ const explorePathsForNumber = (
   pairs: Record<number, [Cell | null, Cell | null]>,
   nodeCount: number,
   startTime: number,
-  timeout: number
+  timeout: number,
+  playableCells: number
 ): [Board | null, number] => {
   if (!pairs[number])
     throw new Error(`No Solution Exists`);
@@ -234,11 +236,11 @@ const explorePathsForNumber = (
 
           if (pairs[nextNum]) {
             const newSumPath = sumPath + path.length;
-            if (newSumPath === board.length ** 2) {
+            if (newSumPath === playableCells) {
               return [newBoard, nodeCount];
             }
 
-            const [result, newNodeCount] = explorePathsForNumber(newBoard, newSumPath, nextNum, pairs, nodeCount, startTime, timeout);
+            const [result, newNodeCount] = explorePathsForNumber(newBoard, newSumPath, nextNum, pairs, nodeCount, startTime, timeout, playableCells);
             nodeCount = newNodeCount;
 
             if (result) {
@@ -249,7 +251,7 @@ const explorePathsForNumber = (
             // If we are at the last number.
             // Check if board is full?
             const newSumPath = sumPath + path.length;
-            if (newSumPath === board.length * board.length) {
+            if (newSumPath === playableCells) {
               return [newBoard, nodeCount];
             }
             // If board not full but all numbers connected, is it solved?
@@ -314,11 +316,12 @@ const solveBoard = (board: Board): [Board | null, number, number] => {
     }
   }
 
+  const playableCells = board.flat().filter(value => value !== -1).length;
   const firstNum = 1;
   let nodeCount = 0;
 
   try {
-    const [finalBoard, finalNodeCount] = explorePathsForNumber(board, sumPath, firstNum, pairs, nodeCount, startTime, 15000); // 15s timeout
+    const [finalBoard, finalNodeCount] = explorePathsForNumber(board, sumPath, firstNum, pairs, nodeCount, startTime, 15000, playableCells); // 15s timeout
     const endTime = performance.now();
     return [finalBoard, finalNodeCount, endTime - startTime];
   } catch (e: any) {
@@ -333,7 +336,7 @@ export type SolveResult = {
   nodeCount: number;
 };
 
-export const solve = (board: any): SolveResult => {
+export const solve = (board: any, blocks: Block[] = []): SolveResult => {
   try {
     // Validate input board
     if (!board || board.length === 0) {
@@ -348,8 +351,9 @@ export const solve = (board: any): SolveResult => {
     const colors = [...new Set<number>((board as Board).flat())].filter(Boolean).sort((a, b) => a - b);
     const indices = new Map(colors.map((color, i) => [color, i + 1]));
     const indexedBoard = (board as Board).map(column => column.map(color => indices.get(color) ?? 0));
+    for (const { x, y } of normalizeBlocks(blocks, board)) indexedBoard[x][y] = -1;
     const [indexedSolution, finalNodeCount, timeTaken] = solveBoard(indexedBoard);
-    const solvedBoard = indexedSolution?.map(column => column.map(index => colors[index - 1])) ?? null;
+    const solvedBoard = indexedSolution?.map(column => column.map(index => index === -1 ? 0 : colors[index - 1])) ?? null;
     const timedOut = solvedBoard === null && timeTaken >= 14900; // ~15s timeout
     console.log(`Solved in ${timeTaken.toFixed(2)}ms, nodes: ${finalNodeCount}`);
     return { board: solvedBoard, timedOut, timeTaken, nodeCount: finalNodeCount };

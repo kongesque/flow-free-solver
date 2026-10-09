@@ -7,6 +7,7 @@ import { hasWall, normalizeWalls, type Wall } from './walls';
 import { disconnectedLoops } from './sat-connectivity';
 import { SearchLimitError } from './solver-errors';
 import { boardToSolution } from './solution';
+import { blockKey, normalizeBlocks, type Block } from './blocks';
 
 export async function createZ3Context() {
     const baseUrl = import.meta.env.BASE_URL;
@@ -49,10 +50,12 @@ export async function createZ3Context() {
     return highLevel.Context('main');
 }
 
-export async function solveZ3(board: Board, inputWalls: Wall[] = []): Promise<Board | null> {
+export async function solveZ3(board: Board, inputWalls: Wall[] = [], inputBlocks: Block[] = []): Promise<Board | null> {
     const started = performance.now();
     const budgetMs = 30_000;
     const walls = normalizeWalls(inputWalls, board.length, board[0].length);
+    const blocks = normalizeBlocks(inputBlocks, board);
+    const blocked = new Set(blocks.map(blockKey));
     const colors = [...new Set(board.flat().filter(Boolean))];
     const { Solver, Int, Sum, If, Or } = await createZ3Context();
 
@@ -73,7 +76,9 @@ export async function solveZ3(board: Board, inputWalls: Wall[] = []): Promise<Bo
     // Add constraints
     for (let i = 0; i < M; i++) {
         for (let j = 0; j < N; j++) {
-            if (board[i][j] > 0) {
+            if (blocked.has(`${i},${j}`)) {
+                solver.add(B[i][j].eq(0));
+            } else if (board[i][j] > 0) {
                 // Fixed value
                 solver.add(B[i][j].eq(board[i][j]));
             } else {
@@ -86,6 +91,7 @@ export async function solveZ3(board: Board, inputWalls: Wall[] = []): Promise<Bo
     // Neighbor constraints
     for (let i = 0; i < M; i++) {
         for (let j = 0; j < N; j++) {
+            if (blocked.has(`${i},${j}`)) continue;
             const neighbors: any[] = [];
 
             // Check 4 directions
@@ -94,7 +100,7 @@ export async function solveZ3(board: Board, inputWalls: Wall[] = []): Promise<Bo
                 const ni = i + dx;
                 const nj = j + dy;
 
-                if (ni >= 0 && ni < M && nj >= 0 && nj < N && !hasWall(walls, [i, j], [ni, nj])) {
+                if (ni >= 0 && ni < M && nj >= 0 && nj < N && !blocked.has(`${ni},${nj}`) && !hasWall(walls, [i, j], [ni, nj])) {
                     // neighbor same color? +1
                     neighbors.push(If(B[i][j].eq(B[ni][nj]), 1, 0));
                 }
@@ -134,7 +140,7 @@ export async function solveZ3(board: Board, inputWalls: Wall[] = []): Promise<Bo
         }
         const loops = disconnectedLoops(board, solvedBoard, walls);
         if (!loops.length) {
-            boardToSolution(board, solvedBoard, { walls, bridges: [], warps: [] });
+            boardToSolution(board, solvedBoard, { walls, bridges: [], warps: [], blocks });
             return solvedBoard;
         }
         for (const cells of loops) {

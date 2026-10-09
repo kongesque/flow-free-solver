@@ -14,6 +14,7 @@ interface StatusIndicatorProps {
     isPlacingSecond: boolean;
     editingWalls: boolean;
     wallCount: number;
+    blockCount: number;
     editTool: EditTool; bridgeCount: number; warpCount: number;
 }
 
@@ -28,7 +29,7 @@ const StatusIndicator = ({
     activeColor,
     isPlacingSecond,
     editingWalls,
-    wallCount, editTool, bridgeCount, warpCount,
+    wallCount, editTool, bridgeCount, warpCount, blockCount,
 }: StatusIndicatorProps) => (
     <div role="status" className="solver-status selectable-text" aria-live="polite" aria-atomic="true">
         {unavailableMode ? (
@@ -60,6 +61,8 @@ const StatusIndicator = ({
                     </span>
                 )}
             </span>
+        ) : editTool === 'blocks' ? (
+            <span className="text-stoic-primary text-xs">Blocks · {blockCount}</span>
         ) : editTool === 'bridges' ? (
             <span className="text-stoic-primary text-xs">Bridges · {bridgeCount}</span>
         ) : editTool === 'warps' ? (

@@ -5,6 +5,7 @@ import { normalizeTopology, topologyGraph, type PuzzleTopology } from './topolog
 import { validateSolution, type PuzzleSolution } from './solution';
 import type { GameMode } from './game-modes';
 import { SearchLimitError } from './solver-errors';
+import { blockKey, normalizeBlocks, type Block } from './blocks';
 
 export const COLOR_CHARS = ['', 'R', 'B', 'Y', 'G', 'O', 'C', 'M', 'm', 'P', 'A', 'W', 'g', 'T', 'b', 'c', 'p'];
 
@@ -14,7 +15,7 @@ interface FlowModule {
 
 let modulePromise: Promise<FlowModule> | undefined;
 
-export function serializeBoard(board: Board): string {
+export function serializeBoard(board: Board, blocks: Block[] = []): string {
   const width = board.length;
   const height = board[0]?.length ?? 0;
   if ([width, height].some(dimension => dimension < 2 || dimension > MAX_BOARD_SIZE) || board.some(column => column.length !== height)) {
@@ -30,12 +31,13 @@ export function serializeBoard(board: Board): string {
   if (!counts.size || [...counts.values()].some(count => count !== 2)) {
     throw new Error('Each color must have exactly two endpoints.');
   }
+  const blocked = new Set(normalizeBlocks(blocks, board).map(blockKey));
   return Array.from({ length: height }, (_, y) =>
-    Array.from({ length: width }, (_, x) => COLOR_CHARS[board[x][y]] || '.').join('')
+    Array.from({ length: width }, (_, x) => blocked.has(`${x},${y}`) ? '#' : COLOR_CHARS[board[x][y]] || '.').join('')
   ).join('\n') + '\n';
 }
 
-export function parseSolution(result: string, width: number, height = width): Board | null {
+export function parseSolution(result: string, width: number, height = width, blocks: Block[] = []): Board | null {
   if (result.startsWith('Error: No solution found (result code 1)')) return null;
   if (result === 'Error: No solution found (result code 2)') throw new SearchLimitError();
   if (result.startsWith('Error')) throw new Error(result);
@@ -43,8 +45,13 @@ export function parseSolution(result: string, width: number, height = width): Bo
   if (!Array.isArray(rows) || rows.length !== height || rows.some(row => !Array.isArray(row) || row.length !== width)) {
     throw new Error('Invalid C solver response.');
   }
+  const blocked = new Set(blocks.map(blockKey));
   return Array.from({ length: width }, (_, x) =>
     Array.from({ length: height }, (_, y) => {
+      if (blocked.has(`${x},${y}`)) {
+        if (rows[y][x] !== 0) throw new Error('C solver filled a blocked cell.');
+        return 0;
+      }
       const color = COLOR_CHARS.indexOf(String.fromCharCode(rows[y][x]));
       if (color < 1) throw new Error('Invalid color in C solver response.');
       return color;
@@ -71,14 +78,14 @@ async function loadModule(): Promise<FlowModule> {
   return modulePromise;
 }
 
-export async function solveHeuristicBFS(board: Board, walls: Wall[] = []): Promise<Board | null> {
-  const input = serializeBoard(board);
+export async function solveHeuristicBFS(board: Board, walls: Wall[] = [], blocks: Block[] = []): Promise<Board | null> {
+  const input = serializeBoard(board, blocks);
   const wallInput = serializeWalls(walls, board.length, board[0].length);
   const module = await loadModule();
   const result = wallInput
     ? module.cwrap('solve_puzzle_with_walls_wasm', 'string', ['string', 'string'])(input, wallInput)
     : module.cwrap('solve_puzzle_wasm', 'string', ['string'])(input);
-  return parseSolution(result, board.length, board[0].length);
+  return parseSolution(result, board.length, board[0].length, blocks);
 }
 
 export function serializeTopology(topology: PuzzleTopology, mode: GameMode): string {
@@ -110,8 +117,8 @@ export function parseTopologySolution(result: string, board: Board, topology: Pu
 }
 
 export async function solveTopology(board: Board, input: unknown, mode: GameMode) {
-  const boardText = serializeBoard(board);
   const topology = normalizeTopology(input, board, mode);
+  const boardText = serializeBoard(board, topology.blocks);
   const topologyText = serializeTopology(topology, mode);
   const module = await loadModule();
   const result = module.cwrap('solve_puzzle_topology_wasm', 'string', ['string', 'string'])(boardText, topologyText);

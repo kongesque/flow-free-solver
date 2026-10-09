@@ -31,7 +31,8 @@ for (const viewport of [
         };
         await expect(options).not.toHaveAttribute('open', '');
         await expect(page.getByRole('combobox')).toHaveCount(2);
-        await expect(page.locator('.game-controls button:visible')).toHaveCount(6);
+        await expect(page.locator('.game-controls button:visible')).toHaveCount(7);
+        await expect(page.getByRole('button', { name: 'Blocks', exact: true })).toBeVisible();
         await expect(page.getByRole('button', { name: /Zoom in|Fit board|Pan board/ })).toHaveCount(0);
         const optionsSummary = await bounds(options.locator('summary'));
         for (const control of await page.getByRole('group', { name: 'Edit history' }).getByRole('button').all()) {

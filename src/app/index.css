@@ -161,6 +161,17 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
 .puzzle-grid.placing-touch { touch-action: none; }
 .puzzle-grid button:disabled { opacity: 1; cursor: default; }
 .endpoint-preview { opacity: 0; }
+.puzzle-grid button.blocked-cell {
+  background: var(--color-stoic-bg);
+  box-shadow: inset 0 0 0 1px var(--color-stoic-line);
+}
+.puzzle-grid button.blocked-cell::after {
+  content: '';
+  width: 35%; height: 35%;
+  opacity: .45;
+  background: linear-gradient(45deg, transparent 46%, var(--color-stoic-secondary) 46% 54%, transparent 54%),
+    linear-gradient(-45deg, transparent 46%, var(--color-stoic-secondary) 46% 54%, transparent 54%);
+}
 @media (hover: hover) and (pointer: fine) {
   .puzzle-grid button:hover:not(:disabled) .endpoint-preview { opacity: .4; }
 }

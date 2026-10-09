@@ -4,8 +4,10 @@ import { GAME_MODES, type GameMode } from '../logic/game-modes';
 import { SIZE_OPTIONS, SolverType, type DotLabels } from './constants';
 import type { WarpSeam } from '../logic/topology';
 import type { EditTool } from '../logic/walls';
+import type { Block } from '../logic/blocks';
 
 const toolGlyphs: Record<EditTool, React.ReactNode> = {
+    blocks: <path d="M2 2h8v8H2z M2 2l8 8 M10 2l-8 8" />,
     dots: <circle cx="6" cy="6" r="2.5" fill="currentColor" stroke="none" />,
     walls: <path d="M6 1v10" />,
     bridges: <path d="M1 5h2c1.5 0 1.5-3 3-3s1.5 3 3 3h2 M1 10h2c1.5 0 1.5-3 3-3s1.5 3 3 3h2" />,
@@ -39,6 +41,7 @@ interface SolverControlsProps {
     onReset: () => void;
     onGenerate: () => void;
     wallCount: number;
+    blocks: Block[];
     editTool: EditTool;
     onEditToolChange: (tool: EditTool) => void;
     canUndo: boolean;
@@ -68,14 +71,22 @@ const SolverControls = ({
     onSolve, onCancel,
     onReset,
     onGenerate,
-    wallCount, editTool, onEditToolChange, canUndo, onUndo, warps, onWarpsChange,
+    wallCount, blocks, editTool, onEditToolChange, canUndo, onUndo, warps, onWarpsChange,
 }: SolverControlsProps) => {
     const isBusy = isSolving || isGenerating || !isLoaded || invalidSavedWalls;
     const unavailable = !GAME_MODES[mode].available;
     const supportsAStar = width === height && mode === 'standard' && wallCount === 0;
     const editingDisabled = isBusy || unavailable || showingSolution;
     const working = isSolving || isGenerating;
-    const tools: EditTool[] = ['dots', 'walls', ...(mode === 'bridges' ? ['bridges' as const] : mode === 'warps' ? ['warps' as const] : [])];
+    const tools: EditTool[] = ['dots', 'walls', 'blocks', ...(mode === 'bridges' ? ['bridges' as const] : mode === 'warps' ? ['warps' as const] : [])];
+    const hasGenerationObstacles = wallCount > 0 || blocks.length > 0;
+    const generationHint = blocks.length ? wallCount ? 'Clear blocks and walls to generate' : 'Clear blocks to generate' : 'Clear walls to generate';
+    const openSeams = (axis: WarpSeam['axis'], count: number) => [
+        ...warps.filter(w => w.axis !== axis),
+        ...Array.from({ length: count }, (_, index) => ({ axis, index })).filter(seam => !blocks.some(block => axis === 'horizontal'
+            ? block.y === seam.index && (block.x === 0 || block.x === width - 1)
+            : block.x === seam.index && (block.y === 0 || block.y === height - 1))),
+    ];
     return (
         <div className="solver-controls">
             <div className="primary-settings">
@@ -115,10 +126,10 @@ const SolverControls = ({
                     {working ? 'Cancel' : showingSolution ? 'Edit' : 'Solve'}
                 </button>
                 {showGenerator && <button type="button" className="control-button generate-action" onClick={onGenerate}
-                    disabled={isBusy || unavailable || wallCount > 0} aria-describedby={wallCount > 0 ? 'wall-generation-hint' : undefined}
-                    title={wallCount > 0 ? 'Clear walls to generate' : 'Generate a puzzle'}>Generate</button>}
+                    disabled={isBusy || unavailable || hasGenerationObstacles} aria-describedby={hasGenerationObstacles ? 'wall-generation-hint' : undefined}
+                    title={hasGenerationObstacles ? generationHint : 'Generate a puzzle'}>Generate</button>}
             </div>
-            {wallCount > 0 && <span id="wall-generation-hint" className="sr-only">Clear walls to generate.</span>}
+            {hasGenerationObstacles && <span id="wall-generation-hint" className="sr-only">{generationHint}.</span>}
             <div className="board-settings">
                 <details className="board-options">
                     <summary>Board options <ChevronDown aria-hidden="true" /></summary>
@@ -148,10 +159,8 @@ const SolverControls = ({
                         </label>
                         {!showingSolution && editTool === 'warps' && <div className="wall-context">
                             <div className="warp-actions">
-                                <button type="button" className="control-button" disabled={editingDisabled} onClick={() => onWarpsChange([
-                                    ...warps.filter(w => w.axis !== 'horizontal'), ...Array.from({ length: height }, (_, index) => ({ axis: 'horizontal' as const, index }))])}>Open all left/right</button>
-                                <button type="button" className="control-button" disabled={editingDisabled} onClick={() => onWarpsChange([
-                                    ...warps.filter(w => w.axis !== 'vertical'), ...Array.from({ length: width }, (_, index) => ({ axis: 'vertical' as const, index }))])}>Open all top/bottom</button>
+                                <button type="button" className="control-button" disabled={editingDisabled} onClick={() => onWarpsChange(openSeams('horizontal', height))}>Open all left/right</button>
+                                <button type="button" className="control-button" disabled={editingDisabled} onClick={() => onWarpsChange(openSeams('vertical', width))}>Open all top/bottom</button>
                             </div>
                         </div>}
                         <div className="settings-toggles">

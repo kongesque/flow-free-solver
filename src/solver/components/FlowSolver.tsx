@@ -1,3 +1,4 @@
+import type { Block } from '../logic/blocks';
 import { MAX_BOARD_SIZE } from '../logic/board-limits';
 import { isDotLabels, type DotLabels } from './constants';
 import React, { useState, useCallback, useEffect, useRef } from 'react';
@@ -25,7 +26,7 @@ const createRunWorker = (source: string) => {
     return new Worker(url, { type: 'module' });
 };
 
-type EditorSnapshot = { board: number[][]; walls: Wall[]; bridges: Bridge[]; warps: WarpSeam[]; activeColor: number; isPlacingSecond: boolean };
+type EditorSnapshot = { blocks: Block[]; board: number[][]; walls: Wall[]; bridges: Bridge[]; warps: WarpSeam[]; activeColor: number; isPlacingSecond: boolean };
 
 const initializeBoard = (width: number, height = width) =>
     Array(width).fill(null).map(() => Array(height).fill(0));
@@ -38,6 +39,7 @@ const FlowSolver = () => {
     const [width, setWidth] = useState(DEFAULT_SIZE);
     const [height, setHeight] = useState(DEFAULT_SIZE);
     const [mode, setMode] = useState<GameMode>('standard');
+    const [blocks, setBlocks] = useState<Block[]>([]);
     const [bridges, setBridges] = useState<Bridge[]>([]);
     const [warps, setWarps] = useState<WarpSeam[]>([]);
     const [pathSolution, setPathSolution] = useState<PuzzleSolution | null>(null);
@@ -94,10 +96,10 @@ const FlowSolver = () => {
     const saveTimeoutRef = useRef<number | null>(null);
     const workerRef = useRef<Worker | null>(null);
 
-    const currentDraft = (): PuzzleDraft => ({ width, height, board, walls, bridges, warps, solverType, activeColor, isPlacingSecond, generatedSolution, generatedPathSolution });
+    const currentDraft = (): PuzzleDraft => ({ width, height, board, walls, bridges, warps, blocks, solverType, activeColor, isPlacingSecond, generatedSolution, generatedPathSolution });
     const restoreDraft = (draft: PuzzleDraft, draftMode: GameMode) => {
         setWidth(draft.width); setHeight(draft.height); setBoard(draft.board);
-        setWalls(draft.walls); setBridges(draft.bridges.map(bridge => ({ ...bridge, over: 'horizontal' }))); setWarps(draft.warps);
+        setBlocks(draft.blocks ?? []); setWalls(draft.walls); setBridges(draft.bridges.map(bridge => ({ ...bridge, over: 'horizontal' }))); setWarps(draft.warps);
         const placementColor = countColor(draft.board, draft.activeColor) === 1 ? draft.activeColor : nextPlacementColor(draft.board);
         setActiveColor(placementColor); setIsPlacingSecond(countColor(draft.board, placementColor) === 1);
         setGeneratedSolution(draft.generatedSolution);
@@ -120,7 +122,7 @@ const FlowSolver = () => {
                     const initial: PuzzleDraft = {
                         width: saved.width ?? saved.size ?? DEFAULT_SIZE,
                         height: saved.height ?? saved.size ?? DEFAULT_SIZE,
-                        board: saved.board, walls: saved.walls ?? [], bridges: legacy ? [] : saved.bridges ?? [],
+                        board: saved.board, blocks: saved.blocks ?? [], walls: saved.walls ?? [], bridges: legacy ? [] : saved.bridges ?? [],
                         warps: legacy ? [] : saved.warps ?? [], solverType: saved.solverType,
                         activeColor: saved.activeColor, isPlacingSecond: saved.isPlacingSecond,
                         generatedSolution: saved.generatedSolution ?? null,
@@ -136,7 +138,7 @@ const FlowSolver = () => {
                             typeof draft.isPlacingSecond !== 'boolean') throw new Error('Invalid saved editor state');
                         const topology = normalizeTopology(draft, draft.board, key as GameMode);
                         Object.assign(draft, topology);
-                        if (topology.walls.length || (key !== 'standard' && !draft.generatedPathSolution)) {
+                        if (topology.walls.length || topology.blocks?.length || (key !== 'standard' && !draft.generatedPathSolution)) {
                             draft.generatedSolution = null; draft.generatedPathSolution = null;
                         }
                         if (draft.generatedPathSolution) {
@@ -173,7 +175,7 @@ const FlowSolver = () => {
         return () => {
             if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
         };
-    }, [width, height, mode, board, walls, bridges, warps, solverType, activeColor, isPlacingSecond, generatedSolution, generatedPathSolution, isLoaded, invalidSavedWalls]);
+    }, [width, height, mode, board, walls, bridges, warps, blocks, solverType, activeColor, isPlacingSecond, generatedSolution, generatedPathSolution, isLoaded, invalidSavedWalls]);
 
     // Cleanup worker on unmount
     useEffect(() => {
@@ -193,7 +195,7 @@ const FlowSolver = () => {
         // Prevent hover preview flash by setting isResetting before state changes
         setIsResetting(true);
         setBoard(initializeBoard(newWidth, newHeight));
-        setWalls([]);
+        setWalls([]); setBlocks([]);
         setBridges([]); setWarps([]);
         setEditHistory([]);
         setInvalidSavedWalls(false);
@@ -216,16 +218,16 @@ const FlowSolver = () => {
     }, [width, height, mode, solverType, invalidSavedWalls]);
 
     const requestReset = () => {
-        const hasPuzzle = walls.length > 0 || bridges.length > 0 || warps.length > 0 || board.some(column => column.some(color => color !== 0)) ||
+        const hasPuzzle = blocks.length > 0 || walls.length > 0 || bridges.length > 0 || warps.length > 0 || board.some(column => column.some(color => color !== 0)) ||
             generatedSolution !== null || solvedBoard !== null || isSolving || isGenerating || invalidSavedWalls;
-        if (hasPuzzle && !window.confirm('Reset this puzzle? This will clear all endpoints, walls, bridges, warps, and saved solutions.')) return;
+        if (hasPuzzle && !window.confirm('Reset this puzzle? This will clear all endpoints, walls, blocks, bridges, warps, and saved solutions.')) return;
         resetBoard();
     };
 
     const changeDimensions = (newWidth: number, newHeight: number) => {
         if (newWidth === width && newHeight === height) return;
-        if ((board.flat().some(Boolean) || walls.length || bridges.length || warps.length) &&
-            !window.confirm('Resize this puzzle? This will clear its endpoints, walls, bridges, warps, and saved solution.')) return;
+        if ((board.flat().some(Boolean) || walls.length || blocks.length || bridges.length || warps.length) &&
+            !window.confirm('Resize this puzzle? This will clear its endpoints, walls, blocks, bridges, warps, and saved solution.')) return;
         setWidth(newWidth);
         setHeight(newHeight);
         resetBoard(newWidth, newHeight);
@@ -257,12 +259,13 @@ const FlowSolver = () => {
     // 3. Predictable: Same action = same result
     // 4. Forgiving: Easy to undo mistakes
     const recordEdit = useCallback(() => {
-        setEditHistory(history => [...history.slice(-49), { board, walls, bridges, warps, activeColor, isPlacingSecond }]);
-    }, [board, walls, bridges, warps, activeColor, isPlacingSecond]);
+        setEditHistory(history => [...history.slice(-49), { board, walls, bridges, warps, blocks, activeColor, isPlacingSecond }]);
+    }, [board, walls, bridges, warps, blocks, activeColor, isPlacingSecond]);
 
     const handleCellClick = useCallback((x: number, y: number) => {
         if (invalidSavedWalls || editTool !== 'dots' || solvedBoard || isSolving || isGenerating || !isLoaded || !isAvailable) return;
 
+        if (blocks.some(b => b.x === x && b.y === y)) { setError('Remove this block before placing a dot'); return; }
         if (bridges.some(b => b.x === x && b.y === y)) { setError('Remove this bridge before placing a dot'); return; }
         const cellValue = board[x][y];
         const newBoard = board.map(row => [...row]);
@@ -315,30 +318,43 @@ const FlowSolver = () => {
         setGeneratedSolution(null); setGeneratedPathSolution(null);
         setError(null);
         setSolveTime(null);
-    }, [board, solvedBoard, isSolving, isGenerating, isLoaded, isAvailable, bridges, activeColor, editTool, invalidSavedWalls, recordEdit]);
+    }, [board, solvedBoard, isSolving, isGenerating, isLoaded, isAvailable, bridges, blocks, activeColor, editTool, invalidSavedWalls, recordEdit]);
 
     const applyTopology = (input: PuzzleTopology) => {
         if (invalidSavedWalls || solvedBoard || isSolving || isGenerating || !isLoaded || !isAvailable) return;
         let next: PuzzleTopology;
         try { next = normalizeTopology(input, board, mode); }
         catch (error) { setError(error instanceof Error ? error.message : 'Invalid topology'); return; }
-        if (JSON.stringify(next) === JSON.stringify({ walls, bridges, warps })) return;
-        recordEdit(); setWalls(next.walls); setBridges(next.bridges); setWarps(next.warps);
+        if (JSON.stringify(next) === JSON.stringify(normalizeTopology({ walls, bridges, warps, blocks }, board, mode))) return;
+        recordEdit(); setBlocks(next.blocks ?? []); setWalls(next.walls); setBridges(next.bridges); setWarps(next.warps);
         setGeneratedSolution(null); setGeneratedPathSolution(null); setSolvedBoard(null); setPathSolution(null); setSolveTime(null); setError(null);
         setSolverType(compatibleSolver(solverType, mode, width, height, next.walls.length));
     };
-    const applyWalls = (next: Wall[]) => applyTopology({ walls: next, bridges, warps });
-    const toggleBridge = (x: number, y: number) => applyTopology({ walls, warps, bridges:
+    const applyWalls = (next: Wall[]) => applyTopology({ walls: next, bridges, warps, blocks });
+    const toggleBridge = (x: number, y: number) => applyTopology({ walls, warps, blocks, bridges:
         bridges.some(b => b.x === x && b.y === y) ? bridges.filter(b => b.x !== x || b.y !== y) : [...bridges, { x, y, over: 'horizontal' }] });
-    const toggleSeam = (seam: WarpSeam) => applyTopology({ walls, bridges, warps:
+    const toggleSeam = (seam: WarpSeam) => applyTopology({ walls, bridges, blocks, warps:
         warps.some(s => seamKey(s) === seamKey(seam)) ? warps.filter(s => seamKey(s) !== seamKey(seam)) : [...warps, seam] });
+
+    const toggleBlock = (x: number, y: number) => {
+        const removing = blocks.some(b => b.x === x && b.y === y);
+        if (!removing && bridges.some(b => b.x === x && b.y === y)) {
+            setError('Remove this bridge before adding a block'); return;
+        }
+        const nextBlocks = removing ? blocks.filter(b => b.x !== x || b.y !== y) : [...blocks, { x, y }];
+        // A blocked border cannot remain an opening to the opposite edge.
+        const nextWarps = removing ? warps : warps.filter(seam => seam.axis === 'horizontal'
+            ? !((x === 0 || x === width - 1) && seam.index === y)
+            : !((y === 0 || y === height - 1) && seam.index === x));
+        applyTopology({ walls, bridges, warps: nextWarps, blocks: nextBlocks });
+    };
 
     const canUndo = editHistory.length > 0 && !invalidSavedWalls && !solvedBoard && !isSolving && !isGenerating && isLoaded && isAvailable;
     const undoEdit = () => {
         if (!canUndo) return;
         const previous = editHistory.at(-1)!;
         setBoard(previous.board);
-        setWalls(previous.walls); setBridges(previous.bridges); setWarps(previous.warps);
+        setBlocks(previous.blocks); setWalls(previous.walls); setBridges(previous.bridges); setWarps(previous.warps);
         setActiveColor(previous.activeColor);
         setIsPlacingSecond(previous.isPlacingSecond);
         setGeneratedSolution(null); setGeneratedPathSolution(null);
@@ -383,12 +399,12 @@ const FlowSolver = () => {
     };
 
     const generateBoard = () => {
-        if (invalidSavedWalls || walls.length || isSolving || isGenerating || !isLoaded || !isAvailable) return;
+        if (invalidSavedWalls || walls.length || blocks.length || isSolving || isGenerating || !isLoaded || !isAvailable) return;
         if (!generatedSolution && (board.flat().some(Boolean) || bridges.length || warps.length) &&
             !window.confirm(isStandard ? 'Replace your endpoints with a generated puzzle?' : 'Replace your puzzle with a generated puzzle?')) return;
         setError(null);
         runWorker(() => createRunWorker(generatorWorkerUrl),
-            { width, height, mode, walls, seed: crypto.getRandomValues(new Uint32Array(1))[0] }, 'generate',
+            { width, height, mode, walls, blocks, seed: crypto.getRandomValues(new Uint32Array(1))[0] }, 'generate',
             ({ puzzle, error: generationError }: { puzzle?: GeneratedModePuzzle; error?: string }) => {
                 if (!puzzle) { setError(generationError || 'Could not generate puzzle. Try Generate again.'); return; }
                 if (puzzle.mode !== mode || puzzle.width !== width || puzzle.height !== height) throw new Error('Generator returned a different puzzle mode or size');
@@ -397,7 +413,7 @@ const FlowSolver = () => {
                 validateBoard(puzzle.solution);
                 if (JSON.stringify(solutionBoard(puzzle.board, puzzle.pathSolution)) !== JSON.stringify(puzzle.solution) ||
                     puzzle.pairCount !== puzzle.pathSolution.paths.length) throw new Error('Invalid generated solution');
-                setBoard(puzzle.board); setWalls(topology.walls);
+                setBlocks(topology.blocks ?? []); setBoard(puzzle.board); setWalls(topology.walls);
                 setBridges(topology.bridges); setWarps(topology.warps);
                 setEditHistory([]);
                 setGeneratedSolution(puzzle.solution); setGeneratedPathSolution(puzzle.pathSolution);
@@ -434,7 +450,7 @@ const FlowSolver = () => {
         const startTime = performance.now();
         const acceptSolution = (resultBoard: number[][], paths?: PuzzleSolution | null) => {
             validateBoard(resultBoard);
-            const topology = { walls, bridges, warps };
+            const topology = { walls, bridges, warps, blocks };
             const solution = paths ?? boardToSolution(board, resultBoard, topology);
             validateSolution(board, topology, solution);
             if (JSON.stringify(solutionBoard(board, solution)) !== JSON.stringify(resultBoard)) throw new Error('Invalid solution matrix');
@@ -442,7 +458,7 @@ const FlowSolver = () => {
             setSolvedBoard(solutionBoard(board, display)); setPathSolution(display); setSolveTime(performance.now() - startTime);
         };
         runWorker(() => createRunWorker(solverWorkerUrl),
-            { board, type: solverType, mode, walls, bridges, warps, allowFallback: generatedSolution === null,
+            { board, type: solverType, mode, walls, bridges, warps, blocks, allowFallback: generatedSolution === null,
                 satCandidate: solverType === 'z3' ? generatedPathSolution : null }, 'solve',
             (result: { board: number[][] | null; solution?: PuzzleSolution | null; timedOut?: boolean; error?: string }) => {
                 if (!result || typeof result !== 'object' || !('board' in result)) throw new Error('Invalid solver response');
@@ -485,7 +501,7 @@ const FlowSolver = () => {
                     isPlacingSecond={isPlacingSecond}
                     editingWalls={editTool === 'walls'}
                     wallCount={walls.length}
-                    editTool={editTool} bridgeCount={bridges.length} warpCount={warps.length}
+                    editTool={editTool} blockCount={blocks.length} bridgeCount={bridges.length} warpCount={warps.length}
                 />
                 <section className="board-area" aria-label="Puzzle editor">
                     <div className="board-viewport">
@@ -503,12 +519,13 @@ const FlowSolver = () => {
                             walls={walls}
                             editTool={editTool}
                             onWallsChange={applyWalls}
+                            blocks={blocks} onBlockClick={toggleBlock}
                             endpointBoard={board} solution={visibleSolution} bridges={bridges} warps={warps}
                             onBridgeClick={toggleBridge} onSeamClick={toggleSeam}
                         />
                     </div>
-                    <p className="sr-only" id="board-keyboard-help">Use arrow keys to move between cells. {editTool === 'warps' ? 'Press Shift and an outward arrow at a border to toggle a warp.' : editTool === 'bridges' ? 'Press Enter or Space to add or remove a bridge.' : editTool === 'walls' ? 'Press Shift and an arrow key to add or remove a wall on that side.' : 'Press Enter or Space to place or remove a dot.'}</p>
-                    <p id="board-instructions" className="sr-only">{editTool === 'warps' ? 'Tap a border to open or close an opposite-edge warp.' : editTool === 'bridges' ? 'Tap an empty interior cell to add or remove a bridge.' : editTool === 'walls' ? 'Tap or drag along lines between cells to add or remove walls. Cell centers and outer borders do not change.' : 'Tap an empty cell to place a dot. Tap a dot to remove it.'}</p>
+                    <p className="sr-only" id="board-keyboard-help">Use arrow keys to move between cells. {editTool === 'blocks' ? 'Press Enter or Space to block or unblock a cell.' : editTool === 'warps' ? 'Press Shift and an outward arrow at a border to toggle a warp.' : editTool === 'bridges' ? 'Press Enter or Space to add or remove a bridge.' : editTool === 'walls' ? 'Press Shift and an arrow key to add or remove a wall on that side.' : 'Press Enter or Space to place or remove a dot.'}</p>
+                    <p id="board-instructions" className="sr-only">{editTool === 'blocks' ? 'Select an empty cell to block it. Select a block to make it playable.' : editTool === 'warps' ? 'Tap a border to open or close an opposite-edge warp.' : editTool === 'bridges' ? 'Tap an empty interior cell to add or remove a bridge.' : editTool === 'walls' ? 'Tap or drag along lines between cells to add or remove walls. Cell centers and outer borders do not change.' : 'Tap an empty cell to place a dot. Tap a dot to remove it.'}</p>
                 </section>
                 <section aria-label="Game Controls" className="game-controls">
                     <SolverControls
@@ -536,12 +553,13 @@ const FlowSolver = () => {
                         onReset={requestReset}
                         onGenerate={generateBoard}
                         wallCount={walls.length}
+                        blocks={blocks}
                         editTool={editTool}
                         onEditToolChange={tool => { setEditTool(tool); setError(null); }}
                         canUndo={canUndo}
                         onUndo={undoEdit}
                         warps={warps}
-                        onWarpsChange={next => applyTopology({ walls, bridges, warps: next })}
+                        onWarpsChange={next => applyTopology({ walls, bridges, blocks, warps: next })}
                     />
                 </section>
             </div>

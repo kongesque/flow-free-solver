@@ -43,6 +43,10 @@ enum {
   TYPE_GOAL = 3  // Goal position
 };
 
+// Free cells are always zero. Reserve a nonzero free-type byte for holes,
+// preserving packed search nodes and zero-cost occupancy checks.
+#define CELL_BLOCKED ((cell_t)0x0c)
+
 // Enumerate cardinal directions so we can loop over them
 // RIGHT is increasing x, DOWN is increasing y.
 enum { DIR_LEFT = 0, DIR_RIGHT = 1, DIR_UP = 2, DIR_DOWN = 3 };
@@ -120,6 +124,8 @@ typedef struct game_info_struct {
   // Immutable blocked edges, indexed using the solver's fixed MAX_SIZE-cell stride.
   uint8_t walls[MAX_CELLS];
   size_t num_walls;
+  uint8_t blocks[MAX_CELLS];
+  size_t num_blocks;
 
   // Immutable movement graph, built once after reading walls. Hot search loops
   // can use positions directly without decoding coordinates or testing walls.
@@ -357,7 +363,17 @@ int get_wall_dist(const game_info_t *info, int x, int y) {
     d[i] = d0 < d1 ? d0 : d1;
   }
 
-  return d[0] < d[1] ? d[0] : d[1];
+  int nearest = d[0] < d[1] ? d[0] : d[1];
+  // Holes are boundaries too. This only orders endpoints; it never prunes.
+  if (info->num_blocks && nearest) {
+    for (int by = 0; by < (int)info->height; ++by) for (int bx = 0; bx < (int)info->width; ++bx) {
+      if (info->blocks[pos_from_coords(bx, by)]) {
+        int distance = abs(bx - x) + abs(by - y) - 1;
+        if (distance < nearest) nearest = distance;
+      }
+    }
+  }
+  return nearest;
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -689,6 +705,11 @@ int game_read_buffer(const char *input_buffer, game_info_t *info,
         }
       } else if (c == '.') {
         ++state->num_free;
+      } else if (c == '#') {
+        pos_t pos = pos_from_coords(x, y);
+        info->blocks[pos] = 1;
+        ++info->num_blocks;
+        state->cells[pos] = CELL_BLOCKED;
       } else {
         return 0;
       }
@@ -769,9 +790,10 @@ static void game_build_neighbors(game_info_t *info) {
   for (int y = 0; y < (int)info->height; ++y) {
     for (int x = 0; x < (int)info->width; ++x) {
       pos_t pos = pos_from_coords(x, y);
+      if (info->blocks[pos]) continue;
       for (int dir = 0; dir < 4; ++dir) {
         int nx = x + DIR_DELTA[dir][0], ny = y + DIR_DELTA[dir][1];
-        if (!(info->walls[pos] & (1 << dir)) && coords_valid(info, nx, ny)) {
+        if (!(info->walls[pos] & (1 << dir)) && coords_valid(info, nx, ny) && !info->blocks[pos_from_coords(nx, ny)]) {
           info->neighbors[pos][dir] = pos_from_coords(nx, ny);
         }
       }
@@ -1760,7 +1782,7 @@ int game_check_bottleneck(const game_info_t *info, const game_state_t *state) {
 
   // This geometric straight-line pruning assumes every interior edge is open.
   // Keep it for legacy puzzles; use topology-aware region/deadend pruning for walls.
-  if (info->num_walls) return 0;
+  if (info->num_walls || info->num_blocks) return 0;
 
   size_t color = state->last_color;
 

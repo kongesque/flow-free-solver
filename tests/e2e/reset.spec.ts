@@ -2,7 +2,7 @@ import { optIntoGenerator } from './board-options';
 import { selectWallTool } from './board-options';
 import { test, expect, type Page } from '@playwright/test';
 
-const resetMessage = 'Reset this puzzle? This will clear all endpoints, walls, bridges, warps, and saved solutions.';
+const resetMessage = 'Reset this puzzle? This will clear all endpoints, walls, blocks, bridges, warps, and saved solutions.';
 const reset = (page: Page) => page.getByRole('button', { name: 'Reset', exact: true });
 const labels = (page: Page) => page.locator('.puzzle-grid button').evaluateAll(cells =>
     cells.map(cell => cell.getAttribute('aria-label')));

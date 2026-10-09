@@ -5,10 +5,12 @@ export function assertTopologySolution(fixture, solution) {
   const { width, height, board, topology, mode } = fixture;
   assert.equal(solution.version, 1);
   const bridges = new Map(topology.bridges.map(b => [`${b.x},${b.y}`, b]));
+  const blocks = new Set((topology.blocks ?? []).map(b => `${b.x},${b.y}`));
   const key = n => `${n.x},${n.y},${n.lane}`;
   const occupied = new Map(), colors = new Set();
   const endpoints = new Map();
   for (let x = 0; x < width; x++) for (let y = 0; y < height; y++) if (board[x][y]) {
+    assert.ok(!blocks.has(`${x},${y}`), 'Blocked endpoint');
     const color = board[x][y]; endpoints.set(color, [...(endpoints.get(color) ?? []), `${x},${y},cell`]);
   }
   const wallBlocked = (a, b) => topology.walls.some(w =>
@@ -22,6 +24,7 @@ export function assertTopologySolution(fixture, solution) {
     assert.ok(nodes.length >= 2 && pair.includes(key(nodes[0])) && pair.includes(key(nodes.at(-1))) && key(nodes[0]) !== key(nodes.at(-1)), 'Changed endpoints');
     nodes.forEach((node, i) => {
       assert.ok(Number.isInteger(node.x) && Number.isInteger(node.y) && node.x >= 0 && node.y >= 0 && node.x < width && node.y < height, 'Invalid coordinate');
+      assert.ok(!blocks.has(`${node.x},${node.y}`), 'Path crosses a block');
       const bridge = bridges.get(`${node.x},${node.y}`);
       assert.ok(bridge ? ['horizontal', 'vertical'].includes(node.lane) : node.lane === 'cell', 'Invalid lane');
       assert.ok(!occupied.has(key(node)), 'Repeated or overlapping node');
@@ -43,7 +46,7 @@ export function assertTopologySolution(fixture, solution) {
     });
   }
   assert.equal(colors.size, endpoints.size, 'Missing color');
-  assert.equal(occupied.size, width * height + bridges.size, 'Incomplete coverage');
+  assert.equal(occupied.size, width * height - blocks.size + bridges.size, 'Incomplete coverage');
   for (const b of bridges.values()) {
     assert.notEqual(occupied.get(`${b.x},${b.y},horizontal`), occupied.get(`${b.x},${b.y},vertical`), 'Self-crossing');
   }
