@@ -102,8 +102,26 @@ test('Cancel during automatic SAT loading preserves endpoints and permits a fres
         await expect(page.getByRole('button', { name: 'Solve', exact: true })).toBeEnabled();
         await expect(page.locator('.endpoint-dot')).toHaveCount(22);
         release(); await page.unroute(/\/wasm\/z3-built\.wasm/);
+
+        // Recovery should exercise a fresh real Z3 worker without depending on
+        // this dense puzzle finishing within its search budget on a busy runner.
+        // The separate screenshot regression verifies its full solution.
+        page.once('dialog', dialog => dialog.accept());
+        await page.getByRole('button', { name: 'Reset', exact: true }).click();
+        await expect(page.locator('.endpoint-dot')).toHaveCount(0);
+        await page.getByRole('combobox', { name: 'Grid Width' }).selectOption('5');
+        await page.getByRole('combobox', { name: 'Grid Height' }).selectOption('5');
+        await page.getByRole('combobox', { name: 'Solver Algorithm', exact: true }).selectOption('z3');
+        const recovery = generateRectangularPuzzle(5, 5, 42).board;
+        for (const color of order) for (let y = 0; y < 5; y++) for (let x = 0; x < 5; x++) {
+            if (recovery[x][y] === color) await page.locator(`[data-cell="${x},${y}"]`).click();
+        }
+        const loadingAgain = page.waitForRequest(/\/wasm\/z3-built\.wasm/);
         await page.getByRole('button', { name: 'Solve', exact: true }).click();
-        await validateScreenshot(page);
+        await loadingAgain;
+        await expect(page.getByRole('status')).toContainText('Solved');
+        const values = await page.locator('[data-cell]').evaluateAll(cells => cells.map(cell => Number(cell.getAttribute('aria-label')?.split('Color ')[1]) || 0));
+        assertSolution(textBoard(recovery), Array.from({ length: 5 }, (_, y) => values.slice(y * 5, (y + 1) * 5).map(color => chars.charCodeAt(color))));
     } finally { release(); }
 });
 
