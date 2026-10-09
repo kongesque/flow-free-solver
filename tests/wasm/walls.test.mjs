@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { readFileSync } from 'node:fs';
 import createFlowSolver from '../../public/wasm/flow_solver_c.mjs';
 import { assertSolution } from '../fixtures/assert-solution.mjs';
 import { wallCorridor, wallDetour, wallText } from '../fixtures/wall-puzzles.mjs';
@@ -8,6 +9,17 @@ import { generateRectangularPuzzle } from '../../src/solver/logic/puzzle-generat
 const module = await createFlowSolver();
 const solve = module.cwrap('solve_puzzle_with_walls_wasm', 'string', ['string', 'string']);
 const legacy = module.cwrap('solve_puzzle_wasm', 'string', ['string']);
+
+// Captured from the extreme stress corpus, rather than regenerated here:
+// the 13x13 cover exceeded the previous build's search budget.
+for (const { name, input, walls, known } of JSON.parse(readFileSync(new URL('../fixtures/sparse-walls.json', import.meta.url), 'utf8'))) {
+  test(`real C search: ${name}`, () => {
+    assertSolution(input, known.map(row => [...row].map(color => color.charCodeAt(0))), walls);
+    const result = solve(input, wallText(walls));
+    assert.ok(!result.startsWith('Error'), result);
+    assertSolution(input, JSON.parse(result), walls);
+  });
+}
 
 for (const [width, height] of [[5, 5], [5, 8], [8, 5], [2, 15], [15, 2], [15, 15], [19, 19], [5, 19], [19, 5]]) {
   test(`wall corridor ${width}x${height} covers every cell through open boundaries`, () => {

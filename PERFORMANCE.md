@@ -57,3 +57,66 @@ under `/flow-free-solver/`. The `npm run check` browser phase initially could no
 bind localhost inside the sandbox, so that phase was rerun successfully with
 the required local-server permission. No dependency or hosting-header changes
 were needed.
+
+## Extreme and rectangular stress cases
+
+The bounded stress harness includes 56 puzzles, of which 35 are rectangular:
+generated 13×13, 19×19, 19×5, 5×19, 19×13, and 13×19 boards with seeds 16 and 42
+in all four modes; sparse walls; a 19×19 board with 289 crossings and 650 logical
+vertices; open and constrained crossing/warp layouts; 19×16 and 16×19 seam
+covers; and the existing difficult 15×18 screenshot puzzle.
+
+```sh
+node scripts/stress-wasm.mjs /path/to/baseline/flow_solver_c.mjs --output=/tmp/stress.jsonl
+node scripts/stress-wasm.mjs /path/to/baseline/flow_solver_c.mjs \
+  '--filter=19x5|5x19|walls-13x13-seed16|walls-13x19-seed42|bridges-19x13-seed42|warps-13x19-seed16' \
+  --rounds=3 --output=/tmp/stress-repeat.jsonl
+```
+
+Search runs serially in isolated Node workers with tiny warmup puzzles. Timings
+exclude module startup, generation, and independent validation. A 15-second
+external watchdog terminates a hung search and restarts its worker; its
+`deadline` result is separate from the solver's `limit` and `unsatisfiable`
+results. Native node, memory, and time budgets are unchanged. Known covers are
+validated before searching and never supplied to the solver. The harness fails
+on an invalid solution or a false unsatisfiable result for a known cover.
+
+The initial sweep compares each case once against `a9bb618`, so its times are
+exploratory. No external deadlines, invalid solutions, false unsatisfiable
+results, or lost solves occurred:
+
+| Mode | Cases | Baseline solved / limit | Optimized solved / limit |
+| --- | ---: | ---: | ---: |
+| Classic | 14 | 7 / 7 | 7 / 7 |
+| Walls | 12 | 6 / 6 | 7 / 5 |
+| Bridges | 14 | 6 / 8 | 6 / 8 |
+| Warps | 16 | 8 / 8 | 8 / 8 |
+
+Twenty selected cases were repeated three times in alternating build order.
+Representative median times:
+
+| Case | Baseline | Optimized | Result |
+| --- | ---: | ---: | --- |
+| Walls 13×13, seed 16 | 630 ms | 533 ms | Baseline limit; optimized solved in all three rounds |
+| Walls 13×19, seed 42 | 181 ms | 182 ms | Both solved; essentially unchanged |
+| Bridges 19×5, seed 16 | 3.26 ms | 0.34 ms | Both solved |
+| Bridges 19×13, seed 42 | 6,768 ms | 2,414 ms | Both reached 2,000,001 visited nodes |
+| Warps 13×19, seed 16 | 8,125 ms | 2,082 ms | Both reached 2,000,001 visited nodes |
+
+All generated 19×5 and 5×19 cases solved in every mode and every repeat.
+Sub-millisecond Classic/Walls cases show small timing fluctuations, including
+occasional slower results; the optimization does not make every puzzle faster.
+The hard variant gains above measure lower search overhead, not additional
+solves. Large, open generated boards still require fallback or their retained
+cover when heuristic search reaches its budget.
+
+The two larger sparse-wall covers are captured in `tests/fixtures/sparse-walls.json`
+and checked against the actual Wasm in the native test suite. Across the initial
+sweep and repeats, all 160 returned solutions passed independent validation.
+The watchdog was also exercised twice with a one-millisecond deadline, including
+worker restart between searches.
+
+The expanded `npm run check` passed: 120 native tests, 110 unit tests,
+TypeScript checks, the production build, and all 188 browser tests in Chromium
+and mobile WebKit. This follow-up adds benchmark infrastructure and regression
+fixtures; production solver code and search budgets remain as optimized above.
