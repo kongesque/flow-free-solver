@@ -1,9 +1,9 @@
 import { generateModePuzzle } from './variant-generator';
 import { assertTopologySolution } from '../../../tests/fixtures/assert-topology-solution.mjs';
 
-for (const mode of ['bridges', 'warps'] as const) for (let width = 5; width <= 15; width++) {
+for (const mode of ['bridges', 'warps'] as const) for (let width = 5; width <= 19; width++) {
     test(`${mode} width ${width}: independently validates every height and three seeds`, () => {
-        for (let height = 5; height <= 15; height++) for (let seed = 0; seed < 3; seed++) {
+        for (let height = 5; height <= 19; height++) for (let seed = 0; seed < 3; seed++) {
             const puzzle = generateModePuzzle(width, height, mode, seed);
             assertTopologySolution({ ...puzzle, mode, input: '', solution: puzzle.pathSolution }, puzzle.pathSolution);
             expect(puzzle.pairCount).toBeLessThanOrEqual(16);
@@ -38,7 +38,7 @@ test('variant generation varies both endpoint layouts and topology', () => {
 test('rejects invalid dimensions, seeds and unavailable modes', () => {
     for (const mode of ['standard', 'bridges', 'warps'] as const) {
         expect(() => generateModePuzzle(4, 5, mode, 1)).toThrow('Grid size');
-        expect(() => generateModePuzzle(5, 16, mode, 1)).toThrow('Grid size');
+        expect(() => generateModePuzzle(5, 20, mode, 1)).toThrow('Grid size');
         expect(() => generateModePuzzle(5, 5, mode, -1)).toThrow('Seed');
     }
     expect(() => generateModePuzzle(5, 5, 'hexes', 1)).toThrow('not available yet');

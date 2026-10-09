@@ -1,3 +1,4 @@
+import { MAX_BOARD_SIZE } from './board-limits';
 import type { Board } from './astar-solver';
 import { normalizeWalls, type Wall } from './walls';
 import { normalizeTopology, topologyGraph, type PuzzleTopology } from './topology';
@@ -15,8 +16,8 @@ let modulePromise: Promise<FlowModule> | undefined;
 export function serializeBoard(board: Board): string {
   const width = board.length;
   const height = board[0]?.length ?? 0;
-  if ([width, height].some(dimension => dimension < 2 || dimension > 15) || board.some(column => column.length !== height)) {
-    throw new Error('The C solver requires a rectangular board with each dimension between 2 and 15.');
+  if ([width, height].some(dimension => dimension < 2 || dimension > MAX_BOARD_SIZE) || board.some(column => column.length !== height)) {
+    throw new Error(`The C solver requires a rectangular board with each dimension between 2 and ${MAX_BOARD_SIZE}.`);
   }
   const counts = new Map<number, number>();
   for (const value of board.flat()) {

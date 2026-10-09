@@ -29,6 +29,23 @@ export function warpRows(width = 5, height = 5, vertical = false) {
   return fixture(width, height, paths, { walls, warps, bridges: [] }, 'warps');
 }
 
+// A single forced snake with a used seam on every row, including the last.
+export function warpSnake(size = 19) {
+  const nodes = [], walls = [], warps = [];
+  const split = Math.floor(size / 2);
+  for (let y = 0; y < size; y++) {
+    const xs = Array.from({ length: size }, (_, i) => (split + i) % size);
+    if (y % 2) xs.reverse();
+    nodes.push(...xs.map(x => cell(x, y)));
+    walls.push({ x: split - 1, y, side: 'right' });
+    warps.push({ axis: 'horizontal', index: y });
+    if (y < size - 1) for (let x = 0; x < size; x++) {
+      if (x !== xs.at(-1)) walls.push({ x, y, side: 'down' });
+    }
+  }
+  return fixture(size, size, [{ color: 1, nodes }], { walls, warps, bridges: [] }, 'warps');
+}
+
 // Synthetic crossing: vertical center lane + middle row, short disjoint pairs
 // on either side. No official puzzle data is included.
 export function bridgeCross(adjacent = false, over = 'horizontal') {
@@ -45,28 +62,28 @@ export function bridgeCross(adjacent = false, over = 'horizontal') {
   return fixture(width, height, paths, { walls: [], warps: [], bridges }, 'bridges');
 }
 
-export function largeBridgeCover() {
-  const width = 15, height = 15, bridges = [];
-  for (let y = 1; y < 14; y++) for (let x = 1; x < 14; x++) bridges.push({ x, y, over: 'horizontal' });
+export function largeBridgeCover(size = 15) {
+  const width = size, height = size, bridges = [];
+  for (let y = 1; y < size - 1; y++) for (let x = 1; x < size - 1; x++) bridges.push({ x, y, over: 'horizontal' });
   const horizontal = [cell(0, 1)], vertical = [cell(1, 0)];
-  for (let y = 1; y < 14; y++) {
-    const xs = Array.from({ length: 13 }, (_, i) => y % 2 ? i + 1 : 13 - i);
+  for (let y = 1; y < size - 1; y++) {
+    const xs = Array.from({ length: size - 2 }, (_, i) => y % 2 ? i + 1 : size - 2 - i);
     horizontal.push(...xs.map(x => cell(x, y, 'horizontal')));
-    if (y < 13) horizontal.push(cell(y % 2 ? 14 : 0, y), cell(y % 2 ? 14 : 0, y + 1));
+    if (y < size - 2) horizontal.push(cell(y % 2 ? size - 1 : 0, y), cell(y % 2 ? size - 1 : 0, y + 1));
   }
-  horizontal.push(cell(14, 13));
-  for (let x = 1; x < 14; x++) {
-    const ys = Array.from({ length: 13 }, (_, i) => x % 2 ? i + 1 : 13 - i);
+  horizontal.push(cell(size - 1, size - 2));
+  for (let x = 1; x < size - 1; x++) {
+    const ys = Array.from({ length: size - 2 }, (_, i) => x % 2 ? i + 1 : size - 2 - i);
     vertical.push(...ys.map(y => cell(x, y, 'vertical')));
-    if (x < 13) vertical.push(cell(x, x % 2 ? 14 : 0), cell(x + 1, x % 2 ? 14 : 0));
+    if (x < size - 2) vertical.push(cell(x, x % 2 ? size - 1 : 0), cell(x + 1, x % 2 ? size - 1 : 0));
   }
-  vertical.push(cell(13, 14));
-  const hCut = horizontal.findIndex(n => n.x === 14 && n.y === 1) + 1;
-  const vCut = vertical.findIndex(n => n.x === 1 && n.y === 14) + 1;
+  vertical.push(cell(size - 2, size - 1));
+  const hCut = horizontal.findIndex(n => n.x === size - 1 && n.y === 1) + 1;
+  const vCut = vertical.findIndex(n => n.x === 1 && n.y === size - 1) + 1;
   const paths = [
-    { color: 1, nodes: [cell(0, 0), ...horizontal.slice(0, hCut), cell(14, 0)] },
-    { color: 2, nodes: [...horizontal.slice(hCut), cell(14, 14)] },
-    { color: 3, nodes: [...vertical.slice(0, vCut), cell(0, 14)] },
+    { color: 1, nodes: [cell(0, 0), ...horizontal.slice(0, hCut), cell(size - 1, 0)] },
+    { color: 2, nodes: [...horizontal.slice(hCut), cell(size - 1, size - 1)] },
+    { color: 3, nodes: [...vertical.slice(0, vCut), cell(0, size - 1)] },
     { color: 4, nodes: vertical.slice(vCut) },
   ];
   const chosen = new Set(paths.flatMap(p => p.nodes.slice(1).map((n, i) =>

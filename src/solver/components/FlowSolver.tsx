@@ -1,3 +1,4 @@
+import { MAX_BOARD_SIZE } from '../logic/board-limits';
 import { isDotLabels, type DotLabels } from './constants';
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { savePuzzleState, loadPuzzleState, type PuzzleDraft } from '@/hooks/useStorage';
@@ -119,7 +120,7 @@ const FlowSolver = () => {
                     const drafts = legacy ? { standard: initial } : { ...saved.drafts, [currentMode]: initial };
                     for (const [key, draft] of Object.entries(drafts)) {
                         if (!draft || !GAME_MODES[key as GameMode]?.available) throw new Error('Invalid saved mode');
-                        if (![draft.width, draft.height].every(n => Number.isInteger(n) && n >= 5 && n <= 15) ||
+                        if (![draft.width, draft.height].every(n => Number.isInteger(n) && n >= 5 && n <= MAX_BOARD_SIZE) ||
                             draft.board.length !== draft.width || draft.board[0]?.length !== draft.height) throw new Error('Invalid saved dimensions');
                         if (!['heuristic_bfs', 'astar', 'z3'].includes(draft.solverType) ||
                             !Number.isInteger(draft.activeColor) || draft.activeColor < 1 || draft.activeColor > 17 ||

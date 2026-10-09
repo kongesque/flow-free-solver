@@ -4,9 +4,9 @@ import { assertSolution } from '../../../tests/fixtures/assert-solution.mjs';
 
 const codes = ' RBYGOCMmPAWgTbcp';
 
-for (let width = 5; width <= 15; width++) {
+for (let width = 5; width <= 19; width++) {
     test(`rectangular width ${width}: validates all other heights for three seeds`, () => {
-        for (let height = 5; height <= 15; height++) {
+        for (let height = 5; height <= 19; height++) {
             if (width === height) continue;
             for (let seed = 0; seed < 3; seed++) {
                 const puzzle = generateRectangularPuzzle(width, height, seed);
@@ -22,13 +22,13 @@ for (let width = 5; width <= 15; width++) {
 }
 
 test('rejects invalid rectangular dimensions independently', () => {
-    for (const dimension of [0, 4, 16, 5.5, NaN, Infinity]) {
+    for (const dimension of [0, 4, 20, 5.5, NaN, Infinity]) {
         expect(() => generateRectangularPuzzle(dimension, 5, 1)).toThrow();
         expect(() => generateRectangularPuzzle(5, dimension, 1)).toThrow();
     }
 });
 
-for (let size = 5; size <= 15; size++) {
+for (let size = 5; size <= 19; size++) {
     test(`generates valid full-board ${size}x${size} path covers for 30 seeds`, () => {
         for (let seed = 0; seed < 30; seed++) {
             const puzzle = generatePuzzle(size, seed);
@@ -36,11 +36,12 @@ for (let size = 5; size <= 15; size++) {
             const solution = Array.from({ length: size }, (_, y) =>
                 Array.from({ length: size }, (_, x) => codes.charCodeAt(puzzle.solution[x][y])));
             assertSolution(input, solution);
-            expect(puzzle.board.flat().filter(Boolean)).toHaveLength(size * 2);
-            expect(puzzle.pairCount).toBe(size);
-            // Three cells or more per path, so pairs never start already connected.
+            expect(puzzle.board.flat().filter(Boolean)).toHaveLength(puzzle.pairCount * 2);
+            expect(puzzle.pairCount).toBeLessThanOrEqual(16);
+            if (size <= 16) expect(puzzle.pairCount).toBe(size);
+            // The nested cover may finish with an adjacent pair at its center.
             for (const color of new Set(puzzle.board.flat().filter(Boolean))) {
-                expect(puzzle.solution.flat().filter(c => c === color).length).toBeGreaterThanOrEqual(3);
+                expect(puzzle.solution.flat().filter(c => c === color).length).toBeGreaterThanOrEqual(size <= 16 ? 3 : 2);
             }
         }
     });
@@ -73,7 +74,7 @@ test('endpoint board and solution are independent arrays', () => {
 });
 
 test('rejects unsupported sizes and invalid seeds', () => {
-    for (const size of [0, 4, 16, 5.5, NaN, Infinity]) {
+    for (const size of [0, 4, 20, 5.5, NaN, Infinity]) {
         expect(() => generatePuzzle(size, 1)).toThrow('Grid size');
     }
     for (const seed of [-1, 2 ** 32, 0.5, NaN, Infinity]) {

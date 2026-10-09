@@ -1,4 +1,6 @@
 import { expect, test, type Locator } from '@playwright/test';
+import { assertSolution } from '../fixtures/assert-solution.mjs';
+import { openBoardOptions } from './board-options';
 
 const documentBounds = (locator: Locator) => locator.evaluate(element => {
     const rect = element.getBoundingClientRect();
@@ -54,4 +56,25 @@ test.describe('Touch guides across browsers', () => {
         await expect(page.locator('[data-cell="2,2"]')).toHaveAttribute('aria-description', 'C3');
         await expect(page.locator('.board-rows')).toHaveText('12345');
     });
+});
+
+test('19x19 editing and real worker solving fit a mobile screen', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('./'); await openBoardOptions(page);
+    await page.getByRole('combobox', { name: 'Grid Width' }).selectOption('19');
+    await page.getByRole('combobox', { name: 'Grid Height' }).selectOption('19');
+    for (let i = 0; i < 10; i++) {
+        const pair = i === 9 ? [[9, 8], [9, 9]] : [[i, i === 0 ? 0 : i - 1], [i + 2, i]];
+        for (const [x, y] of pair) await page.locator(`[data-cell="${x},${y}"]`).click();
+    }
+    const chars = '.RBYGOCMmPAWgTbcp';
+    const values = () => page.locator('[data-cell]').evaluateAll(cells => cells.map(cell =>
+        Number(cell.getAttribute('aria-label')?.split('Color ')[1]) || 0));
+    const input = await values();
+    await page.getByRole('button', { name: 'Solve', exact: true }).click();
+    await expect(page.getByRole('status')).toContainText('Solved');
+    const solved = await values();
+    assertSolution(Array.from({ length: 19 }, (_, y) => input.slice(y * 19, (y + 1) * 19).map(c => chars[c]).join('')).join('\n'),
+        Array.from({ length: 19 }, (_, y) => solved.slice(y * 19, (y + 1) * 19).map(c => chars.charCodeAt(c))));
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

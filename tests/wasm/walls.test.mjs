@@ -9,7 +9,7 @@ const module = await createFlowSolver();
 const solve = module.cwrap('solve_puzzle_with_walls_wasm', 'string', ['string', 'string']);
 const legacy = module.cwrap('solve_puzzle_wasm', 'string', ['string']);
 
-for (const [width, height] of [[5, 5], [5, 8], [8, 5], [2, 15], [15, 2], [15, 15]]) {
+for (const [width, height] of [[5, 5], [5, 8], [8, 5], [2, 15], [15, 2], [15, 15], [19, 19], [5, 19], [19, 5]]) {
   test(`wall corridor ${width}x${height} covers every cell through open boundaries`, () => {
     const { input, walls } = wallCorridor(width, height);
     const result = solve(input, wallText(walls));
@@ -83,3 +83,14 @@ for (const value of ['-1,0,R', '0,0,L', '4,0,R', '0,4,D', '0,5,R', '999999,0,R',
     assertSolution(input, JSON.parse(solve(input, wallText(walls))), walls);
   });
 }
+
+test('more than 255 disconnected free regions reject cleanly and retain a usable instance', () => {
+  const { input } = wallCorridor(19, 19);
+  const walls = [];
+  for (let y = 0; y < 19; y++) for (let x = 0; x < 19; x++) {
+    if (x < 18) walls.push({ x, y, side: 'right' });
+    if (y < 18) walls.push({ x, y, side: 'down' });
+  }
+  assert.match(solve(input, wallText(walls)), /^Error: No solution found/);
+  assertSolution(wallDetour.input, JSON.parse(solve(wallDetour.input, wallText(wallDetour.walls))), wallDetour.walls);
+});

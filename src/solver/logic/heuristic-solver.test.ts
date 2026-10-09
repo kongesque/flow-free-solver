@@ -15,6 +15,20 @@ test('serializes and transposes rectangular boards without swapping dimensions',
   expect(() => parseSolution('[[82,66],[82,66],[82,66]]', 3, 2)).toThrow();
 });
 
+test('accepts each 19-cell boundary and rejects either dimension at 20', () => {
+  for (const [width, height] of [[19, 5], [5, 19], [19, 19]]) {
+    const board = Array.from({ length: width }, () => Array(height).fill(0));
+    board[0][0] = board[width - 1][height - 1] = 1;
+    const rows = serializeBoard(board).trim().split('\n');
+    expect(rows).toHaveLength(height);
+    expect(rows.every(row => row.length === width)).toBe(true);
+  }
+  for (const [width, height] of [[20, 5], [5, 20]]) {
+    expect(() => serializeBoard(Array.from({ length: width }, () => Array(height).fill(0))))
+      .toThrow('between 2 and 19');
+  }
+});
+
 test('distinguishes unsolvable puzzles from C runtime errors', () => {
   expect(parseSolution('Error: No solution found (result code 1)', 5)).toBeNull();
   expect(() => parseSolution('Error: No solution found (result code 2)', 5)).toThrow();

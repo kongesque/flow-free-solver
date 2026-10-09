@@ -4,7 +4,7 @@ An open-source **Flow Free and Numberlink puzzle solver** for your browser.
 Recreate a board, place matching dots, and find paths that fill every cell.
 
 Solve **Classic, Classic with walls, Bridges, and Warps** puzzles on square or
-rectangular boards from **5×5 to 15×15**. All solving runs locally on your device,
+rectangular boards from **5×5 to 19×19**. All solving runs locally on your device,
 on desktop or mobile.
 
 **[Open Flow Free Solver](https://flow.kongesque.com/)** · [How the solver works](https://www.kongesque.com/blog/flow-free-solver)

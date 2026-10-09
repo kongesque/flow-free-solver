@@ -15,21 +15,20 @@
 #define EMSCRIPTEN_KEEPALIVE
 #endif
 
-// Positions are 8-bit integers with 4 bits each for y, x.
+// Positions use a fixed row stride and 16-bit indices for boards up to 19x19.
 enum {
 
   // Number to represent "not found"
-  INVALID_POS = 0xff,
+  INVALID_POS = UINT16_MAX,
 
   // Maximum # of colors in a puzzle
   MAX_COLORS = 16,
 
   // Maximum valid size of a puzzle
-  MAX_SIZE = 15,
+  MAX_SIZE = 19,
 
-  // Maximum # cells in a valid puzzle -- since we just use bit
-  // shifting to do x/y, need to allocate space for 1 unused column.
-  MAX_CELLS = (MAX_SIZE + 1) * MAX_SIZE - 1,
+  // Fixed stride keeps indices consistent across rectangular boards.
+  MAX_CELLS = MAX_SIZE * MAX_SIZE,
 
   // One million(ish) bytes
   MEGABYTE = 1024 * 1024,
@@ -60,7 +59,7 @@ enum {
 typedef uint8_t cell_t;
 
 // Represent a position within the game board
-typedef uint8_t pos_t;
+typedef uint16_t pos_t;
 
 // Match color characters to ANSI color codes
 typedef struct color_lookup_struct {
@@ -118,7 +117,7 @@ typedef struct game_info_struct {
   size_t width;
   size_t height;
 
-  // Immutable blocked edges, indexed using the solver's fixed 16-cell stride.
+  // Immutable blocked edges, indexed using the solver's fixed MAX_SIZE-cell stride.
   uint8_t walls[MAX_CELLS];
   size_t num_walls;
 
@@ -146,7 +145,7 @@ typedef struct game_state_struct {
   pos_t pos[MAX_COLORS];
 
   // How many free cells?
-  uint8_t num_free;
+  uint16_t num_free;
 
   // Which was the last color / endpoint
   uint8_t last_color;
@@ -235,7 +234,7 @@ const char *BLOCK_CHAR = "#";
 const char DIR_CHARS[4] = "<>^v";
 
 // x, y, pos coordinates for each direction
-const int DIR_DELTA[4][3] = {{-1, 0, -1}, {1, 0, 1}, {0, -1, -16}, {0, 1, 16}};
+const int DIR_DELTA[4][3] = {{-1, 0, -1}, {1, 0, 1}, {0, -1, -MAX_SIZE}, {0, 1, MAX_SIZE}};
 
 // Look-up table mapping characters in puzzle definitions to
 // output char, ANSI color, foreground/background RGB
@@ -306,16 +305,16 @@ const char *unprint_board(const game_info_t *info) { return ""; }
 void delay_seconds(double s) {}
 
 //////////////////////////////////////////////////////////////////////
-// Create a 8-bit position from 2 4-bit x,y coordinates
+// Create a fixed-stride position from x,y coordinates
 
-pos_t pos_from_coords(pos_t x, pos_t y) { return ((y & 0xf) << 4) | (x & 0xf); }
+pos_t pos_from_coords(pos_t x, pos_t y) { return y * MAX_SIZE + x; }
 
 //////////////////////////////////////////////////////////////////////
-// Split 8-bit position into 4-bit x & y coords
+// Split a fixed-stride position into x & y coordinates
 
 void pos_get_coords(pos_t p, int *x, int *y) {
-  *x = p & 0xf;
-  *y = (p >> 4) & 0xf;
+  *x = p % MAX_SIZE;
+  *y = p / MAX_SIZE;
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -1065,7 +1064,7 @@ void region_unite(region_t *regions, pos_t a, pos_t b) {
 // of freespace regions.
 
 size_t game_build_regions(const game_info_t *info, const game_state_t *state,
-                          uint8_t rmap[MAX_CELLS]) {
+                          pos_t rmap[MAX_CELLS]) {
 
   region_t regions[MAX_CELLS];
 
@@ -1093,11 +1092,11 @@ size_t game_build_regions(const game_info_t *info, const game_state_t *state,
     }
   }
 
-  uint8_t rlookup[MAX_CELLS];
+  pos_t rlookup[MAX_CELLS];
   size_t rcount = 0;
 
   memset(rlookup, 0xff, sizeof(rlookup));
-  memset(rmap, 0xff, MAX_CELLS);
+  memset(rmap, 0xff, MAX_CELLS * sizeof(*rmap));
 
   // 2nd pass to order regions
   for (size_t y = 0; y < info->height; ++y) {
@@ -1124,7 +1123,7 @@ size_t game_build_regions(const game_info_t *info, const game_state_t *state,
 // or goal position.
 
 void game_regions_add_color(const game_info_t *info, const game_state_t *state,
-                            const uint8_t rmap[MAX_CELLS], pos_t pos,
+                            const pos_t rmap[MAX_CELLS], pos_t pos,
                             uint16_t cflag, uint16_t *rflags) {
 
   for (int dir = 0; dir < 4; ++dir) {
@@ -1214,7 +1213,7 @@ int game_check_deadends(const game_info_t *info, const game_state_t *state) {
 // that every color can get solved and no freespace is isolated
 
 int game_regions_stranded(const game_info_t *info, const game_state_t *state,
-                          size_t rcount, const uint8_t rmap[MAX_CELLS],
+                          size_t rcount, const pos_t rmap[MAX_CELLS],
                           size_t chokepoint_color, int max_stranded) {
 
   // For each region, we have bitflags to track whether current or
@@ -1301,7 +1300,7 @@ int game_regions_stranded(const game_info_t *info, const game_state_t *state,
 // Print connected components of freespace
 
 void game_print_regions(const game_info_t *info, const game_state_t *state,
-                        uint8_t rmap[MAX_CELLS]) {
+                        pos_t rmap[MAX_CELLS]) {
 
   printf("%s", BLOCK_CHAR);
   for (size_t x = 0; x < info->width; ++x) {
@@ -1768,7 +1767,7 @@ int game_check_chokepoint(const game_info_t *info, const game_state_t *state,
   }
 
   // Build new region map
-  uint8_t rmap[MAX_CELLS];
+  pos_t rmap[MAX_CELLS];
   size_t rcount = game_build_regions(info, &state_copy, rmap);
 
   // See if we are stranded
@@ -1860,7 +1859,7 @@ void game_diagnostics(const game_info_t *info, const tree_node_t *node) {
     game_print(info, &state_copy);
     printf("\n");
 
-    uint8_t rmap[MAX_CELLS];
+    pos_t rmap[MAX_CELLS];
 
     size_t rcount = game_build_regions(info, &state_copy, rmap);
 
@@ -1914,10 +1913,12 @@ tree_node_t *game_validate_ff(const game_info_t *info, tree_node_t *node,
                               node_storage_t *storage) {
 
   assert(node == storage->start + storage->count - 1);
-
+  const size_t first_index = storage->count - 1;
   const game_state_t *node_state = &node->state;
 
-  if (g_options.search_fast_forward && g_options.order_forced_first) {
+  // Advance forced chains iteratively. A 19x19 wall route can force hundreds
+  // of moves; recursion would retain a region-map stack frame for each move.
+  while (g_options.search_fast_forward && g_options.order_forced_first) {
 
     int color, dir;
 
@@ -1931,20 +1932,12 @@ tree_node_t *game_validate_ff(const game_info_t *info, tree_node_t *node,
 
       // if null, we ran out of memory and returning node is fine.
 
-      if (forced_child) {
-
-        game_make_move(info, &forced_child->state, color, dir, 1);
-
-        node_update_costs(info, forced_child, 0);
-        forced_child = game_validate_ff(info, forced_child, storage);
-
-        if (!forced_child) {
-          goto unalloc_return_0;
-        } else {
-          return forced_child;
-        }
-      }
-    }
+      if (!forced_child) break;
+      game_make_move(info, &forced_child->state, color, dir, 1);
+      node_update_costs(info, forced_child, 0);
+      node = forced_child;
+      node_state = &node->state;
+    } else break;
   }
 
   if (g_options.node_check_deadends && game_check_deadends(info, node_state)) {
@@ -1953,7 +1946,7 @@ tree_node_t *game_validate_ff(const game_info_t *info, tree_node_t *node,
 
   if (g_options.node_check_stranded) {
 
-    uint8_t rmap[MAX_CELLS];
+    pos_t rmap[MAX_CELLS];
     size_t rcount = game_build_regions(info, node_state, rmap);
 
     if (game_regions_stranded(info, node_state, rcount, rmap, MAX_COLORS, 1)) {
@@ -1971,8 +1964,10 @@ tree_node_t *game_validate_ff(const game_info_t *info, tree_node_t *node,
 
 unalloc_return_0:
 
-  assert(node == storage->start + storage->count - 1);
-  node_storage_unalloc(storage, node);
+  // Pruning removes the entire forced chain, including its original node.
+  while (storage->count > first_index) {
+    node_storage_unalloc(storage, storage->start + storage->count - 1);
+  }
   return 0;
 }
 

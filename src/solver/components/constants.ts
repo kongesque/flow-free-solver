@@ -1,5 +1,6 @@
+import { MAX_BOARD_SIZE } from '../logic/board-limits';
 export const DEFAULT_SIZE = 5;
-export const SIZE_OPTIONS = [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
+export const SIZE_OPTIONS = Array.from({ length: MAX_BOARD_SIZE - 4 }, (_, i) => i + 5);
 export const RESTRICT_Z3_TO_LARGE_GRIDS = false;
 
 export const COLORS: Record<number, string> = {
