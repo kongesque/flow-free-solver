@@ -17,13 +17,17 @@ await mkdir(output, { recursive: true });
 const browser = await chromium.launch();
 try {
   for (const puzzle of demoPuzzles) {
-    const context = await browser.newContext({ viewport: { width: 480, height: 900 }, deviceScaleFactor: 1 });
+    // A 4:3 desktop view keeps both the board and controls visible in README cards.
+    const context = await browser.newContext({ viewport: { width: 960, height: 720 }, deviceScaleFactor: 1 });
     try {
       const page = await context.newPage();
       const errors = [];
       page.on('pageerror', error => errors.push(error.message));
       // Keep recording preferences separate from the user's browser session.
-      await page.addInitScript(() => localStorage.setItem('flow-show-generator', 'false'));
+      await page.addInitScript(() => {
+        localStorage.setItem('flow-show-generator', 'false');
+        localStorage.setItem('flow-coordinates', 'false');
+      });
       await page.goto(baseURL);
       await page.getByRole('combobox', { name: 'Game Mode' }).selectOption(puzzle.mode);
       await page.getByRole('combobox', { name: 'Grid Size' }).selectOption(String(puzzle.width));
