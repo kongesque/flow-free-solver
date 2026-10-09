@@ -17,7 +17,7 @@ export async function solveZ3Topology(board: Board, topology: PuzzleTopology, in
         const [first, ...rest] = terms;
         return PbEq([first, ...rest], [1, ...rest.map(() => 1)], count);
     };
-    const { nodes, edges } = topologyGraph(board.length, board[0].length, topology);
+    const { nodes, edges, active } = topologyGraph(board.length, board[0].length, topology);
     const colors = [...new Set(board.flat().filter(Boolean))];
     const values = nodes.map((_, id) => BitVec.const(`color_${id}`, 5));
     const endpoints = nodes.map(node => node.lane === 'cell' ? board[node.x][node.y] : 0);
@@ -31,6 +31,7 @@ export async function solveZ3Topology(board: Board, topology: PuzzleTopology, in
         solver.add(induced ? chosen.eq(sameColor) : Implies(chosen, sameColor));
     });
     nodes.forEach((_, id) => {
+        if (!active[id]) { solver.add(values[id].eq(BitVec.val(0, 5))); return; }
         const color = endpoints[id];
         if (color) {
             solver.add(values[id].eq(BitVec.val(color, 5)));
@@ -49,6 +50,7 @@ export async function solveZ3Topology(board: Board, topology: PuzzleTopology, in
     const rankBits = Math.ceil(Math.log2(nodes.length));
     const ranks = nodes.map((_, id) => BitVec.const(`rank_${id}`, rankBits));
     nodes.forEach((_, id) => {
+        if (!active[id]) return;
         const source = endpoints[id] !== 0 && pairs.get(endpoints[id])![0] === id;
         if (source) solver.add(ranks[id].eq(BitVec.val(0, rankBits)));
         const incoming = incident[id].map(edge => {

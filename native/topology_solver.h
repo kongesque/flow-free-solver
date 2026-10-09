@@ -209,11 +209,23 @@ const char *solve_puzzle_topology_wasm(const char *board_text, const char *topol
   s->width = info.width; s->height = info.height; s->area = info.width * info.height; s->count = s->area; s->colors = info.num_colors;
   memset(s->neighbors, 0xff, sizeof(s->neighbors)); memset(s->mate, 0xff, sizeof(s->mate)); memset(s->owner, -1, sizeof(s->owner));
   uint16_t vertical[MAX_CELLS]; memset(vertical, 0xff, sizeof(vertical));
+  for (uint16_t id = 0; id < s->area; id++) {
+    int x = id % s->width, y = id / s->width;
+    if (info.blocks[pos_from_coords(x, y)]) {
+      // A nonnegative owner excludes this slot from free-space search.
+      s->owner[id] = MAX_COLORS;
+      if ((x == 0 || x + 1 == s->width) && rows[y]) { free(s); return invalid; }
+      if ((y == 0 || y + 1 == s->height) && cols[x]) { free(s); return invalid; }
+    }
+  }
   for (uint16_t id = 0; id < s->area; id++) if (bridge[id]) {
-    if (wall[id]) { free(s); return invalid; }
+    int x = id % s->width, y = id / s->width;
+    if (wall[id] || info.blocks[pos_from_coords(x - 1, y)] || info.blocks[pos_from_coords(x + 1, y)] ||
+        info.blocks[pos_from_coords(x, y - 1)] || info.blocks[pos_from_coords(x, y + 1)]) { free(s); return invalid; }
     vertical[id] = s->count++; s->mate[id] = vertical[id]; s->mate[vertical[id]] = id;
   }
   for (uint16_t id = 0; id < s->area; id++) {
+    if (s->owner[id] == MAX_COLORS) continue;
     int x = id % s->width, y = id / s->width;
     for (int d = 0; d < 4; d++) {
       if (wall[id] & (1 << d)) continue;
@@ -221,6 +233,7 @@ const char *solve_puzzle_topology_wasm(const char *board_text, const char *topol
       if (nx < 0 || nx >= s->width) { if (!rows[y]) continue; nx = nx < 0 ? s->width - 1 : 0; }
       if (ny < 0 || ny >= s->height) { if (!cols[x]) continue; ny = ny < 0 ? s->height - 1 : 0; }
       uint16_t neighbor = ny * s->width + nx;
+      if (s->owner[neighbor] == MAX_COLORS) continue;
       uint16_t from = bridge[id] && d >= DIR_UP ? vertical[id] : id;
       uint16_t to = bridge[neighbor] && d >= DIR_UP ? vertical[neighbor] : neighbor;
       s->neighbors[from][d] = to;
@@ -232,7 +245,7 @@ const char *solve_puzzle_topology_wasm(const char *board_text, const char *topol
     s->owner[s->head[c]] = s->owner[s->goal[c]] = c;
     s->path[c][0] = s->head[c]; s->length[c] = 1;
   }
-  s->free_count = s->count - 2 * s->colors; s->started = clock();
+  s->free_count = s->count - info.num_blocks - 2 * s->colors; s->started = clock();
   int solved = topo_search(s);
   size_t used = (size_t)snprintf(result, sizeof(result), "{\"version\":1,\"status\":\"%s\",\"nodeCount\":%zu", solved ? "solved" : s->limit ? "limit" : "unsatisfiable", s->visits);
   if (solved) {

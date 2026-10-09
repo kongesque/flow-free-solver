@@ -8,7 +8,7 @@ export function disconnectedLoops(board: Board, model: Board, walls: readonly Wa
     const width = board.length, height = board[0].length;
     const seen = new Set<number>(), loops: Cell[][] = [];
     for (let x = 0; x < width; x++) for (let y = 0; y < height; y++) {
-        if (seen.has(y * width + x)) continue;
+        if (!model[x][y] || seen.has(y * width + x)) continue;
         const color = model[x][y], cells: Cell[] = [], queue: Cell[] = [[x, y]];
         let hasEndpoint = false;
         while (queue.length) {

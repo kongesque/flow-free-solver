@@ -20,6 +20,10 @@ export function assertSolution(input, solution, walls = []) {
   for (let y = 0; y < height; y++) {
     assert.equal(solution[y].length, width);
     for (let x = 0; x < width; x++) {
+      if (rows[y][x] === '#') {
+        assert.equal(solution[y][x], 0, `Filled blocked cell at ${x},${y}`);
+        continue;
+      }
       const color = String.fromCharCode(solution[y][x]);
       assert.notEqual(color, '\0', `Empty cell at ${x},${y}`);
       if (rows[y][x] !== '.') {
@@ -32,6 +36,7 @@ export function assertSolution(input, solution, walls = []) {
   }
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
+      if (rows[y][x] === '#') continue;
       const code = solution[y][x];
       assert.ok(endpoints.has(String.fromCharCode(code)), 'Unknown color');
       const neighbors = [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]]

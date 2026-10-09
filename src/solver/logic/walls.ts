@@ -2,7 +2,7 @@ import type { Cell } from './astar-solver';
 
 /** Each blocked boundary is stored once, in column-major editor coordinates. */
 export type Wall = { x: number; y: number; side: 'right' | 'down' };
-export type EditTool = 'dots' | 'walls' | 'bridges' | 'warps';
+export type EditTool = 'dots' | 'walls' | 'bridges' | 'warps' | 'blocks';
 
 export const wallKey = ({ x, y, side }: Wall) => `${x},${y},${side}`;
 

@@ -15,7 +15,7 @@ const SolverHeader = ({ editTool }: { editTool: EditTool }) => (
                     ))}
                 </span>
             </h1>
-            <p>{editTool === 'dots' ? 'Select a cell to place or remove a dot.' : editTool === 'walls' ? 'Draw boundaries between cells.' : editTool === 'bridges' ? 'Add crossings inside the board.' : 'Connect opposite board edges.'}</p>
+            <p>{editTool === 'blocks' ? 'Select a cell to block or unblock it.' : editTool === 'dots' ? 'Select a cell to place or remove a dot.' : editTool === 'walls' ? 'Draw boundaries between cells.' : editTool === 'bridges' ? 'Add crossings inside the board.' : 'Connect opposite board edges.'}</p>
         </div>
     </header>
 );

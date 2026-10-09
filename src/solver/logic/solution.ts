@@ -27,7 +27,7 @@ export function validateSolution(board: Board, topology: PuzzleTopology, solutio
         let previous: number | undefined;
         keys.forEach((key, i) => {
             const id = ids.get(key);
-            if (id === undefined || occupied.has(id)) throw new Error('Overlapping or invalid path node');
+            if (id === undefined || !graph.active[id] || occupied.has(id)) throw new Error('Overlapping or invalid path node');
             const node = graph.nodes[id];
             if (i > 0 && i < keys.length - 1 && board[node.x][node.y]) throw new Error('Path crosses an endpoint');
             if (previous !== undefined && !graph.edges[previous].includes(id)) throw new Error('Illegal path step');
@@ -35,7 +35,7 @@ export function validateSolution(board: Board, topology: PuzzleTopology, solutio
             previous = id;
         });
     }
-    if (colors.size !== endpoints.size || occupied.size !== graph.nodes.length) throw new Error('Incomplete board coverage');
+    if (colors.size !== endpoints.size || occupied.size !== graph.active.filter(Boolean).length) throw new Error('Incomplete board coverage');
     topology.bridges.forEach(({ x, y }, i) => {
         if (occupied.get(y * board.length + x) === occupied.get(board.length * board[0].length + i)) throw new Error('A bridge cannot cross the same color');
     });
@@ -47,6 +47,7 @@ export function validateInducedSolution(board: Board, topology: PuzzleTopology, 
     const graph = topologyGraph(board.length, board[0].length, topology);
     const colors = new Map(solution.paths.flatMap(path => path.nodes.map(node => [nodeKey(node), path.color] as const)));
     for (const [id, node] of graph.nodes.entries()) {
+        if (!graph.active[id]) continue;
         const color = colors.get(nodeKey(node));
         const degree = graph.edges[id].filter(n => colors.get(nodeKey(graph.nodes[n])) === color).length;
         const expected = node.lane === 'cell' && board[node.x][node.y] ? 1 : 2;
@@ -73,6 +74,9 @@ export function boardToSolution(board: Board, solved: Board, topology: PuzzleTop
         if (color && solved[x][y] !== color) throw new Error('Changed endpoints');
     }));
     const graph = topologyGraph(board.length, board[0].length, topology);
+    graph.nodes.forEach((node, id) => {
+        if (!graph.active[id] && solved[node.x][node.y] !== 0) throw new Error('Solution fills a blocked cell');
+    });
     const endpoints = new Map<number, number[]>();
     board.forEach((column, x) => column.forEach((color, y) => {
         if (color) endpoints.set(color, [...(endpoints.get(color) ?? []), y * board.length + x]);

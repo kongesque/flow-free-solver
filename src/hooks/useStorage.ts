@@ -2,6 +2,7 @@ import type { GameMode } from '../solver/logic/game-modes';
 import type { Bridge, WarpSeam } from '../solver/logic/topology';
 import type { Wall } from '../solver/logic/walls';
 import type { PuzzleSolution } from '../solver/logic/solution';
+import type { Block } from '../solver/logic/blocks';
 
 /**
  * IndexedDB Storage Hook for Flow Free Solver
@@ -20,6 +21,7 @@ export interface PuzzleDraft {
     walls: Wall[];
     bridges: Bridge[];
     warps: WarpSeam[];
+    blocks?: Block[];
     solverType: 'astar' | 'z3' | 'heuristic_bfs';
     activeColor: number;
     isPlacingSecond: boolean;
@@ -38,6 +40,7 @@ export interface PuzzleState {
     walls?: Wall[];
     bridges?: Bridge[];
     warps?: WarpSeam[];
+    blocks?: Block[];
     board: number[][];
     solverType: 'astar' | 'z3' | 'heuristic_bfs';
     activeColor: number;

@@ -2,10 +2,11 @@ import { MAX_BOARD_SIZE } from './board-limits';
 import type { Board } from './astar-solver';
 import type { GameMode } from './game-modes';
 import { hasWall, normalizeWalls, type Wall } from './walls';
+import { blockKey, normalizeBlocks, type Block } from './blocks';
 
 export type Bridge = { x: number; y: number; over: 'horizontal' | 'vertical' };
 export type WarpSeam = { axis: 'horizontal' | 'vertical'; index: number };
-export type PuzzleTopology = { walls: Wall[]; bridges: Bridge[]; warps: WarpSeam[] };
+export type PuzzleTopology = { walls: Wall[]; bridges: Bridge[]; warps: WarpSeam[]; blocks?: Block[] };
 export type PathNode = { x: number; y: number; lane: 'cell' | 'horizontal' | 'vertical' };
 export const bridgeKey = ({ x, y }: Bridge) => `${x},${y}`;
 export const seamKey = ({ axis, index }: WarpSeam) => `${axis},${index}`;
@@ -28,6 +29,8 @@ export function normalizeTopology(input: unknown, board: Board, mode: GameMode):
     const raw = (input ?? {}) as Partial<PuzzleTopology>;
     const width = board.length, height = board[0].length;
     const walls = normalizeWalls(raw.walls, width, height);
+    const blocks = normalizeBlocks(raw.blocks, board);
+    const blocked = new Set(blocks.map(blockKey));
     const bridges = new Map<string, Bridge>();
     const warps = new Map<string, WarpSeam>();
     if (raw.bridges !== undefined && (!Array.isArray(raw.bridges) || raw.bridges.length > width * height)) throw new Error('Invalid bridges');
@@ -37,8 +40,9 @@ export function normalizeTopology(input: unknown, board: Board, mode: GameMode):
             bridge.x < 1 || bridge.y < 1 || bridge.x >= width - 1 || bridge.y >= height - 1 ||
             !['horizontal', 'vertical'].includes(bridge.over)) throw new Error('Bridges must be interior cells');
         if (board[bridge.x][bridge.y]) throw new Error('Remove this dot before adding a bridge');
+        if (blocked.has(blockKey(bridge))) throw new Error('Remove this block before adding a bridge');
         if ([[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) =>
-            hasWall(walls, [bridge.x, bridge.y], [bridge.x + dx, bridge.y + dy]))) {
+            blocked.has(`${bridge.x + dx},${bridge.y + dy}`) || hasWall(walls, [bridge.x, bridge.y], [bridge.x + dx, bridge.y + dy]))) {
             throw new Error('This bridge needs all four sides open');
         }
         const value = { x: bridge.x, y: bridge.y, over: bridge.over };
@@ -49,11 +53,14 @@ export function normalizeTopology(input: unknown, board: Board, mode: GameMode):
     for (const seam of raw.warps ?? []) {
         if (!seam || !['horizontal', 'vertical'].includes(seam.axis) || !Number.isInteger(seam.index) ||
             seam.index < 0 || seam.index >= (seam.axis === 'horizontal' ? height : width)) throw new Error('Invalid warp seam');
+        if (seam.axis === 'horizontal'
+            ? blocked.has(`0,${seam.index}`) || blocked.has(`${width - 1},${seam.index}`)
+            : blocked.has(`${seam.index},0`) || blocked.has(`${seam.index},${height - 1}`)) throw new Error('Remove border blocks before opening this warp');
         warps.set(seamKey(seam), { axis: seam.axis, index: seam.index });
     }
     if (bridges.size && mode !== 'bridges') throw new Error('Bridges require Bridges mode');
     if (warps.size && mode !== 'warps') throw new Error('Warps require Warps mode');
-    return { walls, bridges: [...bridges.values()].sort((a, b) => a.y - b.y || a.x - b.x),
+    return { walls, ...(blocks.length ? { blocks } : {}), bridges: [...bridges.values()].sort((a, b) => a.y - b.y || a.x - b.x),
         warps: [...warps.values()].sort((a, b) => a.axis.localeCompare(b.axis) || a.index - b.index) };
 }
 
@@ -65,12 +72,16 @@ export function topologyGraph(width: number, height: number, topology: PuzzleTop
         return { x, y, lane: bridgeMap.has(`${x},${y}`) ? 'horizontal' : 'cell' };
     });
     nodes.push(...topology.bridges.map(({ x, y }) => ({ x, y, lane: 'vertical' as const })));
+    const blocked = new Set((topology.blocks ?? []).map(blockKey));
+    // Retain stable native IDs; inactive slots never have edges or require coverage.
+    const active = nodes.map(node => !blocked.has(blockKey(node)));
     const edges: number[][] = nodes.map(() => []);
     const idAt = (x: number, y: number, axis: 'horizontal' | 'vertical') => {
         const bridge = bridgeMap.get(`${x},${y}`);
         return bridge !== undefined && axis === 'vertical' ? width * height + bridge : y * width + x;
     };
     const add = (a: number, b: number) => {
+        if (!active[a] || !active[b]) return;
         if (!edges[a].includes(b)) edges[a].push(b);
         if (!edges[b].includes(a)) edges[b].push(a);
     };
@@ -85,5 +96,5 @@ export function topologyGraph(width: number, height: number, topology: PuzzleTop
         if (axis === 'horizontal') add(idAt(0, index, axis), idAt(width - 1, index, axis));
         else add(idAt(index, 0, axis), idAt(index, height - 1, axis));
     }
-    return { nodes, edges };
+    return { nodes, edges, active };
 }

@@ -5,12 +5,13 @@ import { normalizeTopology, validateBoard, type PuzzleTopology } from '../logic/
 import { boardToSolution, solutionBoard, validateSolution, type PuzzleSolution } from '../logic/solution';
 import { SearchLimitError } from '../logic/solver-errors';
 import type { Wall } from '../logic/walls';
+import type { Block } from '../logic/blocks';
 
 // Heuristic solves should not download or parse the SAT API. Load each other
 // solver only when selected or when heuristic search actually needs fallback.
-async function solveZ3(board: Board, walls: Wall[]) {
+async function solveZ3(board: Board, walls: Wall[], blocks?: Block[]) {
     const { solveZ3 } = await import('../logic/z3-solver');
-    return solveZ3(board, walls);
+    return solveZ3(board, walls, blocks);
 }
 
 async function solveZ3Topology(board: Board, topology: PuzzleTopology, classicDegree = false, candidate?: PuzzleSolution) {
@@ -20,7 +21,7 @@ async function solveZ3Topology(board: Board, topology: PuzzleTopology, classicDe
 
 self.onmessage = async (event: MessageEvent<{
     board: Board; type: 'astar' | 'z3' | 'heuristic_bfs'; mode?: GameMode;
-    walls?: unknown; bridges?: unknown; warps?: unknown;
+    walls?: unknown; bridges?: unknown; warps?: unknown; blocks?: unknown;
     allowFallback?: boolean;
     satCandidate?: PuzzleSolution | null;
 }>) => {
@@ -38,7 +39,7 @@ self.onmessage = async (event: MessageEvent<{
             if (candidate) validateSolution(board, topology, candidate);
             let solution;
             if (mode === 'standard' && !candidate) {
-                const result = await solveZ3(board, topology.walls);
+                const result = await solveZ3(board, topology.walls, topology.blocks);
                 solution = result ? boardToSolution(board, result, topology) : null;
             } else solution = await solveZ3Topology(board, topology, mode === 'standard', candidate);
             self.postMessage({ board: solution ? solutionBoard(board, solution) : null, solution,
@@ -57,13 +58,13 @@ self.onmessage = async (event: MessageEvent<{
         }
         requireStandardMode(mode);
         const solveClassic = async () => {
-            try { return await solveHeuristicBFS(board, topology.walls); }
+            try { return await solveHeuristicBFS(board, topology.walls, topology.blocks); }
             catch (error) {
                 if (!(error instanceof SearchLimitError) || event.data.allowFallback === false || !self.crossOriginIsolated) throw error;
-                return solveZ3(board, topology.walls);
+                return solveZ3(board, topology.walls, topology.blocks);
             }
         };
-        const result = type === 'astar' ? (await import('../logic/astar-solver')).solve(board) : {
+        const result = type === 'astar' ? (await import('../logic/astar-solver')).solve(board, topology.blocks) : {
             board: await solveClassic(),
             timedOut: false, timeTaken: 0, nodeCount: 0,
         };

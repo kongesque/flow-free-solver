@@ -1,3 +1,4 @@
+import { blockKey, type Block } from '../logic/blocks';
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
 import PipeOverlay from './PipeOverlay';
 import type { PuzzleSolution } from '../logic/solution';
@@ -25,6 +26,8 @@ interface PuzzleGridProps {
     warps: WarpSeam[];
     onBridgeClick: (x: number, y: number) => void;
     onSeamClick: (seam: WarpSeam) => void;
+    blocks: Block[];
+    onBlockClick: (x: number, y: number) => void;
 }
 
 const PuzzleGrid = ({
@@ -38,7 +41,7 @@ const PuzzleGrid = ({
     activeColor,
     isResetting,
     onCellClick,
-    walls, editTool, onWallsChange, endpointBoard, solution, bridges, warps, onBridgeClick, onSeamClick,
+    walls, editTool, onWallsChange, endpointBoard, solution, bridges, warps, onBridgeClick, onSeamClick, blocks, onBlockClick,
 }: PuzzleGridProps) => {
     const gridRef = useRef<HTMLElement>(null);
     const [highlightSeam, setHighlightSeam] = useState<string | null>(null);
@@ -49,10 +52,11 @@ const PuzzleGrid = ({
     const [guideCell, setGuideCell] = useState<[number, number] | null>(null);
     const [touchPreview, setTouchPreview] = useState(false);
     const [coordinateStep, setCoordinateStep] = useState({ column: 1, row: 1 });
-    const placement = useRef<{ pointerId: number; tool: 'dots' | 'bridges'; origin: [number, number]; guided: boolean } | null>(null);
+    const placement = useRef<{ pointerId: number; tool: 'dots' | 'bridges' | 'blocks'; origin: [number, number]; guided: boolean } | null>(null);
     const suppressClickUntil = useRef(0);
     const cancelledPlacement = useRef<number | null>(null);
     const stroke = useRef<{ pointerId: number; adding: boolean; walls: Wall[]; seen: Set<string>; point: [number, number]; side: Wall['side'] } | null>(null);
+    const blocked = new Set(blocks.map(blockKey));
     const editingWalls = editTool === 'walls' && !isSolving && !solvedBoard;
     const editing = !isSolving && !solvedBoard;
     const visibleWalls = draft ?? walls;
@@ -76,7 +80,7 @@ const PuzzleGrid = ({
     useEffect(() => {
         cancelStroke();
         setHighlightSeam(null);
-    }, [cancelStroke, walls, width, height, editTool, isSolving, solvedBoard, isResetting, showBoardGuides]);
+    }, [cancelStroke, walls, blocks, width, height, editTool, isSolving, solvedBoard, isResetting, showBoardGuides]);
     useEffect(() => {
         const grid = gridRef.current;
         if (!grid) return;
@@ -122,7 +126,7 @@ const PuzzleGrid = ({
     };
     const startPlacement = (event: PointerEvent<HTMLElement>) => {
         if (!editing || event.pointerType === 'mouse' || event.button !== 0 || !event.isPrimary ||
-            (editTool !== 'dots' && editTool !== 'bridges') ||
+            (editTool !== 'dots' && editTool !== 'bridges' && editTool !== 'blocks') ||
             stroke.current || placement.current) return;
         const cell = pointerCell(event);
         if (!cell) return;
@@ -144,6 +148,7 @@ const PuzzleGrid = ({
         if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
         if (cell && (active.guided || (cell[0] === active.origin[0] && cell[1] === active.origin[1]))) {
             if (active.tool === 'dots') onCellClick(...cell);
+            else if (active.tool === 'blocks') onBlockClick(...cell);
             else onBridgeClick(...cell);
         }
     };
@@ -204,11 +209,12 @@ const PuzzleGrid = ({
     // Grid lines belong to the nearest cell, so small touch targets have no dead gaps.
     const handleGridClick = (event: MouseEvent<HTMLElement>) => {
         if (event.detail !== 0 && performance.now() < suppressClickUntil.current) return;
-        if (editTool !== 'dots' || event.target !== event.currentTarget || isSolving || solvedBoard) return;
+        if ((editTool !== 'dots' && editTool !== 'blocks') || event.target !== event.currentTarget || isSolving || solvedBoard) return;
         const bounds = event.currentTarget.getBoundingClientRect();
         const x = Math.min(width - 1, Math.floor((event.clientX - bounds.left) / bounds.width * width));
         const y = Math.min(height - 1, Math.floor((event.clientY - bounds.top) / bounds.height * height));
-        onCellClick(Math.max(0, x), Math.max(0, y));
+        if (editTool === 'blocks') onBlockClick(Math.max(0, x), Math.max(0, y));
+        else onCellClick(Math.max(0, x), Math.max(0, y));
     };
     const moveFocus = (event: KeyboardEvent<HTMLButtonElement>, x: number, y: number) => {
         if (editTool === 'walls' && (event.key === 'Enter' || event.key === ' ')) {
@@ -262,8 +268,9 @@ const PuzzleGrid = ({
         ref={gridRef}
         aria-label="Puzzle Grid Board"
         aria-describedby="board-instructions board-keyboard-help"
+        data-blocks={JSON.stringify(blocks)}
         data-solution={solution ? JSON.stringify(solution) : undefined}
-        className={`puzzle-grid ${editingWalls ? 'editing-walls' : ''} ${showBoardGuides && editing && (editTool === 'dots' || editTool === 'bridges') ? 'placing-touch' : ''}`}
+        className={`puzzle-grid ${editingWalls ? 'editing-walls' : ''} ${showBoardGuides && editing && (editTool === 'dots' || editTool === 'bridges' || editTool === 'blocks') ? 'placing-touch' : ''}`}
         onClick={handleGridClick}
         onPointerDown={event => {
             // A fresh gesture must not inherit the previous gesture's compatibility-click guard.
@@ -295,6 +302,7 @@ const PuzzleGrid = ({
     >
         {Array.from({ length: height }).map((_, y) =>
             Array.from({ length: width }).map((_, x) => {
+                const isBlocked = blocked.has(`${x},${y}`);
                 const cellValue = currentBoard[x]?.[y] ?? 0;
                 const hasColor = cellValue !== 0;
                 const endpoint = endpointBoard[x]?.[y] ?? 0;
@@ -305,6 +313,7 @@ const PuzzleGrid = ({
                     <button
                         key={`${x}-${y}`}
                         data-cell={`${x},${y}`}
+                        data-blocked={isBlocked || undefined}
                         type="button"
                         disabled={isSolving || solvedBoard !== null}
                         tabIndex={y * width + x === Math.min(focusedCell, width * height - 1) ? 0 : -1}
@@ -319,6 +328,7 @@ const PuzzleGrid = ({
                             transition-all duration-150
                             touch-manipulation
                             select-none
+                            ${isBlocked ? 'blocked-cell' : ''}
                             ${solvedBoard ? 'cursor-default' : 'hover:bg-stoic-block-hover active:bg-stoic-block-hover'}
                             ${showBoardGuides && editing && guideCell && (guideCell[0] === x || guideCell[1] === y) ? 'cell-guide' : ''}
                             ${showBoardGuides && editing && guideCell?.[0] === x && guideCell?.[1] === y ? `cell-guide-active ${touchPreview ? 'touch-preview' : ''}` : ''}
@@ -327,9 +337,10 @@ const PuzzleGrid = ({
                             if (event.detail !== 0 && performance.now() < suppressClickUntil.current) return;
                             if (isSolving || solvedBoard) return;
                             if (editTool === 'dots') onCellClick(x, y);
+                            if (editTool === 'blocks') onBlockClick(x, y);
                             if (editTool === 'bridges') { onBridgeClick(x, y); setAnnouncement(`Bridge toggled, column ${x + 1}, row ${y + 1}.`); }
                         }}
-                        aria-label={`Cell ${x},${y} ${bridge ? `Bridge ${bridge.over} on top${laneColors.map(p => `; ${p.nodes.find(n => n.x === x && n.y === y)?.lane} Color ${p.color}`).join('')}` : hasColor ? `Color ${cellValue}` : 'Empty'}`}
+                        aria-label={`Cell ${x},${y} ${isBlocked ? 'Blocked' : bridge ? `Bridge ${bridge.over} on top${laneColors.map(p => `; ${p.nodes.find(n => n.x === x && n.y === y)?.lane} Color ${p.color}`).join('')}` : hasColor ? `Color ${cellValue}` : 'Empty'}`}
                         aria-description={[
                             showBoardGuides ? `${String.fromCharCode(65 + x)}${y + 1}` : '',
                             endpoint && dotLabels === 'letters' ? `${dotLabel(endpoint, dotLabels)}, ${COLOR_LABELS[endpoint].name}` : '',
@@ -341,7 +352,7 @@ const PuzzleGrid = ({
                                 style={{ backgroundColor: COLORS[endpoint] || '#888', color: dotLabelColor(endpoint) }}
                                 aria-hidden="true"
                             >{dotLabel(endpoint, dotLabels)}</span>
-                        ) : showBoardGuides && !bridge && editTool === 'dots' && activeColor <= 16 && !solvedBoard && !isResetting && (
+                        ) : showBoardGuides && !bridge && !isBlocked && editTool === 'dots' && activeColor <= 16 && !solvedBoard && !isResetting && (
                             <span
                                 className="endpoint-preview rounded-full w-[70%] h-[70%] transition-opacity duration-75"
                                 style={{ backgroundColor: COLORS[activeColor] || '#888' }}
