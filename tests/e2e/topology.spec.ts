@@ -266,7 +266,7 @@ test('variant solver worker refuses unsupported algorithms', async ({ page }) =>
     });
     await page.goto('./'); await cell(page, 0, 0).click(); await cell(page, 4, 0).click();
     await page.getByRole('button', { name: 'Solve', exact: true }).click();
-    await expect(page.getByRole('status')).toContainText('requires the C/Wasm solver');
+    await expect(page.getByRole('status')).toContainText('A* does not support this board');
 });
 
 test('mobile bridge editing and warp targets work with touch without page overflow', async ({ browser }) => {
@@ -327,7 +327,7 @@ test('legacy Warps placeholder preserves its old puzzle as the Standard draft', 
     });
     await page.reload(); await openBoardOptions(page);
     await expect(page.getByRole('combobox', { name: 'Game Mode' })).toHaveValue('warps');
-    await expect(page.getByRole('combobox', { name: 'Solver Algorithm' })).toHaveCount(0);
+    await expect(page.getByRole('combobox', { name: 'Solver Algorithm' })).toHaveValue('heuristic_bfs');
     await expect(page.locator('.endpoint-dot')).toHaveCount(0);
     await page.getByRole('button', { name: 'Warps', exact: true }).click();
     await page.getByRole('button', { name: 'Row 3 warp, left', exact: true }).click();

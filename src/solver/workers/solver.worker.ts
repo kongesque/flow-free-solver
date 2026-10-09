@@ -1,15 +1,17 @@
 import { solve as solveAStar, type Board } from '../logic/astar-solver';
-import { solveZ3 } from '../logic/z3-solver';
 import { serializeBoard, solveHeuristicBFS, solveTopology } from '../logic/heuristic-solver';
 import { requireStandardMode, type GameMode } from '../logic/game-modes';
 import { normalizeTopology, validateBoard } from '../logic/topology';
-import { boardToSolution, solutionBoard } from '../logic/solution';
+import { boardToSolution, solutionBoard, validateSolution, type PuzzleSolution } from '../logic/solution';
 import { SearchLimitError } from '../logic/solver-errors';
+import { solveZ3Topology } from '../logic/z3-topology-solver';
+import { solveZ3 } from '../logic/z3-solver';
 
 self.onmessage = async (event: MessageEvent<{
     board: Board; type: 'astar' | 'z3' | 'heuristic_bfs'; mode?: GameMode;
     walls?: unknown; bridges?: unknown; warps?: unknown;
     allowFallback?: boolean;
+    satCandidate?: PuzzleSolution | null;
 }>) => {
     const { board, type, mode = 'standard' } = event.data;
     try {
@@ -17,19 +19,33 @@ self.onmessage = async (event: MessageEvent<{
         serializeBoard(board); // Every algorithm requires exactly two endpoints per color.
         const topology = normalizeTopology(event.data, board, mode);
         if (!['astar', 'z3', 'heuristic_bfs'].includes(type)) throw new Error('Unknown solver algorithm');
-        if ((mode !== 'standard' && type !== 'heuristic_bfs') ||
-            (type === 'astar' && (topology.walls.length || board.length !== board[0].length))) {
-            throw new Error(mode !== 'standard' ? 'This board requires the C/Wasm solver' : topology.walls.length ? 'Boards with walls require the C/Wasm solver' : 'Rectangular boards require the C/Wasm solver');
+        if (type === 'astar' && (mode !== 'standard' || topology.walls.length || board.length !== board[0].length)) {
+            throw new Error('A* does not support this board. Choose Heuristic BFS or SAT (Z3).');
+        }
+        if (type === 'z3') {
+            const candidate = event.data.satCandidate ?? undefined;
+            if (candidate) validateSolution(board, topology, candidate);
+            let solution;
+            if (mode === 'standard' && !candidate) {
+                const result = await solveZ3(board, topology.walls);
+                solution = result ? boardToSolution(board, result, topology) : null;
+            } else solution = await solveZ3Topology(board, topology, mode === 'standard', candidate);
+            self.postMessage({ board: solution ? solutionBoard(board, solution) : null, solution,
+                status: solution ? 'solved' : 'unsatisfiable', nodeCount: 0, timedOut: false, timeTaken: 0 });
+            return;
         }
         if (mode !== 'standard') {
-            const result = await solveTopology(board, topology, mode);
+            let result = await solveTopology(board, topology, mode);
+            if (result.status === 'limit' && event.data.allowFallback !== false && self.crossOriginIsolated) {
+                const solution = await solveZ3Topology(board, topology);
+                result = { solution, status: solution ? 'solved' : 'unsatisfiable', nodeCount: result.nodeCount };
+            }
             self.postMessage({ ...result, board: result.solution ? solutionBoard(board, result.solution) : null,
                 timedOut: result.status === 'limit', timeTaken: 0 });
             return;
         }
         requireStandardMode(mode);
         const solveClassic = async () => {
-            if (type === 'z3') return solveZ3(board, topology.walls);
             try { return await solveHeuristicBFS(board, topology.walls); }
             catch (error) {
                 if (!(error instanceof SearchLimitError) || event.data.allowFallback === false || !self.crossOriginIsolated) throw error;

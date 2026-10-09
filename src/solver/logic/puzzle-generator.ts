@@ -51,6 +51,17 @@ export function generateRectangularPuzzle(width: number, height: number, seed = 
     const paths = width > maxPairs && height > maxPairs ? ringCover(width, height) :
         Array.from({ length: vertical ? width : height }, (_, line) =>
             Array.from({ length: vertical ? height : width }, (_, offset) => vertical ? offset * width + line : line * width + offset));
+    // Large boards start from an induced ring cover. Split its paths to vary
+    // the pair count up to the full palette without losing a known solution.
+    if (width > maxPairs && height > maxPairs) {
+        const target = paths.length + random(maxPairs - paths.length + 1);
+        while (paths.length < target) {
+            const candidates = paths.map((path, index) => path.length >= 6 ? index : -1).filter(index => index >= 0);
+            const index = candidates[random(candidates.length)];
+            const path = paths[index], cut = 3 + random(path.length - 5);
+            paths.splice(index, 1, path.slice(0, cut), path.slice(cut));
+        }
+    }
     const pairCount = paths.length;
     const owner = new Int16Array(width * height);
     paths.forEach((path, color) => path.forEach(cell => { owner[cell] = color; }));

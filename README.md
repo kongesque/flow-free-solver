@@ -45,6 +45,9 @@ the board. Each mode saves its own puzzle on your device.
 Select **Generate** to create a puzzle in any supported mode. Remove existing
 walls before generating a new puzzle.
 
+17×17, 18×18, and 19×19 generation varies the number of pairs up to 16 colors.
+Every generated puzzle has a validated full-board solution.
+
 ### Editor tools
 
 | Tool | How to use it |
@@ -70,13 +73,13 @@ Ctrl/⌘ + Z undoes the last edit.
 
 ## Solver algorithms
 
-**Heuristic BFS** is the default solver. Classic square boards without walls
-also offer **A\*** and **SAT (Z3)** in Board options. Walls, rectangles, Bridges,
-and Warps automatically use the C/WebAssembly solver.
+**Heuristic BFS** is the default solver. **SAT (Z3)** is available in Board
+options for Classic, walls, Bridges, and Warps on square or rectangular boards
+from 5×5 to 19×19. **A\*** is available for Classic square boards without walls.
 
-Classic puzzles automatically try SAT if heuristic search reaches its memory
-limit, including rectangular boards and puzzles with walls. SAT checks both
-path degrees and connectivity; a search timeout preserves the editable puzzle.
+Manually entered puzzles automatically try SAT if heuristic search reaches its
+limit. SAT checks path connectivity, walls, crossing lanes, and warp openings;
+a search timeout preserves the editable puzzle.
 
 | Solver | Implementation |
 | --- | --- |
@@ -93,8 +96,10 @@ limit; solve times depend on the puzzle and device. Hexes, Shapes, and combined
 Bridges + Warps boards are not supported.
 
 Generated puzzles retain a validated solution, which is used if a solve reaches
-its search limit. Editing the puzzle discards that solution. Generation does not
-check uniqueness or certify difficulty.
+its search limit. When SAT is selected, Z3 verifies that cover against its full
+constraints. Editing the puzzle discards that solution. Generated puzzles are
+guaranteed solvable; manually entered puzzles can be unsolvable or reach a
+search limit. Generation does not check uniqueness or certify difficulty.
 
 ## Local development
 

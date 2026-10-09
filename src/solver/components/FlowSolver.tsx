@@ -3,7 +3,8 @@ import { isDotLabels, type DotLabels } from './constants';
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { savePuzzleState, loadPuzzleState, type PuzzleDraft } from '@/hooks/useStorage';
 
-import { DEFAULT_SIZE, RESTRICT_Z3_TO_LARGE_GRIDS, SolverType } from './constants';
+import { DEFAULT_SIZE, SolverType } from './constants';
+import { compatibleSolver } from '../logic/solver-options';
 import SolverHeader from './SolverHeader';
 import PuzzleGrid from './PuzzleGrid';
 import StatusIndicator from './StatusIndicator';
@@ -61,7 +62,6 @@ const FlowSolver = () => {
     const [editTool, setEditTool] = useState<EditTool>('dots');
     const isStandard = mode === 'standard';
     const isAvailable = GAME_MODES[mode].available;
-    const wasmOnly = width !== height || !isStandard || walls.length > 0;
     const [board, setBoard] = useState<number[][]>(() => initializeBoard(DEFAULT_SIZE));
     const [solvedBoard, setSolvedBoard] = useState<number[][] | null>(null);
     const [generatedSolution, setGeneratedSolution] = useState<number[][] | null>(null);
@@ -93,7 +93,7 @@ const FlowSolver = () => {
         setActiveColor(placementColor); setIsPlacingSecond(countColor(draft.board, placementColor) === 1);
         setGeneratedSolution(draft.generatedSolution);
         setGeneratedPathSolution(draft.generatedPathSolution ?? null);
-        setSolverType(draftMode !== 'standard' || draft.width !== draft.height || draft.walls.length ? 'heuristic_bfs' : draft.solverType);
+        setSolverType(compatibleSolver(draft.solverType, draftMode, draft.width, draft.height, draft.walls.length));
     };
 
     // Ignore loads from an earlier mount, including the development StrictMode probe.
@@ -194,10 +194,12 @@ const FlowSolver = () => {
         setIsPlacingSecond(false);
         setError(null);
         setSolveTime(null);
+        const nextSolver = compatibleSolver(solverType, mode, newWidth, newHeight, 0);
+        setSolverType(nextSolver);
         if (invalidSavedWalls) draftsRef.current = {};
         const draft: PuzzleDraft = { width: newWidth, height: newHeight, board: initializeBoard(newWidth, newHeight), walls: [], bridges: [], warps: [],
             activeColor: 1, isPlacingSecond: false, generatedSolution: null,
-            solverType: mode !== 'standard' || newWidth !== newHeight ? 'heuristic_bfs' : solverType };
+            solverType: nextSolver };
         draftsRef.current[mode] = draft; historiesRef.current[mode] = [];
         savePuzzleState({ ...draft, mode, schemaVersion: 2, drafts: draftsRef.current });
         // Re-enable hover preview after React has completed the render cycle
@@ -217,9 +219,6 @@ const FlowSolver = () => {
             !window.confirm('Resize this puzzle? This will clear its endpoints, walls, bridges, warps, and saved solution.')) return;
         setWidth(newWidth);
         setHeight(newHeight);
-        if (newWidth !== newHeight || (RESTRICT_Z3_TO_LARGE_GRIDS && newWidth !== 15)) {
-            setSolverType('heuristic_bfs');
-        }
         resetBoard(newWidth, newHeight);
     };
 
@@ -232,19 +231,13 @@ const FlowSolver = () => {
         setIsSolving(false); setIsGenerating(false); setSolvedBoard(null); setPathSolution(null);
         setError(null); setSolveTime(null); setEditTool('dots');
         const draft = draftsRef.current[next] ?? { width, height, board: initializeBoard(width, height),
-            walls: [], bridges: [], warps: [], solverType: 'heuristic_bfs', activeColor: 1, isPlacingSecond: false, generatedSolution: null };
+            walls: [], bridges: [], warps: [], solverType: compatibleSolver(solverType, next, width, height, 0), activeColor: 1, isPlacingSecond: false, generatedSolution: null };
         restoreDraft(draft, next); setMode(next); setEditHistory(historiesRef.current[next] ?? []);
-        if (next !== 'standard') setSolverType('heuristic_bfs');
     };
 
     const handleSolverTypeChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
         const newType = event.target.value as SolverType;
-        if (wasmOnly && newType !== 'heuristic_bfs') return;
-        if (RESTRICT_Z3_TO_LARGE_GRIDS && newType === 'z3' && (width !== 15 || height !== 15)) {
-            setError('Z3 is for 15x15 only');
-            setSolverType('heuristic_bfs');
-            return;
-        }
+        if (!['astar', 'z3', 'heuristic_bfs'].includes(newType) || compatibleSolver(newType, mode, width, height, walls.length) !== newType) return;
         setSolverType(newType);
         setError(null);
     };
@@ -323,7 +316,7 @@ const FlowSolver = () => {
         if (JSON.stringify(next) === JSON.stringify({ walls, bridges, warps })) return;
         recordEdit(); setWalls(next.walls); setBridges(next.bridges); setWarps(next.warps);
         setGeneratedSolution(null); setGeneratedPathSolution(null); setSolvedBoard(null); setPathSolution(null); setSolveTime(null); setError(null);
-        if (mode !== 'standard' || next.walls.length) setSolverType('heuristic_bfs');
+        setSolverType(compatibleSolver(solverType, mode, width, height, next.walls.length));
     };
     const applyWalls = (next: Wall[]) => applyTopology({ walls: next, bridges, warps });
     const toggleBridge = (x: number, y: number) => applyTopology({ walls, warps, bridges:
@@ -342,7 +335,7 @@ const FlowSolver = () => {
         setGeneratedSolution(null); setGeneratedPathSolution(null);
         setError(null);
         setSolveTime(null);
-        if (previous.walls.length) setSolverType('heuristic_bfs');
+        setSolverType(compatibleSolver(solverType, mode, width, height, previous.walls.length));
         setEditHistory(history => history.slice(0, -1));
     };
 
@@ -440,7 +433,8 @@ const FlowSolver = () => {
             setSolvedBoard(resultBoard); setPathSolution(solution); setSolveTime(performance.now() - startTime);
         };
         runWorker(() => new Worker(new URL('../workers/solver.worker.ts', import.meta.url), { type: 'module' }),
-            { board, type: solverType, mode, walls, bridges, warps, allowFallback: generatedSolution === null }, 'solve',
+            { board, type: solverType, mode, walls, bridges, warps, allowFallback: generatedSolution === null,
+                satCandidate: solverType === 'z3' ? generatedPathSolution : null }, 'solve',
             (result: { board: number[][] | null; solution?: PuzzleSolution | null; timedOut?: boolean; error?: string }) => {
                 if (!result || typeof result !== 'object' || !('board' in result)) throw new Error('Invalid solver response');
                 if (result.board) acceptSolution(result.board, result.solution);

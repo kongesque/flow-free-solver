@@ -35,6 +35,20 @@ test('variant generation varies both endpoint layouts and topology', () => {
     }
 });
 
+for (const mode of ['standard', 'bridges', 'warps'] as const) for (const size of [17, 18, 19]) {
+    test(`${mode} ${size}x${size} varies pair counts and reaches all 16 colors`, () => {
+        const counts = new Set<number>();
+        for (let seed = 0; seed < 40; seed++) {
+            const puzzle = generateModePuzzle(size, size, mode, seed);
+            assertTopologySolution({ ...puzzle, mode, input: '' }, puzzle.pathSolution);
+            counts.add(puzzle.pairCount);
+            expect(puzzle.pairCount).toBeLessThanOrEqual(16);
+        }
+        expect(counts.size).toBeGreaterThan(4);
+        expect(counts.has(16)).toBe(true);
+    });
+}
+
 test('rejects invalid dimensions, seeds and unavailable modes', () => {
     for (const mode of ['standard', 'bridges', 'warps'] as const) {
         expect(() => generateModePuzzle(4, 5, mode, 1)).toThrow('Grid size');

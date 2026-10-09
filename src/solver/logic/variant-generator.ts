@@ -79,7 +79,10 @@ export function generateModePuzzle(width: number, height: number, mode: GameMode
         paths.push(Array.from({ length: bottom - top + 1 }, (_, i) =>
             i === 0 || i === bottom - top ? (top + i) * w + column : w * h + i - 1));
 
-        while (paths.length > COLOR_PLACEMENT_ORDER.length) {
+        const maxPairs = COLOR_PLACEMENT_ORDER.length;
+        const minPairs = Math.ceil(Math.min(width, height) / 2);
+        const targetPairs = width > maxPairs && height > maxPairs ? minPairs + random(maxPairs - minPairs + 1) : maxPairs;
+        while (paths.length > targetPairs) {
             let joined = false;
             for (let a = 0; a < paths.length - 2 && !joined; a++) {
                 for (let b = a + 1; b < paths.length - 1 && !joined; b++) {
@@ -96,7 +99,10 @@ export function generateModePuzzle(width: number, height: number, mode: GameMode
                     }
                 }
             }
-            if (!joined) throw new Error('Could not join bridge row routes');
+            if (!joined) {
+                if (paths.length > maxPairs) throw new Error('Could not join bridge row routes');
+                break;
+            }
         }
 
         const owner = new Int16Array(graph.nodes.length);

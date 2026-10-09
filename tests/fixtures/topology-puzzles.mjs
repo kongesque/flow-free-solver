@@ -71,20 +71,25 @@ export function largeBridgeCover(size = 15) {
     horizontal.push(...xs.map(x => cell(x, y, 'horizontal')));
     if (y < size - 2) horizontal.push(cell(y % 2 ? size - 1 : 0, y), cell(y % 2 ? size - 1 : 0, y + 1));
   }
-  horizontal.push(cell(size - 1, size - 2));
+  horizontal.push(cell(size % 2 ? size - 1 : 0, size - 2));
   for (let x = 1; x < size - 1; x++) {
     const ys = Array.from({ length: size - 2 }, (_, i) => x % 2 ? i + 1 : size - 2 - i);
     vertical.push(...ys.map(y => cell(x, y, 'vertical')));
     if (x < size - 2) vertical.push(cell(x, x % 2 ? size - 1 : 0), cell(x + 1, x % 2 ? size - 1 : 0));
   }
-  vertical.push(cell(size - 2, size - 1));
+  vertical.push(cell(size - 2, size % 2 ? size - 1 : 0));
   const hCut = horizontal.findIndex(n => n.x === size - 1 && n.y === 1) + 1;
   const vCut = vertical.findIndex(n => n.x === 1 && n.y === size - 1) + 1;
-  const paths = [
+  const vEvenCut = vertical.findIndex(n => n.x === size - 2 && n.y === size - 1);
+  const paths = size % 2 ? [
     { color: 1, nodes: [cell(0, 0), ...horizontal.slice(0, hCut), cell(size - 1, 0)] },
     { color: 2, nodes: [...horizontal.slice(hCut), cell(size - 1, size - 1)] },
     { color: 3, nodes: [...vertical.slice(0, vCut), cell(0, size - 1)] },
     { color: 4, nodes: vertical.slice(vCut) },
+  ] : [
+    { color: 1, nodes: [cell(0, 0), ...horizontal, cell(0, size - 1)] },
+    { color: 2, nodes: vertical.slice(0, vEvenCut) },
+    { color: 3, nodes: [cell(size - 1, size - 1), ...vertical.slice(vEvenCut), cell(size - 1, 0)] },
   ];
   const chosen = new Set(paths.flatMap(p => p.nodes.slice(1).map((n, i) =>
     [p.nodes[i].y * width + p.nodes[i].x, n.y * width + n.x].sort((a, b) => a - b).join(':'))));

@@ -1,7 +1,6 @@
 import { MAX_BOARD_SIZE } from '../logic/board-limits';
 export const DEFAULT_SIZE = 5;
 export const SIZE_OPTIONS = Array.from({ length: MAX_BOARD_SIZE - 4 }, (_, i) => i + 5);
-export const RESTRICT_Z3_TO_LARGE_GRIDS = false;
 
 export const COLORS: Record<number, string> = {
     1: '#FF0000',  // R - Red
@@ -42,7 +41,7 @@ export const COLOR_LABELS: Record<number, { letter: string; name: string }> = {
     16: { letter: 'P', name: 'Light Pink' },
 };
 
-export type SolverType = 'astar' | 'z3' | 'heuristic_bfs';
+export type { SolverType } from '../logic/solver-options';
 
 export type DotLabels = 'none' | 'letters';
 export const isDotLabels = (value: unknown): value is DotLabels => value === 'none' || value === 'letters';

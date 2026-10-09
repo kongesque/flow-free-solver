@@ -8,13 +8,8 @@ import { disconnectedLoops } from './sat-connectivity';
 import { SearchLimitError } from './solver-errors';
 import { boardToSolution } from './solution';
 
-export async function solveZ3(board: Board, inputWalls: Wall[] = []): Promise<Board | null> {
-    const started = performance.now();
-    const budgetMs = 30_000;
+export async function createZ3Context() {
     const baseUrl = import.meta.env.BASE_URL;
-    const walls = normalizeWalls(inputWalls, board.length, board[0].length);
-    const colors = [...new Set(board.flat().filter(Boolean))];
-
     if (import.meta.env.DEV) console.log('[Z3Solver] Dynamically importing Z3 module');
 
     // dynamic import z3 bc it's huge
@@ -48,9 +43,15 @@ export async function solveZ3(board: Board, inputWalls: Wall[] = []): Promise<Bo
     // Build high-level API from low-level
     const highLevel = createApi(lowLevel.Z3);
 
-    // ready only took 3 days to figure this api out
-    const { Context } = highLevel;
-    const { Solver, Int, Sum, If, Or } = Context('main');
+    return highLevel.Context('main');
+}
+
+export async function solveZ3(board: Board, inputWalls: Wall[] = []): Promise<Board | null> {
+    const started = performance.now();
+    const budgetMs = 30_000;
+    const walls = normalizeWalls(inputWalls, board.length, board[0].length);
+    const colors = [...new Set(board.flat().filter(Boolean))];
+    const { Solver, Int, Sum, If, Or } = await createZ3Context();
 
     const solver = new Solver();
     const M = board.length;

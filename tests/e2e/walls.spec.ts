@@ -64,7 +64,8 @@ for (const [width, height] of [[5, 5], [5, 8], [8, 5]]) {
         if (width === height) await page.getByRole('combobox', { name: 'Solver Algorithm' }).selectOption('astar');
         await place(page, fixture.input);
         await drawWithKeyboard(page, fixture.walls);
-        await expect(page.getByRole('combobox', { name: 'Solver Algorithm' })).toHaveCount(0);
+        await expect(page.getByRole('combobox', { name: 'Solver Algorithm' })).toHaveValue('heuristic_bfs');
+        await expect(page.getByRole('combobox', { name: 'Solver Algorithm' }).locator('option[value="z3"]')).toHaveCount(1);
         await expect(page.getByRole('button', { name: 'Generate', exact: true })).toBeDisabled();
         await expect.poll(async () => (await saved(page))?.walls?.length).toBe(fixture.walls.length);
         await page.reload();
@@ -188,7 +189,7 @@ for (const requested of ['astar', 'malformed']) {
         await place(page, fixture.input);
         await drawWithKeyboard(page, fixture.walls);
         await page.getByRole('button', { name: 'Solve', exact: true }).click();
-        await expect(page.getByRole('status')).toContainText(requested === 'malformed' ? 'Invalid wall boundary' : 'Boards with walls require the C/Wasm solver');
+        await expect(page.getByRole('status')).toContainText(requested === 'malformed' ? 'Invalid wall boundary' : 'A* does not support this board');
         await expect(page.getByRole('button', { name: 'Edit', exact: true })).toHaveCount(0);
     });
 }
