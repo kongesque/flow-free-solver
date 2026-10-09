@@ -1,7 +1,8 @@
+import { optIntoGenerator } from './board-options';
 import { selectWallTool } from './board-options';
 import { test, expect, type Page } from '@playwright/test';
 
-const resetMessage = 'Reset this puzzle? This will clear all endpoints, walls, and saved solutions.';
+const resetMessage = 'Reset this puzzle? This will clear all endpoints, walls, bridges, warps, and saved solutions.';
 const reset = (page: Page) => page.getByRole('button', { name: 'Reset', exact: true });
 const labels = (page: Page) => page.locator('.puzzle-grid button').evaluateAll(cells =>
     cells.map(cell => cell.getAttribute('aria-label')));
@@ -54,7 +55,7 @@ for (const width of [390, 1280]) {
         await expect(page.getByRole('button', { name: 'Undo', exact: true })).toBeEnabled();
 
         // Cancel preserves the pending endpoint color, and reload preserves the puzzle.
-        await page.getByRole('button', { name: 'Walls', exact: true }).click();
+        await page.getByRole('button', { name: 'Dots', exact: true }).click();
         await page.getByRole('button', { name: 'Cell 4,0 Empty', exact: true }).click();
         await expect(page.getByRole('button', { name: 'Cell 4,0 Color 1', exact: true })).toBeVisible();
         await expect.poll(async () => (await saved(page))?.board[4][0]).toBe(1);
@@ -102,3 +103,5 @@ test('Reset Cancel preserves a solved generated puzzle; confirmation clears its 
     await expect(page.getByRole('button', { name: /Cell .* Empty/ })).toHaveCount(25);
     await expect(page.getByRole('status')).not.toContainText('Generated');
 });
+
+test.beforeEach(async ({ page }) => { await optIntoGenerator(page); });

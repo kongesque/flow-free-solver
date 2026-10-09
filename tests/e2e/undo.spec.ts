@@ -1,3 +1,4 @@
+import { optIntoGenerator } from './board-options';
 import { expect, test, type Page } from '@playwright/test';
 import { openBoardOptions, selectWallTool } from './board-options';
 
@@ -33,11 +34,11 @@ for (const width of [390, 1280]) {
         await selectWallTool(page);
         await cell(page, 0, 0).focus();
         await page.keyboard.press('Shift+ArrowRight');
-        await page.getByRole('button', { name: 'Clear walls', exact: true }).click();
+        await page.keyboard.press('Shift+ArrowRight');
         await expect(page.locator('[data-wall]')).toHaveCount(0);
         await page.locator('.board-options summary').click();
 
-        await undo(page).click(); // Clear walls.
+        await undo(page).click(); // Removed wall.
         await expect(page.locator('[data-wall]')).toHaveCount(1);
         await undo(page).click(); // Wall stroke.
         await expect(page.locator('[data-wall]')).toHaveCount(0);
@@ -48,7 +49,7 @@ for (const width of [390, 1280]) {
         await page.keyboard.press('Meta+z'); // Second red endpoint.
         await expect(cell(page, 4, 0)).toHaveAttribute('aria-label', 'Cell 4,0 Empty');
         await openBoardOptions(page);
-        await page.getByRole('button', { name: 'Walls', exact: true }).click();
+        await page.getByRole('button', { name: 'Dots', exact: true }).click();
         await expect(page.getByRole('status')).toContainText('End');
         await cell(page, 4, 1).click(); // The restored pending color is red.
         await expect(cell(page, 4, 1)).toHaveAttribute('aria-label', 'Cell 4,1 Color 1');
@@ -86,6 +87,7 @@ test('Undo restores removed endpoints and leaves form shortcuts alone; Reset and
     await expect(undo(page)).toBeDisabled();
     await cell(page, 1, 1).click();
     await expect(undo(page)).toBeEnabled();
+    page.once('dialog', dialog => dialog.accept());
     await page.getByRole('combobox', { name: 'Grid Size' }).selectOption('6');
     await expect(undo(page)).toBeDisabled();
     await expect(page.getByRole('button', { name: /Cell .* Empty$/ })).toHaveCount(36);
@@ -106,3 +108,5 @@ test('generation starts a fresh history; Undo does not revive a discarded genera
     await expect(page.getByRole('status')).not.toContainText('Generated');
     await expect.poll(async () => (await saved(page))?.generatedSolution).toBeNull();
 });
+
+test.beforeEach(async ({ page }) => { await optIntoGenerator(page); });

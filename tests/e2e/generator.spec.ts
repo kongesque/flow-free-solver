@@ -1,3 +1,4 @@
+import { optIntoGenerator } from './board-options';
 import { openBoardOptions } from './board-options';
 import { test, expect, type Page } from '@playwright/test';
 import { assertSolution } from '../fixtures/assert-solution.mjs';
@@ -20,7 +21,13 @@ function validateSolution(input: number[][], solution: number[][]) {
 }
 
 async function generate(page: Page, size: number) {
+    if (await page.getByRole('combobox', { name: 'Grid Size' }).inputValue() !== String(size) && await page.locator('.endpoint-dot').count()) {
+        page.once('dialog', dialog => dialog.accept());
+    }
     await page.getByRole('combobox', { name: 'Grid Size' }).selectOption(String(size));
+    if (await page.locator('.endpoint-dot').count() && await page.getByRole('button', { name: 'Edit', exact: true }).count() === 0) {
+        page.once('dialog', dialog => dialog.accept());
+    }
     await page.getByRole('button', { name: 'Generate', exact: true }).click();
     await expect(page.getByRole('status')).toContainText(`Generated · ${size} pairs`);
     const board = await readGrid(page, size);
@@ -112,6 +119,38 @@ test('generated endpoints and solution survive reload; editing invalidates the s
     await expect(page.getByRole('button', { name: /Cell .* Empty/ })).toHaveCount(64);
 });
 
+test('primary Cancel stops generation without moving the action or changing endpoints', async ({ page }) => {
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    await page.route(/generator\.worker/, async route => {
+        await gate;
+        await route.continue().catch(() => {});
+    });
+    try {
+        await page.goto('./');
+        await page.getByRole('button', { name: 'Cell 0,0 Empty', exact: true }).click();
+        await page.getByRole('button', { name: 'Cell 4,0 Empty', exact: true }).click();
+        const action = page.locator('.primary-action');
+        const originalBounds = await action.boundingBox();
+        page.once('dialog', dialog => dialog.accept());
+        const request = page.waitForRequest(/generator\.worker/);
+        await page.getByRole('button', { name: 'Generate', exact: true }).click();
+        await request;
+        const cancel = page.getByRole('button', { name: 'Cancel', exact: true });
+        await expect(cancel).toBeEnabled();
+        expect(await cancel.boundingBox()).toEqual(originalBounds);
+        await cancel.click();
+        await expect(page.getByRole('button', { name: 'Solve', exact: true })).toBeEnabled();
+        expect(await action.boundingBox()).toEqual(originalBounds);
+        await expect(page.getByRole('button', { name: /Cell .* Color 1$/ })).toHaveCount(2);
+        release();
+        await page.unroute(/generator\.worker/);
+        const input = await generate(page, 5);
+        await solve(page);
+        validateSolution(input, await readGrid(page, 5));
+    } finally { release(); }
+});
+
 test('Reset cancels generation and a fresh generation succeeds', async ({ page }) => {
     let release!: () => void;
     const gate = new Promise<void>(resolve => { release = resolve; });
@@ -125,7 +164,7 @@ test('Reset cancels generation and a fresh generation succeeds', async ({ page }
         await page.getByRole('button', { name: 'Generate', exact: true }).click();
         await request;
         await expect(page.getByRole('status')).toContainText('Generating');
-        await expect(page.getByRole('button', { name: 'Solve', exact: true })).toBeDisabled();
+        await expect(page.getByRole('button', { name: 'Cancel', exact: true })).toBeEnabled();
         await expect(page.getByRole('combobox', { name: 'Grid Size' })).toBeDisabled();
         await expect(page.getByRole('button', { name: 'Cell 0,0 Empty', exact: true })).toBeDisabled();
         page.once('dialog', dialog => dialog.dismiss());
@@ -166,7 +205,7 @@ test('retains a valid generated solution when independent search reaches its lim
     await page.goto('./');
     const input = await generate(page, 13);
     await solve(page);
-    await expect(page.getByRole('status')).not.toContainText('ms');
+    await expect(page.getByRole('status')).toContainText(/\(\d+(?:\.\d+)?(?:ms|s)\)/);
     await expect(page.getByRole('status')).toContainText('Solved');
     validateSolution(input, await readGrid(page, 13));
 });
@@ -226,3 +265,5 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
         });
     }
 }
+
+test.beforeEach(async ({ page }) => { await optIntoGenerator(page); });

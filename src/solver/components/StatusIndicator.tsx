@@ -1,4 +1,5 @@
 import { Loader2, X, Check } from 'lucide-react';
+import type { EditTool } from '../logic/walls';
 import { COLORS } from './constants';
 
 interface StatusIndicatorProps {
@@ -13,6 +14,7 @@ interface StatusIndicatorProps {
     isPlacingSecond: boolean;
     editingWalls: boolean;
     wallCount: number;
+    editTool: EditTool; bridgeCount: number; warpCount: number;
 }
 
 const StatusIndicator = ({
@@ -26,17 +28,21 @@ const StatusIndicator = ({
     activeColor,
     isPlacingSecond,
     editingWalls,
-    wallCount,
+    wallCount, editTool, bridgeCount, warpCount,
 }: StatusIndicatorProps) => (
     <div role="status" className="solver-status selectable-text" aria-live="polite" aria-atomic="true">
         {unavailableMode ? (
             <span className="text-stoic-secondary text-xs">
-                {unavailableMode} is coming soon. Switch to Standard to edit or solve.
+                {unavailableMode} is coming soon. Switch to Classic to edit or solve.
             </span>
         ) : isSolving || isGenerating ? (
             <span className='text-stoic-accent text-sm font-semibold flex items-center gap-2'>
                 <Loader2 className="animate-spin h-4 w-4" aria-hidden="true" />
-                {isGenerating ? 'Generating…' : 'Solving…'}
+                <span className="working-label">
+                    {isGenerating ? 'Generating' : 'Solving'}
+                    <span className="working-dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span>
+                    <span className="sr-only">…</span>
+                </span>
             </span>
         ) : error ? (
             <span
@@ -54,8 +60,12 @@ const StatusIndicator = ({
                     </span>
                 )}
             </span>
+        ) : editTool === 'bridges' ? (
+            <span className="text-stoic-primary text-xs">Bridges · {bridgeCount}</span>
+        ) : editTool === 'warps' ? (
+            <span className="text-stoic-primary text-xs">Warps · {warpCount}</span>
         ) : editingWalls ? (
-            <span className="text-stoic-primary text-xs">Walls · {wallCount} · Tap a boundary</span>
+            <span className="text-stoic-primary text-xs">Walls · {wallCount}</span>
         ) : generatedPairCount !== null ? (
             <span className="text-stoic-accent text-xs">
                 Generated · {generatedPairCount} pairs

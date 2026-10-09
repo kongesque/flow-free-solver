@@ -8,26 +8,33 @@ export interface GeneratedPuzzle {
     pairCount: number;
 }
 
-/** Build a full path cover, then expose only each path's two endpoints.
- * Moving a cell between path endpoints preserves coverage and connectivity.
- * The degree check prevents paths from touching themselves or branching.
- * Solvability is guaranteed by construction; uniqueness is not guaranteed.
- */
-export function generateRectangularPuzzle(width: number, height: number, seed = Math.floor(Math.random() * 2 ** 32)): GeneratedPuzzle {
+export function validateGeneratorInputs(width: number, height: number, seed: number): void {
     if ([width, height].some(dimension => !Number.isInteger(dimension) || dimension < 5 || dimension > 15)) {
         throw new Error('Grid size must be an integer from 5 to 15');
     }
     if (!Number.isInteger(seed) || seed < 0 || seed > 0xffffffff) {
         throw new Error('Seed must be an unsigned 32-bit integer');
     }
+}
 
+export function createPuzzleRandom(seed: number): (limit: number) => number {
     let randomState = seed;
-    const random = (limit: number) => {
+    return (limit: number) => {
         randomState = (randomState + 0x6d2b79f5) >>> 0;
         let value = Math.imul(randomState ^ (randomState >>> 15), randomState | 1);
         value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
         return Math.floor(((value ^ (value >>> 14)) >>> 0) / 2 ** 32 * limit);
     };
+}
+
+/** Build a full path cover, then expose only each path's two endpoints.
+ * Moving a cell between path endpoints preserves coverage and connectivity.
+ * The degree check prevents paths from touching themselves or branching.
+ * Solvability is guaranteed by construction; uniqueness is not guaranteed.
+ */
+export function generateRectangularPuzzle(width: number, height: number, seed = Math.floor(Math.random() * 2 ** 32)): GeneratedPuzzle {
+    validateGeneratorInputs(width, height, seed);
+    const random = createPuzzleRandom(seed);
     const neighbors = Array.from({ length: width * height }, (_, cell) => {
         const x = cell % width;
         const y = Math.floor(cell / width);

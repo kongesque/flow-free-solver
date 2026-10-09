@@ -11,3 +11,10 @@ export async function selectWallTool(page: Page) {
     const toggle = page.getByRole('button', { name: 'Walls', exact: true });
     if (await toggle.getAttribute('aria-pressed') !== 'true') await toggle.click();
 }
+
+// Generation scenarios explicitly opt into the optional generator UI.
+export async function optIntoGenerator(page: Page) {
+    await page.addInitScript(() => {
+        if (localStorage.getItem('flow-show-generator') === null) localStorage.setItem('flow-show-generator', 'true');
+    });
+}

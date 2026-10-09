@@ -1,3 +1,4 @@
+import { optIntoGenerator } from './board-options';
 import { test, expect, type Page } from '@playwright/test';
 import { assertSolution } from '../fixtures/assert-solution.mjs';
 import { wallCorridor, wallDetour } from '../fixtures/wall-puzzles.mjs';
@@ -63,8 +64,7 @@ for (const [width, height] of [[5, 5], [5, 8], [8, 5]]) {
         if (width === height) await page.getByRole('combobox', { name: 'Solver Algorithm' }).selectOption('astar');
         await place(page, fixture.input);
         await drawWithKeyboard(page, fixture.walls);
-        await expect(page.getByRole('combobox', { name: 'Solver Algorithm' })).toHaveValue('heuristic_bfs');
-        await expect(page.getByRole('combobox', { name: 'Solver Algorithm' })).toBeDisabled();
+        await expect(page.getByRole('combobox', { name: 'Solver Algorithm' })).toHaveCount(0);
         await expect(page.getByRole('button', { name: 'Generate', exact: true })).toBeDisabled();
         await expect.poll(async () => (await saved(page))?.walls?.length).toBe(fixture.walls.length);
         await page.reload();
@@ -74,7 +74,7 @@ for (const [width, height] of [[5, 5], [5, 8], [8, 5]]) {
         await validate(page, fixture.input, fixture.walls);
         // SVG line geometry has zero height/width; check the visible overlay and painted stroke.
         await expect(page.locator('.wall-overlay')).toBeVisible();
-        await expect(page.locator('[data-wall]').first()).toHaveCSS('stroke', 'rgb(238, 233, 216)');
+        await expect(page.locator('[data-wall]').first()).toHaveCSS('stroke', 'rgb(186, 196, 190)');
         if (width === 5 && height === 5) await page.screenshot({ path: test.info().outputPath('walls-solved.png') });
         await expect(cell(page, 0, 0)).toBeDisabled();
         await page.getByRole('button', { name: 'Edit', exact: true }).click();
@@ -117,7 +117,7 @@ test('pointer strokes add/remove once per edge, with undo and center/outer-borde
     await page.mouse.move(start.x, start.y, { steps: 12 });
     await page.mouse.up();
     await expect(page.locator('[data-wall]')).toHaveCount(4);
-    for (let x = 0; x < 4; x++) await expect(page.locator(`[data-wall="${x},0,down"]`)).toHaveCSS('stroke-width', '5px');
+    for (let x = 0; x < 4; x++) await expect(page.locator(`[data-wall="${x},0,down"]`)).toHaveCSS('stroke-width', '0.055px');
     await expect(cell(page, 0, 0)).toHaveAttribute('aria-label', 'Cell 0,0 Color 1');
     await cell(page, 2, 2).click();
     const outside = point(0, 2.5);
@@ -136,7 +136,8 @@ test('pointer strokes add/remove once per edge, with undo and center/outer-borde
     await expect(page.locator('[data-wall]')).toHaveCount(0);
     await page.getByRole('button', { name: 'Undo', exact: true }).click();
     await expect(page.locator('[data-wall]')).toHaveCount(1);
-    await page.getByRole('button', { name: 'Clear walls', exact: true }).click();
+    await cell(page, 0, 0).focus();
+    await page.keyboard.press('Shift+ArrowDown');
     await expect(page.locator('[data-wall]')).toHaveCount(0);
     await page.getByRole('button', { name: 'Undo', exact: true }).click();
     await expect(page.locator('[data-wall]')).toHaveCount(1);
@@ -147,9 +148,10 @@ test('pointer strokes add/remove once per edge, with undo and center/outer-borde
     await expect(cell(page, 0, 0)).toBeFocused();
     await expect(cell(page, 0, 0)).toHaveAttribute('aria-label', 'Cell 0,0 Color 1');
     await expect(page.locator('[data-wall]')).toHaveCount(1);
-    await page.getByRole('button', { name: 'Walls', exact: true }).click();
+    await page.getByRole('button', { name: 'Dots', exact: true }).click();
     await cell(page, 1, 0).click();
     await expect(cell(page, 1, 0)).toHaveAttribute('aria-label', 'Cell 1,0 Color 1');
+    page.once('dialog', dialog => dialog.accept());
     await page.getByRole('combobox', { name: 'Grid Size' }).selectOption('6');
     await expect(page.locator('[data-wall]')).toHaveCount(0);
 });
@@ -223,7 +225,7 @@ test('invalid saved walls pause editing and autosave until an explicit Reset', a
         db.close();
     });
     await page.reload();
-    await expect(page.getByRole('status')).toContainText('Saved walls are invalid');
+    await expect(page.getByRole('status')).toContainText('Saved puzzle is invalid');
     await expect(page.getByRole('button', { name: 'Solve', exact: true })).toBeDisabled();
     await expect(cell(page, 0, 0)).toBeDisabled();
     await expect(page.getByRole('button', { name: 'Reset', exact: true })).toBeEnabled();
@@ -232,7 +234,7 @@ test('invalid saved walls pause editing and autosave until an explicit Reset', a
     expect((await saved(page))?.walls?.[0].x).toBe(999);
     page.once('dialog', dialog => dialog.dismiss());
     await page.getByRole('button', { name: 'Reset', exact: true }).click();
-    await expect(page.getByRole('status')).toContainText('Saved walls are invalid');
+    await expect(page.getByRole('status')).toContainText('Saved puzzle is invalid');
     expect((await saved(page))?.walls?.[0].x).toBe(999);
     page.once('dialog', dialog => dialog.accept());
     await page.getByRole('button', { name: 'Reset', exact: true }).click();
@@ -264,37 +266,25 @@ test('real generator worker rejects a wall layout even when directly requested',
 
 test.describe('mobile wall editing', () => {
     test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
-    test('touch toggles walls and zoom offers large targets without page overflow', async ({ page }) => {
+    test('touch edits the first and last wall boundaries on a fitted dense board without overflow', async ({ page }) => {
         await page.goto('./');
         await page.getByRole('combobox', { name: 'Grid Size' }).selectOption('15');
         await selectWallTool(page);
-        await page.getByRole('button', { name: 'Zoom in', exact: true }).tap();
+        await expect(page.getByRole('button', { name: /Zoom in|Fit board|Pan board/ })).toHaveCount(0);
         await grid(page).scrollIntoViewIfNeeded();
         const bounds = (await grid(page).boundingBox())!;
-        expect(bounds.width).toBeGreaterThanOrEqual(720);
-        await page.touchscreen.tap(bounds.x + 48, bounds.y + 24);
+        expect(bounds.width).toBeLessThanOrEqual(390);
+        const cellWidth = bounds.width / 15, cellHeight = bounds.height / 15;
+        await page.touchscreen.tap(bounds.x + cellWidth, bounds.y + cellHeight / 2);
         await expect(page.locator('[data-wall="0,0,right"]')).toHaveCount(1);
-        await page.touchscreen.tap(bounds.x + 48, bounds.y + 24);
+        await page.touchscreen.tap(bounds.x + cellWidth, bounds.y + cellHeight / 2);
         await expect(page.locator('[data-wall]')).toHaveCount(0);
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-        // A native touch swipe starting at a cell center pans instead of drawing.
-        const session = await page.context().newCDPSession(page);
-        try {
-            await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: bounds.x + 264, y: bounds.y + 24 }] });
-            for (let step = 1; step <= 8; step++) {
-                await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: bounds.x + 264 - step * 24, y: bounds.y + 24 }] });
-            }
-            await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-        } finally { await session.detach(); }
-        await expect.poll(() => page.locator('.board-viewport').evaluate(element => element.scrollLeft)).toBeGreaterThan(70);
-        await expect(page.locator('[data-wall]')).toHaveCount(0);
-        // Scroll within the viewport to expose the final column's boundary.
-        await page.locator('.board-viewport').evaluate(element => { element.scrollLeft = element.scrollWidth; });
-        const moved = (await grid(page).boundingBox())!;
-        await page.touchscreen.tap(moved.x + 14 * 48, moved.y + 24);
+        await page.touchscreen.tap(bounds.x + 14 * cellWidth, bounds.y + cellHeight / 2);
         await expect(page.locator('[data-wall="13,0,right"]')).toHaveCount(1);
-        await page.getByRole('button', { name: 'Fit board', exact: true }).tap();
         expect((await grid(page).boundingBox())!.width).toBeLessThanOrEqual(390);
         await page.screenshot({ path: test.info().outputPath('walls-mobile.png'), fullPage: true });
     });
 });
+
+test.beforeEach(async ({ page }) => { await optIntoGenerator(page); });

@@ -1,6 +1,7 @@
+import type { EditTool } from '../logic/walls';
 import { COLORS } from './constants';
 
-const SolverHeader = () => (
+const SolverHeader = ({ editTool }: { editTool: EditTool }) => (
     <header className="solver-header selectable-text">
         <div>
             <h1 aria-label="Flow Free Solver">
@@ -14,7 +15,7 @@ const SolverHeader = () => (
                     ))}
                 </span>
             </h1>
-            <p>Click to place or remove.</p>
+            <p>{editTool === 'dots' ? 'Select a cell to place or remove a dot.' : editTool === 'walls' ? 'Draw boundaries between cells.' : editTool === 'bridges' ? 'Add crossings inside the board.' : 'Connect opposite board edges.'}</p>
         </div>
     </header>
 );

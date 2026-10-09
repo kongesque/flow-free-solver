@@ -16,7 +16,7 @@ function build() {
       source, '-O3', '-std=c11', '-lm', '--no-entry',
       '-sMODULARIZE=1', '-sEXPORT_ES6=1', '-sEXPORT_NAME=createFlowSolver',
       '-sENVIRONMENT=web,worker,node',
-      '-sEXPORTED_FUNCTIONS=["_solve_puzzle_wasm","_solve_puzzle_with_walls_wasm"]',
+      '-sEXPORTED_FUNCTIONS=["_solve_puzzle_wasm","_solve_puzzle_with_walls_wasm","_solve_puzzle_topology_wasm"]',
       '-sEXPORTED_RUNTIME_METHODS=["cwrap"]',
       '-sALLOW_MEMORY_GROWTH=1', '-sMAXIMUM_MEMORY=536870912',
       '-sFILESYSTEM=0',
@@ -49,7 +49,7 @@ try {
     let timer;
     console.log('Watching native/ for C changes. Keep npm run dev running in another terminal.');
     watch(join(root, 'native'), (_, filename) => {
-      if (!filename?.endsWith('.c') && !filename?.endsWith('.h')) return;
+      if (!filename || !/\.[ch]$/.test(filename)) return;
       clearTimeout(timer);
       timer = setTimeout(() => {
         try { build(); } catch (error) { console.error(error.message); }

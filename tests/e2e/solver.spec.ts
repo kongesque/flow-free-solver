@@ -110,6 +110,7 @@ test('shows validation feedback and preserves endpoints after reload', async ({ 
   })).toBe(1);
   await page.reload();
   await expect(page.getByRole('button', { name: 'Cell 0,0 Color 1', exact: true })).toBeVisible();
-  await page.getByRole('combobox', { name: 'Grid Size' }).selectOption('15');
+  page.once('dialog', dialog => dialog.accept());
+    await page.getByRole('combobox', { name: 'Grid Size' }).selectOption('15');
   await expect(page.getByRole('button', { name: /Cell .* Empty/ })).toHaveCount(225);
 });

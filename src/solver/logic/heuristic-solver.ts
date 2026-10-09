@@ -1,5 +1,8 @@
 import type { Board } from './astar-solver';
 import { normalizeWalls, type Wall } from './walls';
+import { normalizeTopology, topologyGraph, type PuzzleTopology } from './topology';
+import { validateSolution, type PuzzleSolution } from './solution';
+import type { GameMode } from './game-modes';
 
 export const COLOR_CHARS = ['', 'R', 'B', 'Y', 'G', 'O', 'C', 'M', 'm', 'P', 'A', 'W', 'g', 'T', 'b', 'c', 'p'];
 
@@ -51,9 +54,7 @@ export function serializeWalls(walls: readonly Wall[], width: number, height: nu
     .map(({ x, y, side }) => `${x},${y},${side === 'right' ? 'R' : 'D'}\n`).join('');
 }
 
-export async function solveHeuristicBFS(board: Board, walls: Wall[] = []): Promise<Board | null> {
-  const input = serializeBoard(board);
-  const wallInput = serializeWalls(walls, board.length, board[0].length);
+async function loadModule(): Promise<FlowModule> {
   if (!modulePromise) {
     const url = new URL(`${import.meta.env.BASE_URL}wasm/flow_solver_c.mjs`, self.location.origin).href;
     // Absolute URLs also keep Vite's dev import helper from adding ?import to
@@ -64,9 +65,52 @@ export async function solveHeuristicBFS(board: Board, walls: Wall[] = []): Promi
       }))
       .catch(error => { modulePromise = undefined; throw error; });
   }
-  const module = await modulePromise;
+  return modulePromise;
+}
+
+export async function solveHeuristicBFS(board: Board, walls: Wall[] = []): Promise<Board | null> {
+  const input = serializeBoard(board);
+  const wallInput = serializeWalls(walls, board.length, board[0].length);
+  const module = await loadModule();
   const result = wallInput
     ? module.cwrap('solve_puzzle_with_walls_wasm', 'string', ['string', 'string'])(input, wallInput)
     : module.cwrap('solve_puzzle_wasm', 'string', ['string'])(input);
   return parseSolution(result, board.length, board[0].length);
+}
+
+export function serializeTopology(topology: PuzzleTopology, mode: GameMode): string {
+  if (mode !== 'warps' && mode !== 'bridges') throw new Error('Invalid variant mode');
+  return `V1\nMODE,${mode === 'warps' ? 'W' : 'B'}\n` +
+    topology.walls.map(({ x, y, side }) => `W,${x},${y},${side === 'right' ? 'R' : 'D'}\n`).join('') +
+    topology.bridges.map(({ x, y, over }) => `B,${x},${y},${over === 'horizontal' ? 'H' : 'V'}\n`).join('') +
+    topology.warps.map(({ axis, index }) => `S,${axis === 'horizontal' ? 'H' : 'V'},${index}\n`).join('');
+}
+
+export function parseTopologySolution(result: string, board: Board, topology: PuzzleTopology): {
+  status: 'solved' | 'unsatisfiable' | 'limit'; solution: PuzzleSolution | null; nodeCount: number;
+} {
+  const raw = JSON.parse(result);
+  if (raw?.version !== 1 || !['solved', 'unsatisfiable', 'limit'].includes(raw.status)) throw new Error('Invalid C topology response');
+  if (raw.status !== 'solved') return { status: raw.status, solution: null, nodeCount: raw.nodeCount ?? 0 };
+  const { nodes } = topologyGraph(board.length, board[0].length, topology);
+  if (!Array.isArray(raw.paths) || raw.paths.length > 16) throw new Error('Invalid C paths');
+  const solution: PuzzleSolution = { version: 1, paths: raw.paths.map((path: { color: number; nodes: number[] }) => {
+    if (!Array.isArray(path?.nodes) || path.nodes.length > nodes.length) throw new Error('Invalid C path');
+    const color = COLOR_CHARS.indexOf(String.fromCharCode(path.color));
+    return { color, nodes: path.nodes.map(id => {
+      if (!Number.isInteger(id) || !nodes[id]) throw new Error('Invalid C path node');
+      return nodes[id];
+    }) };
+  }) };
+  validateSolution(board, topology, solution);
+  return { status: 'solved', solution, nodeCount: raw.nodeCount ?? 0 };
+}
+
+export async function solveTopology(board: Board, input: unknown, mode: GameMode) {
+  const boardText = serializeBoard(board);
+  const topology = normalizeTopology(input, board, mode);
+  const topologyText = serializeTopology(topology, mode);
+  const module = await loadModule();
+  const result = module.cwrap('solve_puzzle_topology_wasm', 'string', ['string', 'string'])(boardText, topologyText);
+  return parseTopologySolution(result, board, topology);
 }

@@ -1,3 +1,4 @@
+import { optIntoGenerator } from './board-options';
 import { openBoardOptions, selectWallTool } from './board-options';
 import { expect, test, type Locator } from '@playwright/test';
 import { assertSolution } from '../fixtures/assert-solution.mjs';
@@ -29,9 +30,16 @@ for (const viewport of [
             expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
         };
         await expect(options).not.toHaveAttribute('open', '');
-        await expect(page.getByRole('combobox')).toHaveCount(1);
-        await expect(page.locator('.game-controls button:visible')).toHaveCount(4);
-        await expect(page.getByRole('button', { name: 'Walls', exact: true })).toBeHidden();
+        await expect(page.getByRole('combobox')).toHaveCount(2);
+        await expect(page.locator('.game-controls button:visible')).toHaveCount(6);
+        await expect(page.getByRole('button', { name: /Zoom in|Fit board|Pan board/ })).toHaveCount(0);
+        const optionsSummary = await bounds(options.locator('summary'));
+        for (const control of await page.getByRole('group', { name: 'Edit history' }).getByRole('button').all()) {
+            const buttonBounds = await bounds(control);
+            expect(buttonBounds.y).toEqual(optionsSummary.y);
+            expect(buttonBounds.x).toBeGreaterThanOrEqual(optionsSummary.x + optionsSummary.width);
+        }
+        await expect(page.getByRole('button', { name: 'Walls', exact: true })).toBeVisible();
         await expect(page.getByRole('combobox', { name: 'Solver Algorithm' })).toBeHidden();
         await openBoardOptions(page);
         await expect(page.getByRole('combobox', { name: 'Grid Width' })).toBeVisible();
@@ -52,7 +60,7 @@ for (const viewport of [
             await page.getByRole('button', { name: new RegExp(`^Cell ${x},${y} `) }).focus();
             await page.keyboard.press(side === 'right' ? 'Shift+ArrowRight' : 'Shift+ArrowDown');
         }
-        await expect(page.locator('.wall-count')).toContainText('16');
+        await expect(page.getByRole('button', { name: 'Walls', exact: true })).toHaveText('Walls');
         await expect(page.getByRole('button', { name: 'Generate', exact: true })).toBeDisabled();
         await expect(page.getByRole('button', { name: 'Generate', exact: true })).toHaveAccessibleDescription(/Clear walls to generate/);
         await expectStable();
@@ -60,8 +68,8 @@ for (const viewport of [
             expect((await bounds(control)).height).toBeGreaterThanOrEqual(44);
         }
         await options.locator('summary').click();
-        await expect(options.locator('summary')).toContainText('Walls');
-        await expect(page.getByRole('button', { name: 'Walls', exact: true })).toBeHidden();
+        await expect(page.getByRole('button', { name: 'Walls', exact: true })).toHaveAttribute('aria-pressed', 'true');
+        await expect(page.getByRole('button', { name: 'Walls', exact: true })).toBeVisible();
         await expectStable();
         await page.getByRole('button', { name: 'Solve', exact: true }).click();
         await expect(page.getByRole('button', { name: 'Edit', exact: true })).toBeEnabled();
@@ -71,10 +79,47 @@ for (const viewport of [
             colors.slice(y * 5, y * 5 + 5).map(color => '.RBYGOCMmPAWgTbcp'.charCodeAt(color))), fixture.walls);
         await expectStable();
         await expect(page.getByRole('button', { name: 'Undo', exact: true })).toBeDisabled();
-        await page.getByRole('button', { name: 'Edit', exact: true }).click();
+        await expect(page.getByRole('group', { name: 'Editing tool' })).toBeVisible();
+        await expect(page.getByRole('button', { name: 'Walls', exact: true })).toBeEnabled();
+        await page.screenshot({ path: test.info().outputPath('solved-picker.png'), fullPage: true });
+        await expect(page.getByRole('button', { name: 'Clear walls', exact: true })).toHaveCount(0);
+        await page.getByRole('button', { name: 'Walls', exact: true }).click();
+        await expect(page.getByRole('button', { name: 'Solve', exact: true })).toBeEnabled();
         await expectStable();
+        await expect(page.getByRole('button', { name: 'Walls', exact: true })).toHaveAttribute('aria-pressed', 'true');
         await openBoardOptions(page);
         await expect(page.getByRole('button', { name: 'Undo', exact: true })).toBeEnabled();
+        await options.locator('summary').click();
         await page.screenshot({ path: test.info().outputPath('tool-panel.png'), fullPage: true });
     });
 }
+
+for (const width of [390, 1280]) {
+    test(`editing tools remain accessible with options collapsed at ${width}px`, async ({ page }) => {
+        await page.setViewportSize({ width, height: 900 });
+        await page.goto('./');
+        const options = page.locator('.board-options');
+        for (const [mode, tool] of [['bridges', 'Bridges'], ['warps', 'Warps']] as const) {
+            await page.getByRole('combobox', { name: 'Game Mode' }).selectOption(mode);
+            await expect(options).not.toHaveAttribute('open', '');
+            await expect(page.getByRole('button', { name: 'Generate', exact: true })).toBeVisible();
+            await expect(page.getByRole('combobox', { name: 'Solver Algorithm' })).toHaveCount(0);
+            await page.getByRole('button', { name: tool, exact: true }).click();
+            await expect(page.getByRole('button', { name: tool, exact: true })).toHaveAttribute('aria-pressed', 'true');
+            await expect(page.getByRole('button', { name: tool, exact: true })).toHaveCSS('background-color', 'rgb(48, 57, 55)');
+            await expect(page.getByRole('button', { name: tool, exact: true })).toHaveCSS('color', 'rgb(230, 228, 223)');
+            await expect(page.getByRole('combobox', { name: 'Grid Width' })).toBeHidden();
+            await expect(options).not.toHaveAttribute('open', '');
+            const walls = page.getByRole('button', { name: 'Walls', exact: true });
+            await walls.click();
+            await walls.click();
+            await expect(walls).toHaveAttribute('aria-pressed', 'true');
+            await page.getByRole('button', { name: 'Dots', exact: true }).click();
+            await page.getByRole('button', { name: 'Cell 0,0 Empty', exact: true }).click();
+            await expect(page.getByRole('button', { name: 'Cell 0,0 Color 1', exact: true })).toBeVisible();
+        }
+        await page.screenshot({ path: test.info().outputPath('refined-picker.png'), fullPage: true });
+    });
+}
+
+test.beforeEach(async ({ page }) => { await optIntoGenerator(page); });

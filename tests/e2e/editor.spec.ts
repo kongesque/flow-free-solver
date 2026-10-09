@@ -1,3 +1,4 @@
+import { optIntoGenerator } from './board-options';
 import { test, expect, type Locator } from '@playwright/test';
 import { assertSolution } from '../fixtures/assert-solution.mjs';
 import { openBoardOptions } from './board-options';
@@ -6,6 +7,19 @@ import { openBoardOptions } from './board-options';
 const layoutBounds = (locator: Locator) => locator.evaluate(element => {
     const bounds = element.getBoundingClientRect();
     return { x: bounds.x + window.scrollX, y: bounds.y + window.scrollY, width: bounds.width, height: bounds.height };
+});
+
+test('the footer fits a 320px screen without the hosted font', async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 568 });
+    await page.route('https://fonts.googleapis.com/**', route => route.abort());
+    await page.route('https://fonts.gstatic.com/**', route => route.abort());
+    await page.goto('./');
+    await expect(page.getByRole('button', { name: 'Solve', exact: true })).toBeEnabled();
+    await page.evaluate(() => document.fonts.ready);
+    const footer = page.locator('.solver-about p');
+    await expect(footer).toHaveText('Solve Flow Free puzzles locally. Read more');
+    expect(await footer.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
 for (const viewport of [
@@ -29,8 +43,8 @@ for (const viewport of [
     test(`editor fits ${viewport.width}×${viewport.height} with square and rectangular boards`, async ({ page }) => {
         await page.setViewportSize(viewport);
         await page.goto('./');
-        await expect(page.locator('.control-actions button')).toHaveCount(3);
-        await expect(page.getByRole('combobox')).toHaveCount(1);
+        await expect(page.locator('.control-actions button')).toHaveCount(2);
+        await expect(page.getByRole('combobox')).toHaveCount(2);
         await expect(page.getByText('Size', { exact: true })).toBeVisible();
         await expect(page.getByRole('combobox', { name: 'Solver Algorithm' })).toBeHidden();
         const source = page.getByRole('link', { name: /View source on GitHub/ });
@@ -55,14 +69,20 @@ for (const viewport of [
         await expect(readMore).toBeVisible();
         await expect(readMore).toHaveAttribute('href', 'https://www.kongesque.com/blog/flow-free-solver');
         await expect(readMore).toHaveAttribute('target', '_blank');
-        await expect(page.locator('.solver-about > p')).toHaveText('Runs locally. Read more');
-        await expect(page.locator('.solver-methods')).toHaveText('Runs locally.');
+        await expect(page.locator('.solver-about > p')).toHaveText('Solve Flow Free puzzles locally. Read more');
+        await expect(page.locator('.solver-methods')).toHaveText('Solve Flow Free puzzles locally.');
+        expect(await page.locator('.solver-about p').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
         expect(await readMore.evaluate(element => getComputedStyle(element).color)).toBe('rgb(138, 142, 140)');
         expect(await page.locator('.solver-about').evaluate(element => getComputedStyle(element).textAlign))
             .toBe(viewport.width >= 960 ? 'left' : 'center');
         const about = await layoutBounds(page.locator('.solver-about'));
         const actionButtons = await layoutBounds(page.locator('.control-actions'));
-        expect(about.y).toBeGreaterThan(actionButtons.y + actionButtons.height);
+        const compactLandscape = viewport.width < 960 && viewport.width > viewport.height && viewport.height <= 600;
+        if (compactLandscape) {
+            expect(about.y + about.height).toBeLessThanOrEqual(actionButtons.y);
+        } else {
+            expect(about.y).toBeGreaterThan(actionButtons.y + actionButtons.height);
+        }
         const initialBoard = await page.getByRole('article', { name: 'Puzzle Grid Board' }).boundingBox();
         const initialHeader = await layoutBounds(page.getByRole('heading', { name: /Flow Free Solver/i }));
         const status = await layoutBounds(page.getByRole('status'));
@@ -71,7 +91,7 @@ for (const viewport of [
         const phonePortrait = viewport.width <= 600 && viewport.height >= viewport.width;
         const phoneLandscape = !desktop && viewport.width > viewport.height && viewport.height <= 600;
         const tip = page.locator('.solver-header p');
-        await expect(tip).toHaveText('Click to place or remove.');
+        await expect(tip).toHaveText('Select a cell to place or remove a dot.');
         expect((await layoutBounds(tip)).height).toBeLessThan(19);
         expect(await tip.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
         const selectedLabelsFit = await page.locator('.primary-settings select').evaluateAll(selects => {
@@ -109,7 +129,7 @@ for (const viewport of [
         } else {
             await expect(page.locator('.solver-methods')).toBeVisible();
             const options = await layoutBounds(page.locator('.board-options'));
-            expect(about.y).toBeGreaterThan(options.y + options.height);
+            if (!phoneLandscape) expect(about.y).toBeGreaterThan(options.y + options.height);
             await expect(page.locator('.solver-header p')).toBeVisible();
             await expect(page.locator('.board-options')).not.toHaveAttribute('open', '');
             await expect(page.locator('.board-options summary')).toBeVisible();
@@ -141,10 +161,10 @@ for (const viewport of [
         const stableControls = await layoutBounds(page.getByRole('region', { name: 'Game Controls' }));
         const heading = await layoutBounds(page.getByRole('heading', { name: /Flow Free Solver/i }));
         if (phonePortrait) {
-            expect(frame.x).toBeGreaterThanOrEqual(2);
-            expect(frame.width).toBeLessThanOrEqual(viewport.width - 4);
-            expect(frame.x).toBeCloseTo(2, 1);
-            expect(frame.width).toBeCloseTo(viewport.width - 4, 1);
+            expect(frame.x).toBeGreaterThanOrEqual(16);
+            expect(frame.width).toBeLessThanOrEqual(viewport.width - 32);
+            expect(frame.x).toBeCloseTo(16, 1);
+            expect(frame.width).toBeCloseTo(viewport.width - 32, 1);
             expect(stableControls.x).toBeGreaterThanOrEqual(16);
             expect(stableControls.x + stableControls.width).toBeLessThanOrEqual(viewport.width - 16);
         }
@@ -158,8 +178,8 @@ for (const viewport of [
             expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(viewport.width);
             expect(bounds!.width / bounds!.height).toBeCloseTo(width / height, 1);
             if (phonePortrait && width >= height) {
-                expect(bounds.x).toBeCloseTo(2, 1);
-                expect(bounds.width).toBeCloseTo(viewport.width - 4, 1);
+                expect(bounds.x).toBeCloseTo(16, 1);
+                expect(bounds.width).toBeCloseTo(viewport.width - 32, 1);
             }
             expect(bounds!.width).toBeLessThanOrEqual(frame!.width + 1);
             expect(bounds!.height).toBeLessThanOrEqual(frame!.height + 1);
@@ -222,6 +242,8 @@ test('keyboard editing uses a single grid tab stop and respects rectangular boun
     await page.keyboard.press('Home');
     await expect(page.getByRole('button', { name: 'Cell 0,1 Empty', exact: true })).toBeFocused();
     await expect(page.locator('.puzzle-grid button[tabindex="0"]')).toHaveCount(1);
+    await page.keyboard.press('Tab');
+    await expect(page.getByRole('combobox', { name: 'Game Mode' })).toBeFocused();
     await page.keyboard.press('Tab');
     await expect(page.getByRole('combobox', { name: 'Grid Size' })).toBeFocused();
 });
@@ -292,9 +314,8 @@ for (const viewport of [
             page.getByRole('heading', { name: /Flow Free Solver/i }),
             page.getByRole('status'),
             grid,
-            page.getByRole('region', { name: 'Game Controls' }),
             page.locator('.control-actions button').first(),
-            page.locator('.board-options:visible'),
+            page.locator('.control-actions'),
         ];
         const initialBounds = await Promise.all(landmarks.map(layoutBounds));
         const expectStable = async () => {
@@ -364,3 +385,5 @@ for (const viewport of [
         await expectStable();
     });
 }
+
+test.beforeEach(async ({ page }) => { await optIntoGenerator(page); });
