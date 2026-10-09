@@ -440,16 +440,16 @@ const FlowSolver = () => {
             setSolvedBoard(resultBoard); setPathSolution(solution); setSolveTime(performance.now() - startTime);
         };
         runWorker(() => new Worker(new URL('../workers/solver.worker.ts', import.meta.url), { type: 'module' }),
-            { board, type: solverType, mode, walls, bridges, warps }, 'solve',
+            { board, type: solverType, mode, walls, bridges, warps, allowFallback: generatedSolution === null }, 'solve',
             (result: { board: number[][] | null; solution?: PuzzleSolution | null; timedOut?: boolean; error?: string }) => {
                 if (!result || typeof result !== 'object' || !('board' in result)) throw new Error('Invalid solver response');
                 if (result.board) acceptSolution(result.board, result.solution);
                 else if (generatedSolution && (result.timedOut || /result code 2/.test(result.error ?? ''))) {
                     acceptSolution(generatedSolution, generatedPathSolution);
                 } else if (result.timedOut) {
-                    setError(mode !== 'standard' ? 'Search limit reached. Your puzzle is preserved.' : solverType === 'astar' ? 'Timed out. Try Heuristic BFS.' : 'Timed out (15s limit)');
+                    setError(solverType === 'astar' ? 'Search limit reached. Try Heuristic BFS.' : 'Search limit reached. Your puzzle is preserved.');
                 } else if (result.error) setError('Solver error: ' + result.error);
-                else setError(isStandard && !walls.length && solverType === 'heuristic_bfs' && width === 15 && height === 15 ? 'No solution. Try Z3.' : 'No solution found');
+                else setError('No solution found');
             });
     };
 

@@ -4,6 +4,7 @@ import { normalizeWalls, type Wall } from './walls';
 import { normalizeTopology, topologyGraph, type PuzzleTopology } from './topology';
 import { validateSolution, type PuzzleSolution } from './solution';
 import type { GameMode } from './game-modes';
+import { SearchLimitError } from './solver-errors';
 
 export const COLOR_CHARS = ['', 'R', 'B', 'Y', 'G', 'O', 'C', 'M', 'm', 'P', 'A', 'W', 'g', 'T', 'b', 'c', 'p'];
 
@@ -36,6 +37,7 @@ export function serializeBoard(board: Board): string {
 
 export function parseSolution(result: string, width: number, height = width): Board | null {
   if (result.startsWith('Error: No solution found (result code 1)')) return null;
+  if (result === 'Error: No solution found (result code 2)') throw new SearchLimitError();
   if (result.startsWith('Error')) throw new Error(result);
   const rows: unknown = JSON.parse(result);
   if (!Array.isArray(rows) || rows.length !== height || rows.some(row => !Array.isArray(row) || row.length !== width)) {

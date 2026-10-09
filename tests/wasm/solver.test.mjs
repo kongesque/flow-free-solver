@@ -14,6 +14,8 @@ for (const name of readdirSync(fixtures).filter(name => name.endsWith('.txt')).s
     const result = solve(input);
     if (name.startsWith('unsolvable')) {
       assert.match(result, /^Error: No solution found \(result code 1\)/);
+    } else if (name.startsWith('search_limit')) {
+      assert.equal(result, 'Error: No solution found (result code 2)');
     } else {
       assert.ok(!result.startsWith('Error'), result);
       assertSolution(input, JSON.parse(result));

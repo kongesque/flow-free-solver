@@ -3,9 +3,17 @@ import { init as lowLevelInit } from 'z3-solver/build/low-level/wrapper.__GENERA
 // @ts-ignore
 import { createApi } from 'z3-solver/build/high-level';
 import type { Board } from './astar-solver';
+import { hasWall, normalizeWalls, type Wall } from './walls';
+import { disconnectedLoops } from './sat-connectivity';
+import { SearchLimitError } from './solver-errors';
+import { boardToSolution } from './solution';
 
-export async function solveZ3(board: Board): Promise<Board | null> {
-    const baseUrl = (import.meta as any).env.BASE_URL || '/';
+export async function solveZ3(board: Board, inputWalls: Wall[] = []): Promise<Board | null> {
+    const started = performance.now();
+    const budgetMs = 30_000;
+    const baseUrl = import.meta.env.BASE_URL;
+    const walls = normalizeWalls(inputWalls, board.length, board[0].length);
+    const colors = [...new Set(board.flat().filter(Boolean))];
 
     if (import.meta.env.DEV) console.log('[Z3Solver] Dynamically importing Z3 module');
 
@@ -42,7 +50,7 @@ export async function solveZ3(board: Board): Promise<Board | null> {
 
     // ready only took 3 days to figure this api out
     const { Context } = highLevel;
-    const { Solver, Int, Sum, If } = Context('main');
+    const { Solver, Int, Sum, If, Or } = Context('main');
 
     const solver = new Solver();
     const M = board.length;
@@ -65,8 +73,8 @@ export async function solveZ3(board: Board): Promise<Board | null> {
                 // Fixed value
                 solver.add(B[i][j].eq(board[i][j]));
             } else {
-                // part of flow must be > 0 
-                solver.add(B[i][j].gt(0));
+                // Only colors with actual endpoint pairs may occupy cells.
+                solver.add(Or(...colors.map(color => B[i][j].eq(color))));
             }
         }
     }
@@ -82,12 +90,13 @@ export async function solveZ3(board: Board): Promise<Board | null> {
                 const ni = i + dx;
                 const nj = j + dy;
 
-                if (ni >= 0 && ni < M && nj >= 0 && nj < N) {
+                if (ni >= 0 && ni < M && nj >= 0 && nj < N && !hasWall(walls, [i, j], [ni, nj])) {
                     // neighbor same color? +1
                     neighbors.push(If(B[i][j].eq(B[ni][nj]), 1, 0));
                 }
             }
 
+            if (!neighbors.length) return null;
             const neighsSum = Sum(...(neighbors as [any, ...any[]]));
 
             if (board[i][j] > 0) {
@@ -100,10 +109,15 @@ export async function solveZ3(board: Board): Promise<Board | null> {
         }
     }
 
-    // Check satisfiability
-    const check = await solver.check();
-
-    if (check === 'sat') {
+    // Refine models that satisfy local degrees but contain disconnected loops.
+    // All iterations share one time budget; unknown is a limit, never unsat.
+    while (true) {
+        const remaining = budgetMs - (performance.now() - started);
+        if (remaining <= 0) throw new SearchLimitError();
+        solver.set('timeout', Math.max(1, Math.floor(remaining)));
+        const check = await solver.check();
+        if (check === 'unsat') return null;
+        if (check !== 'sat') throw new SearchLimitError();
         const model = solver.model();
         const solvedBoard: Board = board.map(row => [...row]);
 
@@ -114,9 +128,14 @@ export async function solveZ3(board: Board): Promise<Board | null> {
                 solvedBoard[i][j] = parseInt(sVal);
             }
         }
-        return solvedBoard;
-    } else {
-        return null;
+        const loops = disconnectedLoops(board, solvedBoard, walls);
+        if (!loops.length) {
+            boardToSolution(board, solvedBoard, { walls, bridges: [], warps: [] });
+            return solvedBoard;
+        }
+        for (const cells of loops) {
+            const [x, y] = cells[0], color = solvedBoard[x][y];
+            solver.add(Or(...cells.map(([cx, cy]) => B[cx][cy].neq(color))));
+        }
     }
 }
-

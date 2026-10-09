@@ -1,4 +1,5 @@
 import { parseSolution, serializeBoard } from './heuristic-solver';
+import { SearchLimitError } from './solver-errors';
 
 test('serializes column-major boards with nonconsecutive colors', () => {
   expect(serializeBoard([[1, 0, 1], [0, 0, 0], [16, 0, 16]]))
@@ -31,7 +32,8 @@ test('accepts each 19-cell boundary and rejects either dimension at 20', () => {
 
 test('distinguishes unsolvable puzzles from C runtime errors', () => {
   expect(parseSolution('Error: No solution found (result code 1)', 5)).toBeNull();
-  expect(() => parseSolution('Error: No solution found (result code 2)', 5)).toThrow();
+  expect(() => parseSolution('Error: No solution found (result code 2)', 5)).toThrow(SearchLimitError);
+  expect(() => parseSolution('Error: Invalid board', 5)).toThrow('Invalid board');
   expect(() => parseSolution('[[82]]', 5)).toThrow();
 });
 

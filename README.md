@@ -74,6 +74,10 @@ Ctrl/⌘ + Z undoes the last edit.
 also offer **A\*** and **SAT (Z3)** in Board options. Walls, rectangles, Bridges,
 and Warps automatically use the C/WebAssembly solver.
 
+Classic puzzles automatically try SAT if heuristic search reaches its memory
+limit, including rectangular boards and puzzles with walls. SAT checks both
+path degrees and connectivity; a search timeout preserves the editable puzzle.
+
 | Solver | Implementation |
 | --- | --- |
 | **Heuristic BFS** | C compiled to WebAssembly, adapted from [Matt Zucker's flow_solver](https://github.com/mzucker/flow_solver). |

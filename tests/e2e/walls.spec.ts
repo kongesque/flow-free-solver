@@ -170,7 +170,7 @@ test('wall edits invalidate generated solutions and remain invalidated after und
     expect((await saved(page))?.generatedSolution).toBeNull();
 });
 
-for (const requested of ['astar', 'z3', 'malformed']) {
+for (const requested of ['astar', 'malformed']) {
     test(`real solver worker rejects ${requested} wall requests instead of ignoring walls`, async ({ page }) => {
         await page.addInitScript(requested => {
             const Base = window.Worker;

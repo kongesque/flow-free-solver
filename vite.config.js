@@ -9,13 +9,26 @@ const isolationHeaders = {
     'Cross-Origin-Embedder-Policy': 'require-corp',
 };
 
+// Vite's static middleware returns 304 before applying server/preview headers.
+// Safari rejects cached workers without COEP, including Z3's nested pthread.
+function applyIsolationHeaders({ middlewares }) {
+    middlewares.use((_request, response, next) => {
+        for (const [name, value] of Object.entries(isolationHeaders)) response.setHeader(name, value);
+        next();
+    });
+}
+
 export default defineConfig({
     resolve: {
         alias: {
             '@': fileURLToPath(new URL('./src', import.meta.url)),
         },
     },
-    plugins: [react(), tailwindcss()],
+    plugins: [react(), tailwindcss(), {
+        name: 'cross-origin-isolation-headers',
+        configureServer: applyIsolationHeaders,
+        configurePreviewServer: applyIsolationHeaders,
+    }],
     optimizeDeps: {
         // Worker-only CommonJS imports must be discovered before the first
         // solve; late discovery otherwise reloads the page and loses its result.
