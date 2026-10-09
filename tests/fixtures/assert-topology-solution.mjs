@@ -49,6 +49,33 @@ export function assertTopologySolution(fixture, solution) {
   }
 }
 
+// Check actual same-color adjacency independently of the selected path steps.
+export function assertInducedTopologySolution(fixture, solution) {
+  assertTopologySolution(fixture, solution);
+  const { width, height, board, topology } = fixture;
+  const bridgeCells = new Set(topology.bridges.map(b => `${b.x},${b.y}`));
+  const key = n => `${n.x},${n.y},${n.lane}`;
+  const occupied = new Map(solution.paths.flatMap(path => path.nodes.map(node => [key(node), path.color])));
+  for (const path of solution.paths) for (const node of path.nodes) {
+    const neighbors = new Set();
+    for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+      const axis = dx ? 'horizontal' : 'vertical';
+      if (node.lane !== 'cell' && node.lane !== axis) continue;
+      let x = node.x + dx, y = node.y + dy;
+      if (x < 0 || x >= width || y < 0 || y >= height) {
+        if (!topology.warps.some(s => s.axis === axis && s.index === (dx ? node.y : node.x))) continue;
+        x = (x + width) % width; y = (y + height) % height;
+      } else if (topology.walls.some(w => dx
+        ? w.side === 'right' && w.y === y && w.x === Math.min(node.x, x)
+        : w.side === 'down' && w.x === x && w.y === Math.min(node.y, y))) continue;
+      const neighbor = key({ x, y, lane: bridgeCells.has(`${x},${y}`) ? axis : 'cell' });
+      if (occupied.get(neighbor) === path.color) neighbors.add(neighbor);
+    }
+    const expected = node.lane === 'cell' && board[node.x][node.y] ? 1 : 2;
+    assert.equal(neighbors.size, expected, `Extra same-color contact at ${key(node)}`);
+  }
+}
+
 export function decodeNativeSolution(fixture, raw) {
   const { width, height, topology } = fixture;
   const bridges = [...topology.bridges].sort((a, b) => a.y - b.y || a.x - b.x);

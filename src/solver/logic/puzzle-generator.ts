@@ -105,7 +105,7 @@ export function generateRectangularPuzzle(width: number, height: number, seed = 
 /** Nested open rings cover a board with at most 11 colors. Each ring
  * leaves one cell for the next path, preventing a cycle or self-touching.
  */
-function ringCover(width: number, height: number): number[][] {
+export function ringCover(width: number, height: number): number[][] {
     const paths: number[][] = [];
     let previousGap: number | undefined;
     for (let inset = 0; inset * 2 < Math.min(width, height); inset++) {

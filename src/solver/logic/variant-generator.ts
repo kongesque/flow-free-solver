@@ -1,8 +1,9 @@
 import type { GameMode } from './game-modes';
 import { generateBridgeCover } from './bridge-generator';
+import { generateWarpCover } from './warp-generator';
 import { createPuzzleRandom, generateRectangularPuzzle, validateGeneratorInputs, type GeneratedPuzzle } from './puzzle-generator';
-import { boardToSolution, solutionBoard, validateSolution, type PuzzleSolution } from './solution';
-import { normalizeTopology, seamKey, type PuzzleTopology } from './topology';
+import { boardToSolution, solutionBoard, validateInducedSolution, type PuzzleSolution } from './solution';
+import { normalizeTopology, type PuzzleTopology } from './topology';
 
 export type GeneratedModePuzzle = GeneratedPuzzle & {
     mode: GameMode;
@@ -22,41 +23,17 @@ export function generateModePuzzle(width: number, height: number, mode: GameMode
     let board: number[][];
     let pathSolution: PuzzleSolution;
 
-    if (mode !== 'bridges') {
+    if (mode === 'standard') {
         const puzzle = generateRectangularPuzzle(width, height, seed);
         pathSolution = boardToSolution(puzzle.board, puzzle.solution, topology);
-        if (mode === 'warps') {
-            // Move one used edge across the border, ensuring every generated
-            // warp puzzle actually needs at least one seam in its saved cover.
-            const path = pathSolution.paths[random(pathSolution.paths.length)];
-            const step = random(path.nodes.length - 1);
-            const a = path.nodes[step], b = path.nodes[step + 1];
-            const shiftX = a.x !== b.x ? width - Math.max(a.x, b.x) : random(width);
-            const shiftY = a.y !== b.y ? height - Math.max(a.y, b.y) : random(height);
-            for (const path of pathSolution.paths) path.nodes = path.nodes.map(node => ({
-                ...node, x: (node.x + shiftX) % width, y: (node.y + shiftY) % height,
-            }));
-            const seams = new Map<string, PuzzleTopology['warps'][number]>();
-            for (const path of pathSolution.paths) for (let i = 1; i < path.nodes.length; i++) {
-                const a = path.nodes[i - 1], b = path.nodes[i];
-                if (Math.abs(a.x - b.x) > 1) {
-                    const seam = { axis: 'horizontal' as const, index: a.y };
-                    seams.set(seamKey(seam), seam);
-                }
-                if (Math.abs(a.y - b.y) > 1) {
-                    const seam = { axis: 'vertical' as const, index: a.x };
-                    seams.set(seamKey(seam), seam);
-                }
-            }
-            topology.warps = [...seams.values()];
-        }
         board = endpoints(width, height, pathSolution);
     } else {
-        ({ topology, pathSolution } = generateBridgeCover(width, height, random));
+        ({ topology, pathSolution } = mode === 'bridges'
+            ? generateBridgeCover(width, height, random) : generateWarpCover(width, height, random));
         board = endpoints(width, height, pathSolution);
     }
     topology = normalizeTopology(topology, board, mode);
-    validateSolution(board, topology, pathSolution);
+    validateInducedSolution(board, topology, pathSolution);
     return { width, height, mode, seed, board, topology, pathSolution,
         solution: solutionBoard(board, pathSolution), pairCount: pathSolution.paths.length };
 }

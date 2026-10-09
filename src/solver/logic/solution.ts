@@ -41,6 +41,31 @@ export function validateSolution(board: Board, topology: PuzzleTopology, solutio
     });
 }
 
+/** Generated covers also forbid unchosen contacts between same-color nodes. */
+export function validateInducedSolution(board: Board, topology: PuzzleTopology, solution: PuzzleSolution): void {
+    validateSolution(board, topology, solution);
+    const graph = topologyGraph(board.length, board[0].length, topology);
+    const colors = new Map(solution.paths.flatMap(path => path.nodes.map(node => [nodeKey(node), path.color] as const)));
+    for (const [id, node] of graph.nodes.entries()) {
+        const color = colors.get(nodeKey(node));
+        const degree = graph.edges[id].filter(n => colors.get(nodeKey(graph.nodes[n])) === color).length;
+        const expected = node.lane === 'cell' && board[node.x][node.y] ? 1 : 2;
+        if (degree !== expected) throw new Error('Generated path touches itself');
+    }
+}
+
+/** Keep a generated puzzle's clean cover when an alternate route self-touches.
+ * Older saved covers retain their existing explicit-path interpretation.
+ */
+export function preferInducedGeneratedSolution(board: Board, topology: PuzzleTopology,
+    solution: PuzzleSolution, generated?: PuzzleSolution | null): PuzzleSolution {
+    if (!generated) return solution;
+    try { validateInducedSolution(board, topology, generated); }
+    catch { return solution; }
+    try { validateInducedSolution(board, topology, solution); return solution; }
+    catch { return generated; }
+}
+
 /** Legacy Standard solvers imply edges through open same-color adjacency. */
 export function boardToSolution(board: Board, solved: Board, topology: PuzzleTopology): PuzzleSolution {
     if (solved.length !== board.length || solved.some(col => col.length !== board[0].length)) throw new Error('Invalid solution dimensions');
