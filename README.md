@@ -2,10 +2,13 @@
 
 **Flow Free Solver** (also known as a **Number Link Solver**) is a high-performance web tool that **solves complex logic puzzles in milliseconds** locally in your browser. Built with **React** and **WebAssembly**, it uses advanced constraint solving algorithms (*Z3 Theorem Prover* and *A\**) to find solutions for square and rectangular grids with widths and heights from 5 to 15 without sending data to a server.
 
-<p align="center">
-  <img src="./assets/5x5_demo.gif" width="49%" alt="5x5 Demo" />
-  <img src="./assets/14x14_demo.gif" width="49%" alt="14x14 Demo" />
-</p>
+| Classic | Classic with walls |
+| :---: | :---: |
+| <img src="./assets/demos/classic.gif" width="360" alt="Classic level 12: place the matching dots and solve the 5×5 board" /> | <img src="./assets/demos/walls.gif" width="360" alt="Courtyard level 1: place dots and walls, then solve the 7×7 board" /> |
+| Bridges | Warps |
+| <img src="./assets/demos/bridges.gif" width="360" alt="Bridges level 1: add a horizontal bridge and solve both crossing lanes" /> | <img src="./assets/demos/warps.gif" width="360" alt="Warps level 5: open the opposite row borders and solve through the warp" /> |
+
+Recorded in the app using real game puzzles. [Puzzle sources and recording instructions](./assets/demos/README.md).
 
 [![Live Demo](https://img.shields.io/badge/demo-live-brightgreen)](https://flow.kongesque.com/)
 [![React](https://img.shields.io/badge/React-19.3-61DAFB?logo=react)](https://react.dev/)
