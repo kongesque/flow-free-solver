@@ -12,20 +12,40 @@ export const COLORS: Record<number, string> = {
     7: '#FF00FF',  // M - Magenta
     8: '#800000',  // m - Maroon
     9: '#800080',  // P - Purple
-    10: '#808080', // A - Gray
+    10: '#C4C3D0', // A - Lavender Gray
     11: '#FFFFFF', // W - White
     12: '#00FF00', // g - Bright Green
     13: '#D2B48C', // T - Tan
-    14: '#00008B', // b - Dark Blue
-    15: '#008B8B', // c - Dark Cyan
+    14: '#4B0082', // b - Indigo
+    15: '#008080', // c - Teal
     16: '#FFC0CB', // p - Pink
+};
+
+// Display letters are independent of the stable solver color IDs and saved boards.
+export const COLOR_LABELS: Record<number, { letter: string; name: string }> = {
+    1: { letter: 'A', name: 'Bright Red' },
+    4: { letter: 'B', name: 'Dark Green' },
+    2: { letter: 'C', name: 'Blue' },
+    3: { letter: 'D', name: 'Yellow' },
+    5: { letter: 'E', name: 'Orange' },
+    6: { letter: 'F', name: 'Cyan' },
+    7: { letter: 'G', name: 'Magenta' },
+    8: { letter: 'H', name: 'Maroon' },
+    9: { letter: 'I', name: 'Purple' },
+    11: { letter: 'J', name: 'White' },
+    10: { letter: 'K', name: 'Lavender Gray' },
+    12: { letter: 'L', name: 'Lime Green' },
+    13: { letter: 'M', name: 'Tan' },
+    14: { letter: 'N', name: 'Indigo' },
+    15: { letter: 'O', name: 'Teal' },
+    16: { letter: 'P', name: 'Light Pink' },
 };
 
 export type SolverType = 'astar' | 'z3' | 'heuristic_bfs';
 
 export type DotLabels = 'none' | 'letters';
 export const isDotLabels = (value: unknown): value is DotLabels => value === 'none' || value === 'letters';
-export const dotLabel = (color: number, style: DotLabels) => style === 'letters' ? String.fromCharCode(64 + color) : '';
+export const dotLabel = (color: number, style: DotLabels) => style === 'letters' ? (COLOR_LABELS[color]?.letter ?? '') : '';
 export const dotLabelColor = (color: number) => {
     const hex = COLORS[color] || '#888888';
     const channels = [1, 3, 5].map(offset => {

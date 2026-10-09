@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronDown, Undo2, Trash2 } from 'lucide-react';
+import { ChevronDown, Undo2, Brush } from 'lucide-react';
 import { GAME_MODES, type GameMode } from '../logic/game-modes';
 import { SIZE_OPTIONS, RESTRICT_Z3_TO_LARGE_GRIDS, SolverType, type DotLabels } from './constants';
 import type { WarpSeam } from '../logic/topology';
@@ -13,8 +13,8 @@ const toolGlyphs: Record<EditTool, React.ReactNode> = {
 };
 
 interface SolverControlsProps {
-    showCoordinates: boolean;
-    onCoordinatesChange: (value: boolean) => void;
+    showBoardGuides: boolean;
+    onBoardGuidesChange: (value: boolean) => void;
     showGenerator: boolean;
     onShowGeneratorChange: (value: boolean) => void;
     dotLabels: DotLabels;
@@ -48,7 +48,7 @@ interface SolverControlsProps {
 }
 
 const SolverControls = ({
-    showCoordinates, onCoordinatesChange,
+    showBoardGuides, onBoardGuidesChange,
     dotLabels, onDotLabelsChange, showGenerator, onShowGeneratorChange,
     onEdit,
     width,
@@ -140,7 +140,7 @@ const SolverControls = ({
                             <span>Solver</span><span className="select-wrap">
                                 <select value={solverType} onChange={onSolverTypeChange} aria-label="Solver Algorithm"
                                     disabled={isBusy || (RESTRICT_Z3_TO_LARGE_GRIDS && width !== 15)}>
-                                    <option value="heuristic_bfs">Heuristic BFS</option><option value="astar">A*</option><option value="z3">SAT (Z3)</option>
+                                    <option value="heuristic_bfs">Heuristic BFS (recommended)</option><option value="astar">A*</option><option value="z3">SAT (Z3)</option>
                                 </select><ChevronDown aria-hidden="true" />
                             </span>
                         </label>}
@@ -154,12 +154,12 @@ const SolverControls = ({
                         </div>}
                         <div className="settings-toggles">
                             <label className="label-setting">
-                                <span className="label-setting-title">Coordinates</span>
-                                <input type="checkbox" role="switch" aria-label="Coordinates" checked={showCoordinates} onChange={event => onCoordinatesChange(event.target.checked)} />
-                            </label>
-                            <label className="label-setting">
                                 <span className="label-setting-title">Color label</span>
                                 <input type="checkbox" role="switch" aria-label="Color label" checked={dotLabels === 'letters'} onChange={event => onDotLabelsChange(event.target.checked ? 'letters' : 'none')} />
+                            </label>
+                            <label className="label-setting">
+                                <span className="label-setting-title">Board guides</span>
+                                <input type="checkbox" role="switch" aria-label="Board guides" checked={showBoardGuides} onChange={event => onBoardGuidesChange(event.target.checked)} />
                             </label>
                             <label className="label-setting">
                                 <span className="label-setting-title">Puzzle generator</span>
@@ -172,7 +172,7 @@ const SolverControls = ({
                     <button type="button" className="control-button icon-action undo-action" disabled={!canUndo || editingDisabled} onClick={onUndo}
                         aria-label="Undo" aria-keyshortcuts="Control+Z Meta+Z" title="Undo last edit (Ctrl+Z / ⌘Z)"><Undo2 aria-hidden="true" /></button>
                     <button type="button" className="control-button icon-action reset-action" onClick={onReset} disabled={!isLoaded || unavailable}
-                        aria-label="Reset" title="Reset puzzle"><Trash2 aria-hidden="true" /></button>
+                        aria-label="Reset" title="Reset puzzle"><Brush aria-hidden="true" /></button>
                 </div>
             </div>
             <div className="solver-about selectable-text">

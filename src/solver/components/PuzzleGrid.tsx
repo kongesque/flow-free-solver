@@ -2,12 +2,12 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties, type Keyb
 import PipeOverlay from './PipeOverlay';
 import type { PuzzleSolution } from '../logic/solution';
 import { seamKey, type Bridge, type WarpSeam } from '../logic/topology';
-import { COLORS, dotLabel, dotLabelColor, type DotLabels } from './constants';
+import { COLORS, COLOR_LABELS, dotLabel, dotLabelColor, type DotLabels } from './constants';
 import { wallAtPoint, wallBetween, wallKey, type Wall, type EditTool } from '../logic/walls';
 
 interface PuzzleGridProps {
     dotLabels: DotLabels;
-    showCoordinates: boolean;
+    showBoardGuides: boolean;
     width: number;
     height: number;
     currentBoard: number[][];
@@ -29,7 +29,7 @@ interface PuzzleGridProps {
 
 const PuzzleGrid = ({
     dotLabels,
-    showCoordinates,
+    showBoardGuides,
     width,
     height,
     currentBoard,
@@ -51,12 +51,17 @@ const PuzzleGrid = ({
     const [coordinateStep, setCoordinateStep] = useState({ column: 1, row: 1 });
     const placement = useRef<{ pointerId: number; tool: 'dots' | 'bridges' } | null>(null);
     const suppressClickUntil = useRef(0);
+    const cancelledPlacement = useRef<number | null>(null);
     const stroke = useRef<{ pointerId: number; adding: boolean; walls: Wall[]; seen: Set<string>; point: [number, number]; side: Wall['side'] } | null>(null);
     const editingWalls = editTool === 'walls' && !isSolving && !solvedBoard;
     const editing = !isSolving && !solvedBoard;
     const visibleWalls = draft ?? walls;
     const cancelStroke = useCallback(() => {
         const pointerId = stroke.current?.pointerId ?? placement.current?.pointerId;
+        if (placement.current) {
+            cancelledPlacement.current = placement.current.pointerId;
+            suppressClickUntil.current = performance.now() + 500;
+        }
         stroke.current = null;
         placement.current = null;
         if (pointerId !== undefined && gridRef.current?.hasPointerCapture(pointerId)) {
@@ -71,7 +76,7 @@ const PuzzleGrid = ({
     useEffect(() => {
         cancelStroke();
         setHighlightSeam(null);
-    }, [cancelStroke, walls, width, height, editTool, isSolving, solvedBoard, isResetting]);
+    }, [cancelStroke, walls, width, height, editTool, isSolving, solvedBoard, isResetting, showBoardGuides]);
     useEffect(() => {
         const grid = gridRef.current;
         if (!grid) return;
@@ -112,10 +117,11 @@ const PuzzleGrid = ({
         return x >= 0 && y >= 0 && x < width && y < height ? [Math.floor(x), Math.floor(y)] : null;
     };
     const updateGuide = (cell: [number, number] | null) => {
+        if (!showBoardGuides) return;
         setGuideCell(current => current?.[0] === cell?.[0] && current?.[1] === cell?.[1] ? current : cell);
     };
     const startPlacement = (event: PointerEvent<HTMLElement>) => {
-        if (!editing || event.pointerType === 'mouse' || event.button !== 0 || !event.isPrimary ||
+        if (!showBoardGuides || !editing || event.pointerType === 'mouse' || event.button !== 0 || !event.isPrimary ||
             (editTool !== 'dots' && editTool !== 'bridges') ||
             stroke.current || placement.current) return;
         const cell = pointerCell(event);
@@ -242,7 +248,7 @@ const PuzzleGrid = ({
     };
     return (
     <div className="puzzle-grid-frame" style={{ width: `${100 * width / Math.max(width, height)}%` }}>
-    {showCoordinates && <>
+    {showBoardGuides && <>
         <div className="board-coordinates board-columns" aria-hidden="true" style={{ gridTemplateColumns: `repeat(${width}, minmax(0, 1fr))` }}>
             {Array.from({ length: width }, (_, x) => <span key={x} className={editing && guideCell?.[0] === x ? 'coordinate-active' : undefined}>{showCoordinate(x, width, coordinateStep.column, editing ? guideCell?.[0] : undefined) ? String.fromCharCode(65 + x) : ''}</span>)}
         </div>
@@ -255,12 +261,20 @@ const PuzzleGrid = ({
         aria-label="Puzzle Grid Board"
         aria-describedby="board-instructions board-keyboard-help"
         data-solution={solution ? JSON.stringify(solution) : undefined}
-        className={`puzzle-grid ${editingWalls ? 'editing-walls' : ''} ${editing && (editTool === 'dots' || editTool === 'bridges') ? 'placing-touch' : ''}`}
+        className={`puzzle-grid ${editingWalls ? 'editing-walls' : ''} ${showBoardGuides && editing && (editTool === 'dots' || editTool === 'bridges') ? 'placing-touch' : ''}`}
         onClick={handleGridClick}
-        onPointerDown={event => { startPlacement(event); startStroke(event); }}
+        onPointerDown={event => {
+            // A fresh gesture must not inherit the previous gesture's compatibility-click guard.
+            suppressClickUntil.current = 0;
+            cancelledPlacement.current = null;
+            startPlacement(event); startStroke(event);
+        }}
         onPointerMove={movePointer}
         onPointerUp={event => {
-            if (event.pointerType !== 'mouse') suppressClickUntil.current = performance.now() + 500;
+            if ((showBoardGuides && event.pointerType !== 'mouse') || cancelledPlacement.current === event.pointerId) {
+                suppressClickUntil.current = performance.now() + 500;
+                cancelledPlacement.current = null;
+            }
             finishPlacement(event); finishStroke(event);
         }}
         onPointerCancel={event => { finishPlacement(event, true); finishStroke(event, true); }}
@@ -304,8 +318,8 @@ const PuzzleGrid = ({
                             touch-manipulation
                             select-none
                             ${solvedBoard ? 'cursor-default' : 'hover:bg-stoic-block-hover active:bg-stoic-block-hover'}
-                            ${editing && guideCell && (guideCell[0] === x || guideCell[1] === y) ? 'cell-guide' : ''}
-                            ${editing && guideCell?.[0] === x && guideCell?.[1] === y ? `cell-guide-active ${touchPreview ? 'touch-preview' : ''}` : ''}
+                            ${showBoardGuides && editing && guideCell && (guideCell[0] === x || guideCell[1] === y) ? 'cell-guide' : ''}
+                            ${showBoardGuides && editing && guideCell?.[0] === x && guideCell?.[1] === y ? `cell-guide-active ${touchPreview ? 'touch-preview' : ''}` : ''}
                         `}
                         onClick={event => {
                             if (event.detail !== 0 && performance.now() < suppressClickUntil.current) return;
@@ -314,7 +328,10 @@ const PuzzleGrid = ({
                             if (editTool === 'bridges') { onBridgeClick(x, y); setAnnouncement(`Bridge toggled, column ${x + 1}, row ${y + 1}.`); }
                         }}
                         aria-label={`Cell ${x},${y} ${bridge ? `Bridge ${bridge.over} on top${laneColors.map(p => `; ${p.nodes.find(n => n.x === x && n.y === y)?.lane} Color ${p.color}`).join('')}` : hasColor ? `Color ${cellValue}` : 'Empty'}`}
-                        aria-description={showCoordinates ? `${String.fromCharCode(65 + x)}${y + 1}` : undefined}
+                        aria-description={[
+                            showBoardGuides ? `${String.fromCharCode(65 + x)}${y + 1}` : '',
+                            endpoint && dotLabels === 'letters' ? `${dotLabel(endpoint, dotLabels)}, ${COLOR_LABELS[endpoint].name}` : '',
+                        ].filter(Boolean).join('; ') || undefined}
                     >
                         {endpoint ? (
                             <span
@@ -322,7 +339,7 @@ const PuzzleGrid = ({
                                 style={{ backgroundColor: COLORS[endpoint] || '#888', color: dotLabelColor(endpoint) }}
                                 aria-hidden="true"
                             >{dotLabel(endpoint, dotLabels)}</span>
-                        ) : !bridge && editTool === 'dots' && activeColor <= 16 && !solvedBoard && !isResetting && (
+                        ) : showBoardGuides && !bridge && editTool === 'dots' && activeColor <= 16 && !solvedBoard && !isResetting && (
                             <span
                                 className="endpoint-preview rounded-full w-[70%] h-[70%] transition-opacity duration-75"
                                 style={{ backgroundColor: COLORS[activeColor] || '#888' }}

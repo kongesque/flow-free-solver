@@ -25,12 +25,19 @@ async function verifyLabelBounds(page: Page, width: number) {
 
 for (const width of [320, 390, 1280]) {
     test(`coordinates default off, persist independently, and keep the board stable at ${width}px`, async ({ page }) => {
-        await page.setViewportSize({ width, height: 900 });
+        await page.setViewportSize({ width, height: 1000 });
         await page.goto('./');
         await openBoardOptions(page);
-        const toggle = page.getByRole('switch', { name: 'Coordinates', exact: true });
+        const toggle = page.getByRole('switch', { name: 'Board guides', exact: true });
         await expect(toggle).not.toBeChecked();
         await expect(page.locator('.board-coordinates')).toHaveCount(0);
+        await cell(page, 2, 3).hover();
+        await expect(page.locator('.cell-guide')).toHaveCount(0);
+        await expect(page.locator('.endpoint-preview')).toHaveCount(0);
+        await cell(page, 2, 3).focus();
+        await cell(page, 2, 3).press('ArrowRight');
+        await expect(cell(page, 3, 3)).toBeFocused();
+        await expect(page.locator('.cell-guide')).toHaveCount(0);
         const grid = page.getByRole('article', { name: 'Puzzle Grid Board' });
         const before = await grid.boundingBox();
         await toggle.check();
@@ -73,7 +80,7 @@ test('coordinates adapt to rectangles and dense boards without overlapping label
     await page.setViewportSize({ width: 320, height: 568 });
     await page.goto('./');
     await openBoardOptions(page);
-    await page.getByRole('switch', { name: 'Coordinates', exact: true }).check();
+    await page.getByRole('switch', { name: 'Board guides', exact: true }).check();
     await page.getByRole('combobox', { name: 'Grid Width', exact: true }).selectOption('15');
     await page.getByRole('combobox', { name: 'Grid Height', exact: true }).selectOption('10');
     await expect(page.locator('.board-columns span')).toHaveCount(15);
@@ -100,6 +107,10 @@ test.describe('Touch placement guides', () => {
     test('press and slide previews a dot; release commits once and outside/cancel/resize preserve endpoints', async ({ page }) => {
         await page.goto('./');
         await expect(page.getByRole('button', { name: 'Solve', exact: true })).toBeEnabled();
+        await openBoardOptions(page);
+        await page.getByRole('switch', { name: 'Board guides', exact: true }).check();
+        await page.locator('.board-options summary').click();
+        await cell(page, 0, 0).scrollIntoViewIfNeeded();
         const cdp = await page.context().newCDPSession(page);
         await touch(cdp, 'touchStart', await point(page, 0, 0));
         await expect(page.locator('.endpoint-dot')).toHaveCount(0);
@@ -132,10 +143,36 @@ test.describe('Touch placement guides', () => {
         await cdp.detach();
     });
 
+    test('turning guides off cancels a pending slide and restores ordinary taps', async ({ page }) => {
+        await page.goto('./');
+        await openBoardOptions(page);
+        const toggle = page.getByRole('switch', { name: 'Board guides', exact: true });
+        await cell(page, 0, 0).tap();
+        await expect(page.locator('.endpoint-dot')).toHaveCount(1);
+        await expect(page.locator('.cell-guide, .endpoint-preview')).toHaveCount(0);
+        await toggle.check();
+        const cdp = await page.context().newCDPSession(page);
+        await touch(cdp, 'touchStart', await point(page, 1, 1));
+        await touch(cdp, 'touchMove', await point(page, 2, 2));
+        await expect(cell(page, 2, 2)).toHaveClass(/touch-preview/);
+        await toggle.uncheck();
+        await touch(cdp, 'touchEnd');
+        await expect(page.locator('.endpoint-dot')).toHaveCount(1);
+        await expect(page.locator('.cell-guide, .endpoint-preview')).toHaveCount(0);
+        await cell(page, 4, 4).tap();
+        await expect(page.locator('.endpoint-dot')).toHaveCount(2);
+        await expect(cell(page, 4, 4)).toHaveAttribute('aria-label', 'Cell 4,4 Color 1');
+        await cdp.detach();
+    });
+
     test('bridge placement slides to the final cell and mode changes cancel a pending placement', async ({ page }) => {
         await page.goto('./');
         await page.getByRole('combobox', { name: 'Game Mode' }).selectOption('bridges');
         await page.getByRole('button', { name: 'Bridges', exact: true }).click();
+        await openBoardOptions(page);
+        await page.getByRole('switch', { name: 'Board guides', exact: true }).check();
+        await page.locator('.board-options summary').click();
+        await cell(page, 0, 0).scrollIntoViewIfNeeded();
         const cdp = await page.context().newCDPSession(page);
         await touch(cdp, 'touchStart', await point(page, 1, 1));
         await touch(cdp, 'touchMove', await point(page, 3, 3));

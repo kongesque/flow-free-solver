@@ -78,7 +78,7 @@ for (const viewport of [
         const phonePortrait = viewport.width <= 600 && viewport.height >= viewport.width;
         const phoneLandscape = !desktop && viewport.width > viewport.height && viewport.height <= 600;
         const tip = page.locator('.solver-header p');
-        await expect(tip).toHaveText('Click to place or remove.');
+        await expect(tip).toHaveText('Select a cell to place or remove a dot.');
         expect((await layoutBounds(tip)).height).toBeLessThan(19);
         expect(await tip.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
         const selectedLabelsFit = await page.locator('.primary-settings select').evaluateAll(selects => {

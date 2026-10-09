@@ -38,3 +38,42 @@ for (const width of [390, 1280]) {
 }
 
 test.beforeEach(async ({ page }) => { await optIntoGenerator(page); });
+
+
+test('all sixteen colors use the requested letters without changing saved color IDs', async ({ page }) => {
+    await page.goto('./');
+    await page.getByRole('combobox', { name: 'Grid Size', exact: true }).selectOption('8');
+    await openBoardOptions(page);
+    await page.getByRole('switch', { name: 'Color label', exact: true }).check();
+    const palette = [
+        ['A', 'Bright Red', 'rgb(255, 0, 0)'], ['C', 'Blue', 'rgb(0, 0, 255)'],
+        ['D', 'Yellow', 'rgb(255, 255, 0)'], ['B', 'Dark Green', 'rgb(0, 128, 0)'],
+        ['E', 'Orange', 'rgb(255, 165, 0)'], ['F', 'Cyan', 'rgb(0, 255, 255)'],
+        ['G', 'Magenta', 'rgb(255, 0, 255)'], ['H', 'Maroon', 'rgb(128, 0, 0)'],
+        ['I', 'Purple', 'rgb(128, 0, 128)'], ['K', 'Lavender Gray', 'rgb(196, 195, 208)'],
+        ['J', 'White', 'rgb(255, 255, 255)'], ['L', 'Lime Green', 'rgb(0, 255, 0)'],
+        ['M', 'Tan', 'rgb(210, 180, 140)'], ['N', 'Indigo', 'rgb(75, 0, 130)'],
+        ['O', 'Teal', 'rgb(0, 128, 128)'], ['P', 'Light Pink', 'rgb(255, 192, 203)'],
+    ];
+    for (let i = 0; i < palette.length; i++) {
+        const [letter, name, rgb] = palette[i];
+        for (let end = 0; end < 2; end++) {
+            const index = 2 * i + end, x = index % 8, y = Math.floor(index / 8);
+            const cell = page.locator(`[data-cell="${x},${y}"]`);
+            await cell.click();
+            await expect(cell).toHaveAttribute('aria-label', `Cell ${x},${y} Color ${i + 1}`);
+            await expect(cell).toHaveAttribute('aria-description', `${letter}, ${name}`);
+            await expect(cell.locator('.endpoint-dot')).toHaveText(letter);
+            await expect(cell.locator('.endpoint-dot')).toHaveCSS('background-color', rgb);
+        }
+    }
+    await expect.poll(() => page.evaluate(async () => {
+        const db = await new Promise<IDBDatabase>(resolve => { const request = indexedDB.open('flow-solver-db'); request.onsuccess = () => resolve(request.result); });
+        const board = await new Promise<number[][] | undefined>(resolve => { const request = db.transaction('puzzle-state').objectStore('puzzle-state').get('current'); request.onsuccess = () => resolve(request.result?.board); });
+        db.close(); return board?.flat().filter(Boolean).length;
+    })).toBe(32);
+    await page.reload();
+    for (let i = 0; i < palette.length; i++) {
+        await expect(page.locator(`[data-cell="${2 * i % 8},${Math.floor(2 * i / 8)}"] .endpoint-dot`)).toHaveText(palette[i][0]);
+    }
+});

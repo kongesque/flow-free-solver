@@ -46,7 +46,7 @@ test.describe('Touch guides across browsers', () => {
         await expect(page.locator('[data-cell="4,4"]')).toHaveAttribute('aria-label', 'Cell 4,4 Color 1');
         const before = await documentBounds(board);
         await page.locator('.board-options summary').click();
-        await page.getByRole('switch', { name: 'Coordinates', exact: true }).check();
+        await page.getByRole('switch', { name: 'Board guides', exact: true }).check();
         expect(await documentBounds(board)).toEqual(before);
         await expect(page.locator('.board-columns')).toHaveText('ABCDE');
         await page.locator('[data-cell="2,2"]').tap();
