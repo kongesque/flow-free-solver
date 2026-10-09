@@ -132,6 +132,22 @@ async function satRequest(page: Page, url: string, board: Board, walls: Wall[] =
     }), { url, board, walls });
 }
 
+test('repeated SAT runs use fresh pthread script URLs and preserve valid solutions', async ({ page }) => {
+    const scripts: string[] = [];
+    page.on('request', request => {
+        if (request.url().includes('/wasm/z3-built.js')) scripts.push(request.url());
+    });
+    const url = await workerUrl(page), puzzle = generateRectangularPuzzle(5, 5, 42);
+    for (let run = 0; run < 3; run++) {
+        const result = await satRequest(page, url, puzzle.board);
+        expect(result.status).toBe('solved');
+        assertSolution(textBoard(puzzle.board), asciiRows(result.board!));
+    }
+    expect(scripts.length).toBeGreaterThanOrEqual(3);
+    expect(new Set(scripts).size).toBe(3);
+    for (const script of scripts) expect(new URL(script).searchParams.get('worker')).toBeTruthy();
+});
+
 test('SAT excludes disconnected degree-valid cycles instead of displaying an invalid solution', async ({ page }) => {
     const url = await workerUrl(page);
     const result = await satRequest(page, url, columnBoard('R..R\n....\n....\nB..B\n'));
