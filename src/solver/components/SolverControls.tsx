@@ -7,7 +7,7 @@ import type { EditTool } from '../logic/walls';
 import type { Block } from '../logic/blocks';
 
 const toolGlyphs: Record<EditTool, React.ReactNode> = {
-    blocks: <path d="M2 2h8v8H2z M2 2l8 8 M10 2l-8 8" />,
+    blocks: <rect x="3.5" y="3.5" width="5" height="5" rx="0.5" fill="currentColor" stroke="none" />,
     dots: <circle cx="6" cy="6" r="2.5" fill="currentColor" stroke="none" />,
     walls: <path d="M6 1v10" />,
     bridges: <path d="M1 5h2c1.5 0 1.5-3 3-3s1.5 3 3 3h2 M1 10h2c1.5 0 1.5-3 3-3s1.5 3 3 3h2" />,
