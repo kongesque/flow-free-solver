@@ -1,4 +1,8 @@
 {
+    "proxy": {
+        "entrypoint": "middleware.ts",
+        "matcher": ["/", "/index.html"]
+    },
     "rewrites": [
         {
             "source": "/(.*)",
