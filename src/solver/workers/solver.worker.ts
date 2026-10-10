@@ -3,7 +3,7 @@ import { serializeBoard, solveHeuristicBFS, solveTopology } from '../logic/heuri
 import { requireStandardMode, type GameMode } from '../logic/game-modes';
 import { normalizeTopology, validateBoard, type PuzzleTopology } from '../logic/topology';
 import { boardToSolution, solutionBoard, validateSolution, type PuzzleSolution } from '../logic/solution';
-import { SearchLimitError } from '../logic/solver-errors';
+import { isSearchLimitError } from '../logic/solver-errors';
 import type { Wall } from '../logic/walls';
 import type { Block } from '../logic/blocks';
 
@@ -60,7 +60,7 @@ self.onmessage = async (event: MessageEvent<{
         const solveClassic = async () => {
             try { return await solveHeuristicBFS(board, topology.walls, topology.blocks); }
             catch (error) {
-                if (!(error instanceof SearchLimitError) || event.data.allowFallback === false || !self.crossOriginIsolated) throw error;
+                if (!isSearchLimitError(error) || event.data.allowFallback === false || !self.crossOriginIsolated) throw error;
                 return solveZ3(board, topology.walls, topology.blocks);
             }
         };
@@ -71,7 +71,7 @@ self.onmessage = async (event: MessageEvent<{
         self.postMessage({ ...result, status: result.board ? 'solved' : result.timedOut ? 'limit' : 'unsatisfiable',
             solution: result.board ? boardToSolution(board, result.board, topology) : null });
     } catch (error) {
-        const limited = error instanceof SearchLimitError;
+        const limited = isSearchLimitError(error);
         self.postMessage({ board: null, solution: null, status: limited ? 'limit' : 'error', timedOut: limited,
             error: limited ? undefined : error instanceof Error ? error.message : String(error), timeTaken: 0, nodeCount: 0 });
     }

@@ -86,10 +86,26 @@ export async function solveZ3Topology(board: Board, topology: PuzzleTopology, in
         });
     }
 
-    const remaining = budgetMs - (performance.now() - started);
+    // Most entered boards admit paths without unselected same-color contacts.
+    // Try that smaller search space first, but never treat its unsat/unknown
+    // result as a verdict on the general explicit-edge puzzle. Keep one total
+    // budget and leave time for routes that need self-touching paths.
+    const preferInduced = !induced && !candidate;
+    if (preferInduced) {
+        solver.push();
+        links.forEach(({ a, b, chosen }) => solver.add(chosen.eq(values[a].eq(values[b]))));
+    }
+    let remaining = budgetMs - (performance.now() - started);
     if (remaining <= 0) throw new SearchLimitError();
-    solver.set('timeout', Math.max(1, Math.floor(remaining)));
-    const check = await solver.check();
+    solver.set('timeout', Math.max(1, Math.floor(preferInduced ? Math.min(5_000, remaining) : remaining)));
+    let check = await solver.check();
+    if (preferInduced && check !== 'sat') {
+        solver.pop();
+        remaining = budgetMs - (performance.now() - started);
+        if (remaining <= 0) throw new SearchLimitError();
+        solver.set('timeout', Math.max(1, Math.floor(remaining)));
+        check = await solver.check();
+    }
     if (check === 'unsat') return null;
     if (check !== 'sat') throw new SearchLimitError();
     const model = solver.model();
