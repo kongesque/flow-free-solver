@@ -37,7 +37,7 @@ self.onmessage = async (event: MessageEvent<{
         const topology = normalizeTopology(event.data, board, mode);
         if (!['astar', 'z3', 'heuristic_bfs'].includes(type)) throw new Error('Unknown solver algorithm');
         if (type === 'astar' && (mode !== 'standard' || topology.walls.length || board.length !== board[0].length)) {
-            throw new Error('A* does not support this board. Choose Heuristic BFS or SAT (Z3).');
+            throw new Error('A* does not support this board. Choose Pruned DFS or SAT (Z3).');
         }
         if (type === 'z3') {
             const candidate = event.data.satCandidate ?? undefined;

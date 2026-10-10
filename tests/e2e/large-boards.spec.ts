@@ -122,6 +122,13 @@ test('generation works at 19x19 in every mode with contiguous color labels', asy
         });
         const labels = [...new Set(await page.locator('.endpoint-dot').allTextContents())].sort();
         expect(labels.join('')).toBe('ABCDEFGHIJKLMNOP'.slice(0, labels.length));
+        // A fast native solve can finish before the 500ms save debounce.
+        // Wait for this generated draft, rather than validating with stale
+        // topology from the previous mode's IndexedDB record.
+        await expect.poll(async () => {
+            const saved = await savedDraft(page);
+            return { mode: saved.mode, board: saved.board };
+        }).toEqual({ mode, board });
         await page.getByRole('button', { name: 'Solve', exact: true }).click();
         await expect(page.getByRole('status')).toContainText('Solved', { timeout: 20_000 });
         const solution = JSON.parse((await page.locator('.puzzle-grid').getAttribute('data-solution'))!) as PuzzleSolution;
