@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { readFileSync } from 'node:fs';
 import createModule from '../../public/wasm/flow_solver_c.mjs';
 import { warpRows, warpSnake, bridgeCross, largeBridgeCover } from '../fixtures/topology-puzzles.mjs';
 import { assertTopologySolution, decodeNativeSolution } from '../fixtures/assert-topology-solution.mjs';
 import { heuristicBridge } from '../fixtures/heuristic-bridge.mjs';
+import { maskedWarpLimit } from '../fixtures/masked-warp-limit.mjs';
 
 const module = await createModule();
 const solve = module.cwrap('solve_puzzle_topology_wasm', 'string', ['string', 'string']);
@@ -13,10 +13,11 @@ const wire = ({ mode, topology }) => `V1\nMODE,${mode === 'warps' ? 'W' : 'B'}\n
   [...topology.bridges].reverse().map(b => `B,${b.x},${b.y},${b.over === 'horizontal' ? 'H' : 'V'}\n`).join('') +
   topology.warps.map(w => `S,${w.axis === 'horizontal' ? 'H' : 'V'},${w.index}\n`).join('');
 
-test('two-ended native search solves the uncached 13x13 bridge cover within its original budget', () => {
+test('graph probe solves the uncached 13x13 bridge cover within its original budget', () => {
   const f = heuristicBridge(), result = JSON.parse(solve(f.input, wire(f)));
   assert.equal(result.status, 'solved');
   assert.ok(result.nodeCount < 100000);
+  assert.equal(result.searchMethod, 'pruned-dfs');
   assertTopologySolution(f, decodeNativeSolution(f, result));
 });
 
@@ -75,11 +76,13 @@ test('repeated variant, invalid and Standard calls do not retain topology', () =
 });
 
 test('exhausting graph search reports limit rather than unsatisfiable and frees its state', () => {
-  const input = readFileSync(new URL('../fixtures/puzzles/generated_13x13_seed42.txt', import.meta.url), 'utf8');
-  const result = JSON.parse(solve(input, 'V1\nMODE,W\nS,H,0\n'));
+  const fixture = maskedWarpLimit();
+  assertTopologySolution(fixture, fixture.solution);
+  const result = JSON.parse(solve(fixture.input, wire(fixture)));
   assert.equal(result.status, 'limit');
   assert.ok(result.nodeCount > 0 && result.nodeCount <= 2000001);
   assert.equal(result.paths, undefined);
+  assert.equal(result.searchMethod, 'path-search');
   const f = bridgeCross(), next = JSON.parse(solve(f.input, wire(f)));
   assertTopologySolution(f, decodeNativeSolution(f, next));
 });

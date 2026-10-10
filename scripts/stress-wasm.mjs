@@ -81,7 +81,7 @@ if (!isMainThread) {
     cases.push({ ...entry, name, pairCount: entry.solution.paths.length });
   }
   const fixtures = new URL('../tests/fixtures/puzzles/', import.meta.url);
-  for (const name of ['nested_19x19', 'search_limit_15x18_screenshot']) {
+  for (const name of ['nested_19x19', 'screenshot_15x18']) {
     cases.push({ name, mode: 'classic', input: readFileSync(new URL(`${name}.txt`, fixtures), 'utf8') });
   }
   // This manual board is independently solved/validated by the SAT browser

@@ -1,6 +1,7 @@
 // Compare actual Wasm search, without worker startup, SAT fallback, or cached
 // generated solutions. Optional argument: a baseline flow_solver_c.mjs path.
-import { readFileSync, readdirSync } from 'node:fs';
+// --output=FILE writes raw samples and per-puzzle medians for reproducible comparisons.
+import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { performance } from 'node:perf_hooks';
@@ -39,7 +40,13 @@ const wire = ({ mode, topology }) => `V1\nMODE,${mode === 'warps' ? 'W' : 'B'}\n
 for (const entry of cases) entry.wire = entry.topology ? wire(entry) : wallText(entry.walls ?? []);
 
 const paths = [new URL('../public/wasm/flow_solver_c.mjs', import.meta.url)];
-if (process.argv[2]) paths.push(pathToFileURL(resolve(process.argv[2])));
+const args = process.argv.slice(2);
+const baseline = args.find(arg => !arg.startsWith('--'));
+const output = args.find(arg => arg.startsWith('--output='))?.slice('--output='.length);
+if (args.filter(arg => !arg.startsWith('--')).length > 1 || args.some(arg => arg.startsWith('--') && !arg.startsWith('--output='))) {
+  throw new Error('Usage: node scripts/benchmark-wasm.mjs [baseline.mjs] [--output=FILE]');
+}
+if (baseline) paths.push(pathToFileURL(resolve(baseline)));
 const solvers = [];
 for (const path of paths) {
   const { default: createModule } = await import(path.href);
@@ -66,6 +73,10 @@ for (let round = -1; round < 5; round++) for (const solver of (round % 2 ? [...s
   }
 }
 const median = values => [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)];
+const puzzles = cases.map(entry => ({ name: entry.name, mode: entry.mode,
+  medianMs: Object.fromEntries(solvers.map(solver => [solver.label, median(samples
+    .filter(row => row.name === entry.name && row.solver === solver.label).map(row => row.ms))])) }));
+if (output) writeFileSync(resolve(output), JSON.stringify({ node: process.version, warmups: 1, rounds: 5, puzzles, samples }, null, 2) + '\n');
 console.log(`Node ${process.version}; 1 warmup + 5 measured rounds; every solution independently validated.`);
 for (const mode of ['classic', 'walls', 'bridges', 'warps']) {
   const totals = {};

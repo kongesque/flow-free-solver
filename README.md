@@ -104,12 +104,22 @@ spaced crossings. Generation does not check uniqueness or certify difficulty.
 
 | Solver | Available boards | Implementation |
 | --- | --- | --- |
-| **Heuristic BFS** · default | Classic, walls, Bridges, and Warps; square or rectangular | C compiled to WebAssembly, adapted from [Matt Zucker's flow_solver](https://github.com/mzucker/flow_solver). |
+| **Pruned DFS** · default | Classic, walls, Bridges, and Warps; square or rectangular | C compiled to WebAssembly, adapted from [Matt Zucker's flow_solver](https://github.com/mzucker/flow_solver), with an independent diagonal search inspired by [Thomas Ahle's Numberlink](https://github.com/thomasahle/numberlink). |
 | **Z3 SAT** · exact solver | Classic, walls, Bridges, and Warps; square or rectangular | Constraint solving with [Z3](https://github.com/Z3Prover/z3), compiled to WebAssembly. |
 | **A\*** | Classic square boards without walls | Heuristic search written in TypeScript. |
 
 All available solvers support **Blocks** on their supported board types and run
 in background Web Workers.
+
+Pruned DFS uses bounded diagonal edge searches inspired by
+[Thomas Ahle's Numberlink algorithm](https://github.com/thomasahle/numberlink#how-it-works).
+Open Classic boards retain their specialized fast path. A separate graph search
+supports walls and Blocks, independent crossing lanes in Bridges, and wrap
+connections in Warps. It tracks rollback path components and rejects cycles,
+mismatched endpoints, and same-color crossings. Classic also forbids self-touching
+paths; variants first try that smaller search space, then permit self-touching.
+Variant boards with forced routes finish before the graph probe is allocated.
+Graph attempts share a roughly 25 ms budget and fall back to the original searches.
 
 Manually entered puzzles automatically try SAT if heuristic search reaches its
 limit. SAT checks playable-cell coverage, path connectivity, walls, crossing
@@ -164,6 +174,15 @@ with the source change. Never edit generated Wasm glue by hand. Use
 `npm run sync:wasm` to keep Z3's glue and binary matched to the installed
 `z3-solver` package.
 
+To compare search performance, preserve a baseline copy of both C Wasm assets,
+then run `node scripts/benchmark-wasm.mjs /path/to/baseline/flow_solver_c.mjs --output=/tmp/benchmark.json`.
+It performs one warmup and five measured rounds, validates every returned cover,
+and records per-puzzle medians without worker startup, SAT fallback, or cached
+generated solutions. `scripts/stress-wasm.mjs` adds large generated boards and a
+per-search watchdog (see its command-line options).
+See [the recorded diagonal-search comparison](./BENCHMARKS.md) for measured
+search and production-worker timings.
+
 TypeScript boards use `[x][y]` (column-major). The C API takes text rows and
 returns row-major ASCII color codes; conversions belong in
 `src/solver/logic/heuristic-solver.ts`.
@@ -194,7 +213,7 @@ cross-origin isolation: keep the COOP/COEP headers in `vite.config.js` and
 files, including the native topology helper, are covered by
 [CC BY-NC 2.0](https://creativecommons.org/licenses/by-nc/2.0/):
 
-- `native/flow_solver.c` and `native/topology_solver.h`
+- `native/flow_solver.c`, `native/diagonal_solver.h`, `native/graph_cover.h`, and `native/topology_solver.h`
 - `public/wasm/flow_solver_c.mjs` and `public/wasm/flow_solver_c.wasm`
 - `src/solver/logic/heuristic-solver.ts`
 

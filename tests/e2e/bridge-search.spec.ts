@@ -30,7 +30,7 @@ test('SAT solves the 12x15 Bridges screenshot without a generated certificate', 
   assertTopologySolution(fixture, result.solution!);
 });
 
-test('automatic SAT fallback solves the screenshot in the editor and preserves its endpoints', async ({ page }) => {
+test('Pruned DFS solves the Bridges screenshot in the editor without SAT and preserves endpoints', async ({ page }) => {
   const fixture = bridgeScreenshot(), requests: string[] = [];
   page.on('request', request => requests.push(request.url()));
   await page.goto('./'); await openBoardOptions(page);
@@ -44,24 +44,13 @@ test('automatic SAT fallback solves the screenshot in the editor and preserves i
   for (const { x, y } of fixture.topology.bridges) await page.locator(`[data-cell="${x},${y}"]`).click();
   await page.getByRole('switch', { name: 'Color label', exact: true }).check();
   await page.getByRole('switch', { name: 'Board guides', exact: true }).check();
-  // Hold the real SAT runtime download so the progress phase is observable.
-  let release!: () => void;
-  const gate = new Promise<void>(resolve => { release = resolve; });
-  await page.route(/\/wasm\/z3-built\.wasm/, async route => {
-    await gate; await route.continue().catch(() => {});
-  });
   await page.getByRole('button', { name: 'Solve', exact: true }).click();
-  try {
-    await expect(page.getByRole('status')).toContainText('Solving with SAT', { timeout: 20_000 });
-    await expect(page.getByRole('status').getByText('SAT', { exact: true })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Cancel', exact: true })).toBeEnabled();
-  } finally { release(); }
   await expect(page.getByRole('status')).toContainText('Solved', { timeout: 45_000 });
   await expect(page.getByRole('status')).not.toContainText('SAT');
   const solution = JSON.parse((await page.locator('.puzzle-grid').getAttribute('data-solution'))!) as PuzzleSolution;
   assertTopologySolution(fixture, solution);
   expect(requests.some(url => url.includes('flow_solver_c.wasm'))).toBe(true);
-  expect(requests.some(url => url.includes('z3-built.wasm'))).toBe(true);
+  expect(requests.some(url => url.includes('z3-built.wasm'))).toBe(false);
   await expect(page.locator('.endpoint-dot')).toHaveCount(18);
   await page.screenshot({ path: test.info().outputPath('bridge-screenshot-solved.png'), fullPage: true });
   await page.getByRole('button', { name: 'Edit', exact: true }).click();

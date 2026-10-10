@@ -96,14 +96,11 @@ test('Blocks: BFS and SAT independently solve masks in every mode and both recta
     }
 });
 
-test('Blocks: SAT fallback retains the mask after a real BFS limit on 19x19', async ({ page }) => {
+test('Blocks: Pruned DFS solves the formerly limited 19x19 mask without SAT', async ({ page }) => {
     const url = await solverWorkerUrl(page), f = blockRows(19, 19, 'standard', 15);
-    const limit = await workerSolve(page, url, f, 'heuristic_bfs');
-    expect(limit.status).toBe('limit'); expect(limit.board).toBeNull();
-    expect(limit.fallbackUsed).toBe(false);
-    const solved = await workerSolve(page, url, f, 'heuristic_bfs', true);
+    const solved = await workerSolve(page, url, f, 'heuristic_bfs');
     expect(solved.status, solved.error).toBe('solved'); assertInducedTopologySolution(f, solved.solution!);
-    expect(solved.fallbackUsed).toBe(true);
+    expect(solved.fallbackUsed).toBe(false);
     for (const { x, y } of f.topology.blocks!) expect(solved.board![x][y]).toBe(0);
 });
 

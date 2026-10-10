@@ -474,7 +474,7 @@ const FlowSolver = () => {
                     acceptSolution(generatedSolution, generatedPathSolution);
                     setFallbackUsed(false);
                 } else if (result.timedOut) {
-                    setError(solverType === 'astar' ? 'Search limit reached. Try Heuristic BFS.' : 'Search limit reached. Your puzzle is preserved.');
+                    setError(solverType === 'astar' ? 'Search limit reached. Try Pruned DFS.' : 'Search limit reached. Your puzzle is preserved.');
                 } else if (result.error) setError('Solver error: ' + result.error);
                 else setError('No solution found');
             });

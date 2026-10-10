@@ -2168,6 +2168,9 @@ int game_search(const game_info_t *info, const game_state_t *init_state,
   return result;
 }
 
+#include "diagonal_solver.h"
+#include "graph_cover.h"
+
 static const char *solve_puzzle(const char *input_str, const char *wall_str) {
 
   static char result_json[1024 * 64]; // Static buffer for result
@@ -2214,15 +2217,19 @@ static const char *solve_puzzle(const char *input_str, const char *wall_str) {
     return result_json;
   }
   game_build_neighbors(&info);
+  game_state_t final_state;
+  int solved = info.num_walls || info.num_blocks
+    ? game_graph_probe(&info, &state, &final_state)
+    : game_diagonal_probe(&info, &state, &final_state);
+  int result = solved ? SEARCH_SUCCESS : SEARCH_IN_PROGRESS;
   game_complete_adjacent(&info, &state);
 
   game_order_colors(&info, &state, NULL);
 
   double elapsed;
   size_t nodes;
-  game_state_t final_state;
-
-  int result = game_search(&info, &state, 0, &elapsed, &nodes, &final_state);
+  if (result != SEARCH_SUCCESS)
+    result = game_search(&info, &state, 0, &elapsed, &nodes, &final_state);
 
   if (result == SEARCH_SUCCESS) {
     // Serialize to JSON [ [row1...], [row2...] ]

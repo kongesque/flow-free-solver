@@ -16,7 +16,7 @@ for (const width of [390, 1280]) {
         const solver = await page.getByRole('combobox', { name: 'Solver Algorithm' }).boundingBox();
         const colorLabel = await page.getByRole('switch', { name: 'Color label' }).boundingBox();
         expect(solver!.y + solver!.height).toBeLessThan(colorLabel!.y);
-        await expect(page.getByRole('combobox', { name: 'Solver Algorithm' }).locator('option').first()).toHaveText('Heuristic BFS (recommended)');
+        await expect(page.getByRole('combobox', { name: 'Solver Algorithm' }).locator('option').first()).toHaveText('Pruned DFS (recommended)');
         await expect(page.locator('.settings-toggles .label-setting-title')).toHaveText(['Color label', 'Board guides', 'Puzzle generator']);
         await expect(page.getByRole('button', { name: 'Reset', exact: true }).locator('.lucide-trash-2')).toHaveCount(1);
         await expect(page.getByText('A for red, B for blue, and so on.', { exact: true })).toHaveCount(0);

@@ -25,7 +25,7 @@ typedef struct {
   uint16_t forced[2 * MAX_COLORS];
   uint16_t complete;
   size_t colors, visits;
-  int limit;
+  int limit, force_only;
   clock_t started;
 } topology_search_t;
 
@@ -156,6 +156,9 @@ static int topo_search(topology_search_t *s, unsigned depth) {
     if (chosen < 0) return 0;
     next = s->forced[chosen];
   }
+  // Finish deterministic covers before allocating the graph probe. A branch
+  // unwinds to the original endpoints; it is not an unsatisfiability result.
+  if (s->force_only && best > 1) { s->limit = 1; return 0; }
   // With one legal move, a complete cover has to take it. Defer flood fills
   // until the next branch instead of repeating them along every forced lane.
   int reverse = chosen & 1; chosen /= 2;
@@ -215,6 +218,39 @@ static int topo_search(topology_search_t *s, unsigned depth) {
     if (s->limit) return 0;
   }
   return 0;
+}
+
+static int topo_cover_probe(topology_search_t *s) {
+  cover_graph_t *g = calloc(1, sizeof(*g));
+  if (!g) return 0;
+  g->count = s->count; g->width = s->width;
+  memcpy(g->neighbors, s->neighbors, sizeof(g->neighbors));
+  memcpy(g->mate, s->mate, sizeof(g->mate));
+  for (uint16_t id = 0; id < s->count; id++) {
+    g->position[id] = id < s->area ? id : s->mate[id];
+    g->endpoint[id] = s->owner[id] == MAX_COLORS ? -2 : s->owner[id];
+  }
+  // Induced covers are also valid explicit paths and usually prune far more.
+  // Try the other diagonal orientation if bounded, then permit self-touching
+  // paths. All attempts share one time budget; none of their failures is UNSAT.
+  g->induced = 1;
+  int solved = cover_probe(g);
+  if (!solved && g->limited) { g->transpose = 1; solved = cover_probe(g); }
+  if (!solved) { g->induced = 0; solved = cover_probe(g); }
+  if (solved) {
+    for (int c = 0; c < (int)s->colors; c++) {
+      uint16_t id = s->head[c], previous = TOPO_NONE;
+      s->length[c] = 0; s->back_length[c] = 1;
+      while (1) {
+        s->path[c][s->length[c]++] = id;
+        if (id == s->goal[c]) break;
+        uint16_t next = g->selected[id][0] == previous ? g->selected[id][1] : g->selected[id][0];
+        previous = id; id = next;
+      }
+    }
+    s->visits = g->visits;
+  }
+  free(g); return solved;
 }
 
 /* Strict unsigned decimal parser; rejects signs, whitespace, and overflow. */
@@ -322,8 +358,15 @@ const char *solve_puzzle_topology_wasm(const char *board_text, const char *topol
   }
   for (int c = 0; c < (int)s->colors; c++) topo_refresh(s, c);
   s->free_count = s->count - info.num_blocks - 2 * s->colors; s->started = clock();
-  int solved = topo_search(s, 0);
-  size_t used = (size_t)snprintf(result, sizeof(result), "{\"version\":1,\"status\":\"%s\",\"nodeCount\":%zu", solved ? "solved" : s->limit ? "limit" : "unsatisfiable", s->visits);
+  s->force_only = 1;
+  int solved = topo_search(s, 0), probed = 0;
+  if (!solved && s->limit) {
+    s->force_only = s->limit = 0; s->visits = 0;
+    probed = topo_cover_probe(s);
+    s->started = clock();
+    solved = probed || topo_search(s, 0);
+  }
+  size_t used = (size_t)snprintf(result, sizeof(result), "{\"version\":1,\"status\":\"%s\",\"nodeCount\":%zu,\"searchMethod\":\"%s\"", solved ? "solved" : s->limit ? "limit" : "unsatisfiable", s->visits, probed ? "pruned-dfs" : "path-search");
   if (solved) {
     used += (size_t)snprintf(result + used, sizeof(result) - used, ",\"paths\":[");
     for (int c = 0; c < (int)s->colors; c++) {

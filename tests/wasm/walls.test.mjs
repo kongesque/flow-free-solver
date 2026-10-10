@@ -5,10 +5,17 @@ import createFlowSolver from '../../public/wasm/flow_solver_c.mjs';
 import { assertSolution } from '../fixtures/assert-solution.mjs';
 import { wallCorridor, wallDetour, wallText } from '../fixtures/wall-puzzles.mjs';
 import { generateRectangularPuzzle } from '../../src/solver/logic/puzzle-generator.ts';
+import { input as limitInput, walls as limitWalls } from '../fixtures/search-limit-puzzle.mjs';
 
 const module = await createFlowSolver();
 const solve = module.cwrap('solve_puzzle_with_walls_wasm', 'string', ['string', 'string']);
 const legacy = module.cwrap('solve_puzzle_wasm', 'string', ['string']);
+
+test('graph probe solves the wall screenshot that previously reached its memory limit', () => {
+  assertSolution(limitInput, JSON.parse(legacy(limitInput)), limitWalls);
+  assertSolution(limitInput, JSON.parse(solve(limitInput, wallText(limitWalls))), limitWalls);
+  assertSolution(limitInput, JSON.parse(legacy(limitInput)));
+});
 
 // Captured from the extreme stress corpus, rather than regenerated here:
 // the 13x13 cover exceeded the previous build's search budget.
