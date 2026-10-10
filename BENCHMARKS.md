@@ -1,4 +1,4 @@
-# Diagonal heuristic search benchmark
+# Pruned DFS benchmark
 
 Measured on an Apple Silicon Mac on 2026-10-11, comparing the Wasm artifacts
 from commit `8e33a55` with the diagonal fast path. Both use Emscripten 4.0.23.

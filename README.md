@@ -104,14 +104,14 @@ spaced crossings. Generation does not check uniqueness or certify difficulty.
 
 | Solver | Available boards | Implementation |
 | --- | --- | --- |
-| **Heuristic BFS** · default | Classic, walls, Bridges, and Warps; square or rectangular | C compiled to WebAssembly, adapted from [Matt Zucker's flow_solver](https://github.com/mzucker/flow_solver). |
+| **Pruned DFS** · default | Classic, walls, Bridges, and Warps; square or rectangular | C compiled to WebAssembly, adapted from [Matt Zucker's flow_solver](https://github.com/mzucker/flow_solver), with an independent diagonal search inspired by [Thomas Ahle's Numberlink](https://github.com/thomasahle/numberlink). |
 | **Z3 SAT** · exact solver | Classic, walls, Bridges, and Warps; square or rectangular | Constraint solving with [Z3](https://github.com/Z3Prover/z3), compiled to WebAssembly. |
 | **A\*** | Classic square boards without walls | Heuristic search written in TypeScript. |
 
 All available solvers support **Blocks** on their supported board types and run
 in background Web Workers.
 
-For classic boards without walls or blocks, Heuristic BFS first tries a bounded
+For classic boards without walls or blocks, Pruned DFS first tries a bounded
 diagonal edge search inspired by [Thomas Ahle's Numberlink algorithm](https://github.com/thomasahle/numberlink#how-it-works).
 Our independent C implementation tracks partial-path components and prunes
 cycles, mismatched endpoints, and self-touching paths before extending them.

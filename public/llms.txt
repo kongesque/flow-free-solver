@@ -17,7 +17,7 @@
 
 ## Solvers and limits
 
-- Heuristic BFS is the default: C compiled to WebAssembly, adapted from Matt Zucker's flow_solver.
+- Pruned DFS is the default: C compiled to WebAssembly, adapted from Matt Zucker's flow_solver, with an independent diagonal search inspired by Thomas Ahle's Numberlink. The diagonal depth-first probe applies to classic boards without walls or blocks; other boards and unsuccessful probes use the existing searches.
 - Z3 SAT is the exact solver for Classic, walls, Bridges, and Warps on square or rectangular boards.
 - A* is available for Classic square boards without walls.
 - All available solvers support Blocks on their supported board types and run in Web Workers.

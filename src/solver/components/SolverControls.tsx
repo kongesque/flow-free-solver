@@ -151,7 +151,7 @@ const SolverControls = ({
                             <span>Solver</span><span className="select-wrap">
                                 <select value={solverType} onChange={onSolverTypeChange} aria-label="Solver Algorithm"
                                     disabled={isBusy || unavailable}>
-                                    <option value="heuristic_bfs">Heuristic BFS (recommended)</option>
+                                    <option value="heuristic_bfs">Pruned DFS (recommended)</option>
                                     {supportsAStar && <option value="astar">A*</option>}
                                     <option value="z3">Z3 SAT (exact solver)</option>
                                 </select><ChevronDown aria-hidden="true" />
