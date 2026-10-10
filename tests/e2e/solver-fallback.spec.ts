@@ -1,13 +1,12 @@
-import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
-import { openBoardOptions } from './board-options';
+import { openBoardOptions, selectWallTool } from './board-options';
+import { input, walls as limitWalls } from '../fixtures/search-limit-puzzle.mjs';
 import { assertSolution } from '../fixtures/assert-solution.mjs';
 import { wallCorridor } from '../fixtures/wall-puzzles.mjs';
 import { generateRectangularPuzzle } from '../../src/solver/logic/puzzle-generator';
 import type { Board } from '../../src/solver/logic/astar-solver';
 import type { Wall } from '../../src/solver/logic/walls';
 
-const input = readFileSync(new URL('../fixtures/puzzles/search_limit_15x18_screenshot.txt', import.meta.url), 'utf8');
 const chars = '.RBYGOCMmPAWgTbcp';
 const order = [1, 4, 2, 3, 5, 6, 7, 8, 9, 11, 10, 12, 13, 14, 15, 16];
 const columnBoard = (text: string): Board => {
@@ -28,7 +27,7 @@ test('revalidated Z3 worker scripts retain cross-origin isolation headers', asyn
     expect(cached.headers()['cross-origin-opener-policy']).toBe('same-origin');
 });
 
-async function placeScreenshot(page: Page) {
+async function placeScreenshot(page: Page, withWall = true) {
     await page.goto('./'); await openBoardOptions(page);
     await page.getByRole('combobox', { name: 'Grid Width' }).selectOption('15');
     await page.getByRole('combobox', { name: 'Grid Height' }).selectOption('18');
@@ -39,12 +38,19 @@ async function placeScreenshot(page: Page) {
     await page.getByRole('switch', { name: 'Color label', exact: true }).check();
     await page.getByRole('switch', { name: 'Board guides', exact: true }).check();
     await expect(page.locator('.endpoint-dot')).toHaveCount(22);
+    if (withWall) {
+        await selectWallTool(page);
+        await page.locator('[data-cell="0,1"]').focus();
+        await page.keyboard.press('Shift+ArrowDown');
+        await expect(page.locator('[data-wall]')).toHaveCount(1);
+        await page.getByRole('button', { name: 'Dots', exact: true }).click();
+    }
 }
 
-async function validateScreenshot(page: Page) {
+async function validateScreenshot(page: Page, walls: Wall[] = limitWalls) {
     await expect(page.getByRole('status')).toContainText('Solved', { timeout: 45_000 });
     const values = await page.locator('[data-cell]').evaluateAll(cells => cells.map(cell => Number(cell.getAttribute('aria-label')?.split('Color ')[1]) || 0));
-    assertSolution(input, Array.from({ length: 18 }, (_, y) => values.slice(y * 15, (y + 1) * 15).map(color => chars.charCodeAt(color))));
+    assertSolution(input, Array.from({ length: 18 }, (_, y) => values.slice(y * 15, (y + 1) * 15).map(color => chars.charCodeAt(color))), walls);
     await expect(page.locator('.endpoint-dot')).toHaveCount(22);
     await expect(page.getByRole('status')).not.toContainText('Solver error');
 }
@@ -71,7 +77,17 @@ async function validateFreshSolve(page: Page) {
     assertSolution(textBoard(recovery), Array.from({ length: 5 }, (_, y) => values.slice(y * 5, (y + 1) * 5).map(color => chars.charCodeAt(color))));
 }
 
-test('the exact screenshot puzzle solves automatically after the real heuristic memory limit', async ({ page }) => {
+test('the open screenshot solves in the real C worker without SAT fallback', async ({ page }) => {
+    const requests: string[] = [];
+    page.on('request', request => requests.push(request.url()));
+    await placeScreenshot(page, false);
+    await page.getByRole('button', { name: 'Solve', exact: true }).click();
+    await validateScreenshot(page, []);
+    expect(requests.some(url => url.includes('flow_solver_c.wasm'))).toBe(true);
+    expect(requests.some(url => url.includes('z3-built.wasm'))).toBe(false);
+});
+
+test('the screenshot with a wall solves automatically after the real heuristic memory limit', async ({ page }) => {
     const requests: string[] = [], errors: string[] = [];
     page.on('request', request => requests.push(request.url()));
     page.on('pageerror', error => errors.push(error.message));

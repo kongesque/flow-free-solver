@@ -111,6 +111,13 @@ spaced crossings. Generation does not check uniqueness or certify difficulty.
 All available solvers support **Blocks** on their supported board types and run
 in background Web Workers.
 
+For classic boards without walls or blocks, Heuristic BFS first tries a bounded
+diagonal edge search inspired by [Thomas Ahle's Numberlink algorithm](https://github.com/thomasahle/numberlink#how-it-works).
+Our independent C implementation tracks partial-path components and prunes
+cycles, mismatched endpoints, and self-touching paths before extending them.
+If this probe fails or reaches its budget, the existing heuristic search runs.
+Walls, blocks, Bridges, and Warps continue to use their existing searches.
+
 Manually entered puzzles automatically try SAT if heuristic search reaches its
 limit. SAT checks playable-cell coverage, path connectivity, walls, crossing
 lanes, and warp openings. A timeout preserves the editable puzzle.
@@ -164,6 +171,15 @@ with the source change. Never edit generated Wasm glue by hand. Use
 `npm run sync:wasm` to keep Z3's glue and binary matched to the installed
 `z3-solver` package.
 
+To compare search performance, preserve a baseline copy of both C Wasm assets,
+then run `node scripts/benchmark-wasm.mjs /path/to/baseline/flow_solver_c.mjs --output=/tmp/benchmark.json`.
+It performs one warmup and five measured rounds, validates every returned cover,
+and records per-puzzle medians without worker startup, SAT fallback, or cached
+generated solutions. `scripts/stress-wasm.mjs` adds large generated boards and a
+per-search watchdog (see its command-line options).
+See [the recorded diagonal-search comparison](./BENCHMARKS.md) for measured
+search and production-worker timings.
+
 TypeScript boards use `[x][y]` (column-major). The C API takes text rows and
 returns row-major ASCII color codes; conversions belong in
 `src/solver/logic/heuristic-solver.ts`.
@@ -194,7 +210,7 @@ cross-origin isolation: keep the COOP/COEP headers in `vite.config.js` and
 files, including the native topology helper, are covered by
 [CC BY-NC 2.0](https://creativecommons.org/licenses/by-nc/2.0/):
 
-- `native/flow_solver.c` and `native/topology_solver.h`
+- `native/flow_solver.c`, `native/diagonal_solver.h`, and `native/topology_solver.h`
 - `public/wasm/flow_solver_c.mjs` and `public/wasm/flow_solver_c.wasm`
 - `src/solver/logic/heuristic-solver.ts`
 
