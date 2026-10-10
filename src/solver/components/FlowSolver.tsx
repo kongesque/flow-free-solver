@@ -86,6 +86,7 @@ const FlowSolver = () => {
     const [isSolving, setIsSolving] = useState(false);
     const [solverType, setSolverType] = useState<SolverType>('heuristic_bfs');
     const [solveTime, setSolveTime] = useState<number | null>(null);
+    const [fallbackUsed, setFallbackUsed] = useState(false);
 
     // Prevent hover preview flash during reset
     const [isResetting, setIsResetting] = useState(false);
@@ -204,7 +205,7 @@ const FlowSolver = () => {
         setActiveColor(1);
         setIsPlacingSecond(false);
         setError(null);
-        setSolveTime(null);
+        setSolveTime(null); setFallbackUsed(false);
         const nextSolver = compatibleSolver(solverType, mode, newWidth, newHeight, 0);
         setSolverType(nextSolver);
         if (invalidSavedWalls) draftsRef.current = {};
@@ -240,7 +241,7 @@ const FlowSolver = () => {
         historiesRef.current[mode] = editHistory;
         workerRef.current?.terminate(); workerRef.current = null;
         setIsSolving(false); setIsGenerating(false); setSolvedBoard(null); setPathSolution(null);
-        setError(null); setSolveTime(null); setEditTool('dots');
+        setError(null); setSolveTime(null); setFallbackUsed(false); setEditTool('dots');
         const draft = draftsRef.current[next] ?? { width, height, board: initializeBoard(width, height),
             walls: [], bridges: [], warps: [], solverType: compatibleSolver(solverType, next, width, height, 0), activeColor: 1, isPlacingSecond: false, generatedSolution: null };
         restoreDraft(draft, next); setMode(next); setEditHistory(historiesRef.current[next] ?? []);
@@ -317,7 +318,7 @@ const FlowSolver = () => {
         setBoard(newBoard);
         setGeneratedSolution(null); setGeneratedPathSolution(null);
         setError(null);
-        setSolveTime(null);
+        setSolveTime(null); setFallbackUsed(false);
     }, [board, solvedBoard, isSolving, isGenerating, isLoaded, isAvailable, bridges, blocks, activeColor, editTool, invalidSavedWalls, recordEdit]);
 
     const applyTopology = (input: PuzzleTopology) => {
@@ -327,7 +328,7 @@ const FlowSolver = () => {
         catch (error) { setError(error instanceof Error ? error.message : 'Invalid topology'); return; }
         if (JSON.stringify(next) === JSON.stringify(normalizeTopology({ walls, bridges, warps, blocks }, board, mode))) return;
         recordEdit(); setBlocks(next.blocks ?? []); setWalls(next.walls); setBridges(next.bridges); setWarps(next.warps);
-        setGeneratedSolution(null); setGeneratedPathSolution(null); setSolvedBoard(null); setPathSolution(null); setSolveTime(null); setError(null);
+        setGeneratedSolution(null); setGeneratedPathSolution(null); setSolvedBoard(null); setPathSolution(null); setSolveTime(null); setFallbackUsed(false); setError(null);
         setSolverType(compatibleSolver(solverType, mode, width, height, next.walls.length));
     };
     const applyWalls = (next: Wall[]) => applyTopology({ walls: next, bridges, warps, blocks });
@@ -359,7 +360,7 @@ const FlowSolver = () => {
         setIsPlacingSecond(previous.isPlacingSecond);
         setGeneratedSolution(null); setGeneratedPathSolution(null);
         setError(null);
-        setSolveTime(null);
+        setSolveTime(null); setFallbackUsed(false);
         setSolverType(compatibleSolver(solverType, mode, width, height, previous.walls.length));
         setEditHistory(history => history.slice(0, -1));
     };
@@ -388,6 +389,11 @@ const FlowSolver = () => {
             worker = createWorker();
             workerRef.current = worker;
             worker.onmessage = event => {
+                if (workerRef.current !== worker) return;
+                if (operation === 'solve' && event.data?.kind === 'progress') {
+                    if (event.data.phase === 'sat-fallback') setFallbackUsed(true);
+                    return;
+                }
                 if (!finish()) return;
                 try { onResult(event.data); }
                 catch { setError(operation === 'solve' ? 'Solver returned an invalid solution. Try Solve again.' : 'Invalid generated puzzle. Try Generate again.'); }
@@ -402,7 +408,7 @@ const FlowSolver = () => {
         if (invalidSavedWalls || walls.length || blocks.length || isSolving || isGenerating || !isLoaded || !isAvailable) return;
         if (!generatedSolution && (board.flat().some(Boolean) || bridges.length || warps.length) &&
             !window.confirm(isStandard ? 'Replace your endpoints with a generated puzzle?' : 'Replace your puzzle with a generated puzzle?')) return;
-        setError(null);
+        setError(null); setFallbackUsed(false);
         runWorker(() => createRunWorker(generatorWorkerUrl),
             { width, height, mode, walls, blocks, seed: crypto.getRandomValues(new Uint32Array(1))[0] }, 'generate',
             ({ puzzle, error: generationError }: { puzzle?: GeneratedModePuzzle; error?: string }) => {
@@ -417,19 +423,19 @@ const FlowSolver = () => {
                 setBridges(topology.bridges); setWarps(topology.warps);
                 setEditHistory([]);
                 setGeneratedSolution(puzzle.solution); setGeneratedPathSolution(puzzle.pathSolution);
-                setEditTool('dots'); setSolvedBoard(null); setPathSolution(null); setSolveTime(null);
+                setEditTool('dots'); setSolvedBoard(null); setPathSolution(null); setSolveTime(null); setFallbackUsed(false);
                 setActiveColor(nextPlacementColor(puzzle.board)); setIsPlacingSecond(false);
             });
     };
 
     const cancelWork = () => {
         workerRef.current?.terminate(); workerRef.current = null;
-        setIsSolving(false); setIsGenerating(false); setError(null);
+        setIsSolving(false); setIsGenerating(false); setError(null); setFallbackUsed(false);
     };
 
     const solveBoard = async () => {
         if (invalidSavedWalls || isSolving || isGenerating || !isLoaded || !isAvailable) return;
-        setError(null);
+        setError(null); setFallbackUsed(false);
 
         // ── Validation ──────────────────────────────────────────────────────────
         const placedColors = Array.from(new Set(board.flat())).filter(c => c !== 0);
@@ -460,11 +466,13 @@ const FlowSolver = () => {
         runWorker(() => createRunWorker(solverWorkerUrl),
             { board, type: solverType, mode, walls, bridges, warps, blocks, allowFallback: generatedSolution === null,
                 satCandidate: solverType === 'z3' ? generatedPathSolution : null }, 'solve',
-            (result: { board: number[][] | null; solution?: PuzzleSolution | null; timedOut?: boolean; error?: string }) => {
+            (result: { board: number[][] | null; solution?: PuzzleSolution | null; timedOut?: boolean; error?: string; fallbackUsed?: boolean }) => {
                 if (!result || typeof result !== 'object' || !('board' in result)) throw new Error('Invalid solver response');
+                setFallbackUsed(result.fallbackUsed === true);
                 if (result.board) acceptSolution(result.board, result.solution);
                 else if (generatedSolution && (result.timedOut || /result code 2/.test(result.error ?? ''))) {
                     acceptSolution(generatedSolution, generatedPathSolution);
+                    setFallbackUsed(false);
                 } else if (result.timedOut) {
                     setError(solverType === 'astar' ? 'Search limit reached. Try Heuristic BFS.' : 'Search limit reached. Your puzzle is preserved.');
                 } else if (result.error) setError('Solver error: ' + result.error);
@@ -497,6 +505,7 @@ const FlowSolver = () => {
                     error={error}
                     solvedBoard={solvedBoard}
                     solveTime={solveTime}
+                    fallbackUsed={fallbackUsed}
                     activeColor={activeColor}
                     isPlacingSecond={isPlacingSecond}
                     editingWalls={editTool === 'walls'}
@@ -533,7 +542,7 @@ const FlowSolver = () => {
                         onBoardGuidesChange={changeBoardGuides}
                         showGenerator={showGenerator} onShowGeneratorChange={changeShowGenerator}
                         dotLabels={dotLabels} onDotLabelsChange={changeDotLabels}
-                        onEdit={() => { setSolvedBoard(null); setPathSolution(null); setSolveTime(null); setError(null); }}
+                        onEdit={() => { setSolvedBoard(null); setPathSolution(null); setSolveTime(null); setFallbackUsed(false); setError(null); }}
                         width={width}
                         height={height}
                         solverType={solverType}

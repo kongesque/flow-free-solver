@@ -26,6 +26,11 @@ self.onmessage = async (event: MessageEvent<{
     satCandidate?: PuzzleSolution | null;
 }>) => {
     const { board, type, mode = 'standard' } = event.data;
+    let fallbackUsed = false;
+    const startFallback = () => {
+        fallbackUsed = true;
+        self.postMessage({ kind: 'progress', phase: 'sat-fallback' });
+    };
     try {
         validateBoard(board);
         serializeBoard(board); // Every algorithm requires exactly two endpoints per color.
@@ -43,17 +48,18 @@ self.onmessage = async (event: MessageEvent<{
                 solution = result ? boardToSolution(board, result, topology) : null;
             } else solution = await solveZ3Topology(board, topology, mode === 'standard', candidate);
             self.postMessage({ board: solution ? solutionBoard(board, solution) : null, solution,
-                status: solution ? 'solved' : 'unsatisfiable', nodeCount: 0, timedOut: false, timeTaken: 0 });
+                status: solution ? 'solved' : 'unsatisfiable', nodeCount: 0, timedOut: false, timeTaken: 0, fallbackUsed });
             return;
         }
         if (mode !== 'standard') {
             let result = await solveTopology(board, topology, mode);
             if (result.status === 'limit' && event.data.allowFallback !== false && self.crossOriginIsolated) {
+                startFallback();
                 const solution = await solveZ3Topology(board, topology);
                 result = { solution, status: solution ? 'solved' : 'unsatisfiable', nodeCount: result.nodeCount };
             }
             self.postMessage({ ...result, board: result.solution ? solutionBoard(board, result.solution) : null,
-                timedOut: result.status === 'limit', timeTaken: 0 });
+                timedOut: result.status === 'limit', timeTaken: 0, fallbackUsed });
             return;
         }
         requireStandardMode(mode);
@@ -61,6 +67,7 @@ self.onmessage = async (event: MessageEvent<{
             try { return await solveHeuristicBFS(board, topology.walls, topology.blocks); }
             catch (error) {
                 if (!isSearchLimitError(error) || event.data.allowFallback === false || !self.crossOriginIsolated) throw error;
+                startFallback();
                 return solveZ3(board, topology.walls, topology.blocks);
             }
         };
@@ -69,10 +76,10 @@ self.onmessage = async (event: MessageEvent<{
             timedOut: false, timeTaken: 0, nodeCount: 0,
         };
         self.postMessage({ ...result, status: result.board ? 'solved' : result.timedOut ? 'limit' : 'unsatisfiable',
-            solution: result.board ? boardToSolution(board, result.board, topology) : null });
+            solution: result.board ? boardToSolution(board, result.board, topology) : null, fallbackUsed });
     } catch (error) {
         const limited = isSearchLimitError(error);
         self.postMessage({ board: null, solution: null, status: limited ? 'limit' : 'error', timedOut: limited,
-            error: limited ? undefined : error instanceof Error ? error.message : String(error), timeTaken: 0, nodeCount: 0 });
+            error: limited ? undefined : error instanceof Error ? error.message : String(error), timeTaken: 0, nodeCount: 0, fallbackUsed });
     }
 };

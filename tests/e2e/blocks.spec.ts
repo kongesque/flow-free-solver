@@ -18,9 +18,12 @@ async function savedState(page: Page) {
 }
 
 async function workerSolve(page: Page, url: string, f: Omit<BlockFixture, 'solution'>, type: 'heuristic_bfs' | 'astar', allowFallback = false) {
-    return page.evaluate(({ url, f, type, allowFallback }) => new Promise<{ status: string; board: Board | null; solution: PuzzleSolution | null; error?: string }>((resolve, reject) => {
+    return page.evaluate(({ url, f, type, allowFallback }) => new Promise<{ status: string; board: Board | null; solution: PuzzleSolution | null; error?: string; fallbackUsed: boolean }>((resolve, reject) => {
         const worker = new Worker(url, { type: 'module' });
-        worker.onmessage = event => { worker.terminate(); resolve(event.data); };
+        worker.onmessage = event => {
+            if (event.data.kind === 'progress') return;
+            worker.terminate(); resolve(event.data);
+        };
         worker.onerror = event => { worker.terminate(); reject(new Error(event.message)); };
         worker.postMessage({ board: f.board, ...f.topology, mode: f.mode, type, allowFallback });
     }), { url, f, type, allowFallback });
@@ -97,8 +100,10 @@ test('Blocks: SAT fallback retains the mask after a real BFS limit on 19x19', as
     const url = await solverWorkerUrl(page), f = blockRows(19, 19, 'standard', 15);
     const limit = await workerSolve(page, url, f, 'heuristic_bfs');
     expect(limit.status).toBe('limit'); expect(limit.board).toBeNull();
+    expect(limit.fallbackUsed).toBe(false);
     const solved = await workerSolve(page, url, f, 'heuristic_bfs', true);
     expect(solved.status, solved.error).toBe('solved'); assertInducedTopologySolution(f, solved.solution!);
+    expect(solved.fallbackUsed).toBe(true);
     for (const { x, y } of f.topology.blocks!) expect(solved.board![x][y]).toBe(0);
 });
 

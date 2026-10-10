@@ -35,6 +35,8 @@ for (const algorithm of ['heuristic_bfs', 'astar', 'z3']) {
     await placePuzzle(page);
     await page.getByRole('button', { name: 'Solve', exact: true }).click();
     await expect(page.getByRole('status')).toContainText('Solved', { timeout: 45_000 });
+    await expect(page.getByRole('status').getByText('SAT', { exact: true })).toHaveCount(0);
+    await expect(page.getByRole('status')).not.toContainText('fallback');
     if (algorithm === 'heuristic_bfs') {
       expect(requestedAssets.filter(url => /z3|astar-solver/.test(url))).toEqual([]);
     }

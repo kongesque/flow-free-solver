@@ -78,6 +78,7 @@ test('the exact screenshot puzzle solves automatically after the real heuristic 
     await placeScreenshot(page);
     await page.getByRole('button', { name: 'Solve', exact: true }).click();
     await validateScreenshot(page);
+    await expect(page.getByRole('status')).not.toContainText('SAT');
     expect(requests.some(url => url.includes('flow_solver_c.wasm'))).toBe(true);
     expect(requests.some(url => url.includes('z3-built.wasm'))).toBe(true);
     expect(errors).toEqual([]);
@@ -102,6 +103,7 @@ test('a search limit preserves the board and permits a fresh solve', async ({ pa
     await page.getByRole('button', { name: 'Solve', exact: true }).click();
     await expect(page.getByRole('status')).toContainText('Search limit reached. Your puzzle is preserved.', { timeout: 15_000 });
     await expect(page.getByRole('status')).not.toContainText('No solution');
+    await expect(page.getByRole('status').getByText('SAT', { exact: true })).toHaveCount(0);
     await expect(page.locator('[data-cell="2,2"]')).toBeEnabled();
     await expect(page.locator('.endpoint-dot')).toHaveCount(22);
     await page.evaluate(() => { (window as unknown as { blockFallback: boolean }).blockFallback = false; });
@@ -118,9 +120,11 @@ test('Cancel during automatic SAT loading preserves endpoints and permits a fres
         await placeScreenshot(page);
         const loading = page.waitForRequest(/\/wasm\/z3-built\.wasm/, { timeout: 20_000 });
         await page.getByRole('button', { name: 'Solve', exact: true }).click(); await loading;
-        await expect(page.getByRole('status')).toContainText('Solving');
+        await expect(page.getByRole('status')).toContainText('Solving with SAT');
+        await expect(page.getByRole('status').getByText('SAT', { exact: true })).toHaveCount(0);
         await page.getByRole('button', { name: 'Cancel', exact: true }).click();
         await expect(page.getByRole('button', { name: 'Solve', exact: true })).toBeEnabled();
+        await expect(page.getByRole('status').getByText('SAT', { exact: true })).toHaveCount(0);
         await expect(page.locator('.endpoint-dot')).toHaveCount(22);
         release(); await page.unroute(/\/wasm\/z3-built\.wasm/);
 

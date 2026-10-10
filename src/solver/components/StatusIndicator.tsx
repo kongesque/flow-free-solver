@@ -10,6 +10,7 @@ interface StatusIndicatorProps {
     error: string | null;
     solvedBoard: number[][] | null;
     solveTime: number | null;
+    fallbackUsed: boolean;
     activeColor: number;
     isPlacingSecond: boolean;
     editingWalls: boolean;
@@ -26,6 +27,7 @@ const StatusIndicator = ({
     error,
     solvedBoard,
     solveTime,
+    fallbackUsed,
     activeColor,
     isPlacingSecond,
     editingWalls,
@@ -40,7 +42,7 @@ const StatusIndicator = ({
             <span className='text-stoic-accent text-sm font-semibold flex items-center gap-2'>
                 <Loader2 className="animate-spin h-4 w-4" aria-hidden="true" />
                 <span className="working-label">
-                    {isGenerating ? 'Generating' : 'Solving'}
+                    {isGenerating ? 'Generating' : fallbackUsed ? 'Solving with SAT' : 'Solving'}
                     <span className="working-dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span>
                     <span className="sr-only">…</span>
                 </span>

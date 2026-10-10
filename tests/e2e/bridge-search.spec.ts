@@ -10,13 +10,14 @@ test('native heuristic solves the uncached 13x13 Bridges cover without SAT asset
   const requests: string[] = [];
   page.on('request', request => requests.push(request.url()));
   const fixture = heuristicBridge(), url = await solverWorkerUrl(page);
-  const result = await page.evaluate(({ url, fixture }) => new Promise<{ status: string; solution: PuzzleSolution | null }>((resolve, reject) => {
+  const result = await page.evaluate(({ url, fixture }) => new Promise<{ status: string; solution: PuzzleSolution | null; fallbackUsed: boolean }>((resolve, reject) => {
     const worker = new Worker(url, { type: 'module' });
     worker.onmessage = event => { worker.terminate(); resolve(event.data); };
     worker.onerror = event => { worker.terminate(); reject(new Error(event.message)); };
     worker.postMessage({ board: fixture.board, ...fixture.topology, mode: fixture.mode, type: 'heuristic_bfs', allowFallback: false });
   }), { url, fixture });
   expect(result.status).toBe('solved');
+  expect(result.fallbackUsed).toBe(false);
   assertTopologySolution(fixture, result.solution!);
   expect(requests.some(url => url.includes('flow_solver_c.wasm'))).toBe(true);
   expect(requests.some(url => /z3-(?:built|solver|topology)/.test(url))).toBe(false);
@@ -43,8 +44,20 @@ test('automatic SAT fallback solves the screenshot in the editor and preserves i
   for (const { x, y } of fixture.topology.bridges) await page.locator(`[data-cell="${x},${y}"]`).click();
   await page.getByRole('switch', { name: 'Color label', exact: true }).check();
   await page.getByRole('switch', { name: 'Board guides', exact: true }).check();
+  // Hold the real SAT runtime download so the progress phase is observable.
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  await page.route(/\/wasm\/z3-built\.wasm/, async route => {
+    await gate; await route.continue().catch(() => {});
+  });
   await page.getByRole('button', { name: 'Solve', exact: true }).click();
+  try {
+    await expect(page.getByRole('status')).toContainText('Solving with SAT', { timeout: 20_000 });
+    await expect(page.getByRole('status').getByText('SAT', { exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Cancel', exact: true })).toBeEnabled();
+  } finally { release(); }
   await expect(page.getByRole('status')).toContainText('Solved', { timeout: 45_000 });
+  await expect(page.getByRole('status')).not.toContainText('SAT');
   const solution = JSON.parse((await page.locator('.puzzle-grid').getAttribute('data-solution'))!) as PuzzleSolution;
   assertTopologySolution(fixture, solution);
   expect(requests.some(url => url.includes('flow_solver_c.wasm'))).toBe(true);
@@ -52,8 +65,15 @@ test('automatic SAT fallback solves the screenshot in the editor and preserves i
   await expect(page.locator('.endpoint-dot')).toHaveCount(18);
   await page.screenshot({ path: test.info().outputPath('bridge-screenshot-solved.png'), fullPage: true });
   await page.getByRole('button', { name: 'Edit', exact: true }).click();
+  await expect(page.getByRole('status').getByText('SAT', { exact: true })).toHaveCount(0);
   await expect(page.locator('.endpoint-dot')).toHaveCount(18);
   await expect(page.locator('[data-bridge]')).toHaveCount(2);
+  // SAT selected directly must not show the automatic fallback badge.
+  await page.getByRole('combobox', { name: 'Solver Algorithm', exact: true }).selectOption('z3');
+  await page.getByRole('button', { name: 'Solve', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('Solved', { timeout: 45_000 });
+  await expect(page.getByRole('status').getByText('SAT', { exact: true })).toHaveCount(0);
+  assertTopologySolution(fixture, JSON.parse((await page.locator('.puzzle-grid').getAttribute('data-solution'))!));
 });
 
 test('preferred paths being unsatisfiable still permits a full self-touching cover', async ({ page }) => {

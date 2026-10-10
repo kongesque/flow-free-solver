@@ -90,6 +90,8 @@ All available algorithms support Blocks on their supported board types.
 Manually entered puzzles automatically try SAT if heuristic search reaches its
 limit. SAT checks playable-cell coverage, path connectivity, walls, crossing lanes, and warp openings;
 a search timeout preserves the editable puzzle.
+The status changes to **Solving with SAT…** only while automatic SAT fallback is
+running. Finished results show the usual status and time, with no solver badge.
 For Bridges and Warps, SAT first spends up to five seconds looking for paths
 without self-touching contacts, then tries the general path model within the
 same 30-second budget if needed.
