@@ -281,7 +281,7 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
   .game-controls { position: relative; grid-column: 2; grid-row: 1 / span 3; padding-top: 48px; }
   .solver-controls { --control-gap: 4px; min-height: 0; }
   .board-options summary { font-size: 10px; }
-  .solver-about { position: absolute; top: 0; left: 0; right: 48px; height: 44px; display: flex; align-items: center; justify-content: center; padding-top: 0; font-size: 8px; line-height: 1.4; }
+  .solver-about { position: absolute; top: 0; left: 0; right: 48px; height: 44px; display: flex; align-items: center; justify-content: center; padding-top: 0; font-size: 7.5px; line-height: 1.4; }
   .solver-about p { line-height: 1.4; }
   .solver-methods { display: inline; }
   .solver-about a { display: inline-flex; align-items: center; min-height: 44px; }

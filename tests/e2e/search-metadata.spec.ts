@@ -23,7 +23,7 @@ test('search and sharing metadata is available before JavaScript and describes t
     expect(graph.map((item: { '@type': string }) => item['@type'])).toEqual(['WebSite', 'WebPage', 'WebApplication']);
     for (const item of graph) expect(item.url).toBe(canonical);
     expect(graph.find((item: { '@type': string }) => item['@type'] === 'WebApplication').description).toBe(description);
-    await expect(page.locator('.solver-about')).toContainText('Solve Flow Free puzzles locally.');
+    await expect(page.locator('.solver-about')).toContainText('Solve Flow Free & Numberlink locally.');
     const image = await page.locator('meta[property="og:image"]').getAttribute('content');
     await expect(page.locator('meta[name="twitter:image"]')).toHaveAttribute('content', image!);
     await expect(page.locator('meta[property="og:image:alt"]')).toHaveAttribute('content', /colored dots/);

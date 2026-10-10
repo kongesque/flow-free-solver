@@ -1,24 +1,38 @@
 # Flow Free Solver
 
-> A web-based solver for Flow Free and Numberlink puzzles using the Z3 Theorem Prover and A* search algorithm.
+> A free, open-source Flow Free and Numberlink puzzle solver for desktop and mobile. Recreate or generate a board, connect matching dots, and fill every playable cell. All solving runs locally in the browser.
 
-## What it does
-- Solves Flow Free/Numberlink puzzles (5x5 to 15x15 grids)
-- Runs entirely in-browser using WebAssembly
-- No server required; all computation is client-side
+## Supported puzzles
 
-## Algorithms
-- Z3 SMT Solver: Constraint satisfaction approach (Microsoft Research)
-- A* Search: Heuristic pathfinding with pruning
-- Heuristic BFS: Breadth-First Search with pruning
+- Classic / Numberlink, Classic with walls, Bridges, and Warps.
+- Square and rectangular boards with 5 to 19 rows and columns.
+- Blocks in every supported mode for missing corners, interior holes, and irregular shapes.
+- Hexes and combined Bridges + Warps boards are not supported.
 
-## Features
-- Interactive puzzle editor
-- Dual solver comparison (Z3 vs A*)
-- Real-time solution visualization
-- Supports all standard grid sizes (5x5 to 15x15)
+## How to use it
 
-## Links
-- Live Demo: https://flow.kongesque.com
-- Source: https://github.com/Kongesque/flow-free-solver
-- Author: https://www.kongesque.com
+1. Choose a mode and board size; use Board options for rectangular dimensions.
+2. Place two endpoints of each color and recreate any walls, blocks, bridges, or warp openings.
+3. Select Solve to reveal a solution, or Edit to return to the puzzle.
+
+## Solvers and limits
+
+- Heuristic BFS is the default: C compiled to WebAssembly, adapted from Matt Zucker's flow_solver.
+- Z3 SAT is the exact solver for Classic, walls, Bridges, and Warps on square or rectangular boards.
+- A* is available for Classic square boards without walls.
+- All available solvers support Blocks on their supported board types and run in Web Workers.
+- Manually entered puzzles automatically try SAT if heuristic search reaches its limit. Puzzles may be unsolvable or time out.
+- Generated puzzles retain a validated full-board solution. Generation does not check uniqueness or certify difficulty, and does not preserve custom walls or blocks.
+- Puzzle boards are saved on the user's device.
+
+## Documentation
+
+- [Live solver](https://flow.kongesque.com/): Edit, generate, and solve puzzles in the browser.
+- [README](https://github.com/Kongesque/flow-free-solver/blob/main/README.md): Supported modes, editor controls, algorithms, development, and licensing.
+- [How the solver works](https://www.kongesque.com/blog/flow-free-solver): Technical explanation by the author.
+- [Source code](https://github.com/Kongesque/flow-free-solver): React, TypeScript, Vite, and WebAssembly implementation.
+- [Author](https://www.kongesque.com/): Kongesque.
+
+## License
+
+The project uses MIT with a CC BY-NC 2.0 exception for the heuristic solver adapted from Matt Zucker's flow_solver. See the repository README and LICENSE before reuse or commercial use.

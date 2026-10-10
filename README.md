@@ -1,16 +1,30 @@
 # Flow Free Solver
 
-An open-source **Flow Free and Numberlink puzzle solver** for your browser.
-Recreate a board, place matching dots, and find paths that fill every playable cell.
+> **Connect matching dots. Fill every playable cell. Solve in your browser.**
 
-Solve **Classic, Classic with walls, Bridges, and Warps** puzzles on square or
-rectangular boards from **5×5 to 19×19**. All solving runs locally on your device,
-on desktop or mobile.
+A free, open-source **Flow Free and Numberlink puzzle solver** for desktop and
+mobile. Recreate a puzzle or generate a new one, then find a complete solution
+locally on your device.
 
-Use **Blocks** in any supported mode to mark unused cells anywhere in the board,
-including missing corners, interior holes, and irregular shapes.
+**[Open the solver →](https://flow.kongesque.com/)** ·
+[How it works](https://www.kongesque.com/blog/flow-free-solver) ·
+[Development](#local-development)
 
-**[Open Flow Free Solver](https://flow.kongesque.com/)** · [How the solver works](https://www.kongesque.com/blog/flow-free-solver)
+## Supported puzzles
+
+| Mode | What it supports |
+| --- | --- |
+| **Classic / Numberlink** | Connect matching endpoints with paths that fill the board. |
+| **Classic with walls** | Add barriers between neighboring cells, including Courtyard layouts. |
+| **Bridges** | Cross two different colors at an overpass. |
+| **Warps** | Connect paths through openings on opposite board edges. |
+
+- **5×5 to 19×19 boards**, with independent width and height for rectangles.
+- **Blocks in every mode** for missing corners, interior holes, and irregular shapes.
+- **Local solving in Web Workers**, keeping the editor responsive.
+- **Puzzle generation, undo, and saved boards** for each mode on your device.
+
+## See it in action
 
 <table width="100%">
   <tr>
@@ -35,86 +49,84 @@ including missing corners, interior holes, and irregular shapes.
   </tr>
 </table>
 
-## How to solve a puzzle
+## How to solve a Flow Free puzzle
 
 1. Choose a **Mode** and **Size**. For a rectangle, set **Width** and **Height** in **Board options**.
 2. Select **Dots** and place two endpoints of each color.
-3. Add any walls, blocks, bridges, or warp openings using the matching tool.
-4. Select **Solve** to see the paths. Select **Edit** to return to the same puzzle.
+3. Recreate any walls, blocks, bridges, or warp openings with the matching tool.
+4. Select **Solve** to reveal the paths, then **Edit** to return to your puzzle.
 
-Use **Undo** to reverse an edit, **Cancel** to stop solving, or **Reset** to clear
+Use **Undo** to reverse an edit, **Cancel** to stop solving, and **Reset** to clear
 the board. Each mode saves its own puzzle on your device.
-
-Select **Generate** to create a puzzle in any supported mode. Remove existing
-walls and blocks before generating a new puzzle. Generation does not preserve
-custom layouts with unused cells.
-
-Every board size generates a random number of pairs within its color limit,
-capped at 16. Bridges puzzles use 1–3 spaced crossings.
-Every generated puzzle has a validated full-board solution.
 
 ### Editor tools
 
 | Tool | How to use it |
 | --- | --- |
-| **Dots** | Select an empty cell to place a dot. Select an existing dot to remove it. |
+| **Dots** | Select an empty cell to place a dot, or an existing dot to remove it. |
 | **Walls** | Tap or drag along an internal grid line to block movement between neighboring cells. |
-| **Blocks** | Select an empty cell to make it unused. Select it again to restore it. Available in every mode. |
+| **Blocks** | Select an empty cell to make it unused; select it again to restore it. Available in every mode. |
 | **Bridges** | Select an empty interior cell to add a crossing. The horizontal path passes over the vertical path. |
 | **Warps** | Select a row or column border to connect it to the opposite edge. Paths may use these openings. |
 
-Every solution connects matching colors and fills every playable cell. Blocks
-stay empty and cannot contain dots or crossing lanes. Remove a dot or bridge
-before blocking its cell; bridges need four playable neighbors. Blocking a warp
-border closes that opening. Undo restores the cell and opening together. Paths can
-cross only at bridges, where both lanes must be filled by different colors.
+Every solution preserves the endpoints, connects matching colors, and fills
+every playable cell. Paths cross only at bridges, where both lanes must be
+filled by different colors.
 
-### Board options
+Blocks stay empty and cannot contain dots or crossing lanes. Remove a dot or
+bridge before blocking its cell; bridges need four playable neighbors. Blocking
+a warp border closes that opening. Undo restores the cell and opening together.
 
-- **Color label** adds letters to the dots. Off by default.
-- **Board guides** adds column letters, row numbers, and a placement highlight.
-  Off by default. On mobile, enable guides to press, slide, and release a dot or bridge.
-- **Puzzle generator** shows or hides the Generate button.
+### Board options and keyboard controls
 
-**Keyboard:** use arrow keys to move, Enter or Space to place, and Shift + Arrow to
-edit a wall or an outward warp edge while the corresponding tool is selected.
-Ctrl/⌘ + Z undoes the last edit.
+| Option | Purpose |
+| --- | --- |
+| **Color label** | Add letters to the dots. Off by default. |
+| **Board guides** | Show column letters, row numbers, and a placement highlight. Off by default. On mobile, enable guides to press, slide, and release a dot or bridge. |
+| **Puzzle generator** | Show or hide the Generate button. |
+| **Solver Algorithm** | Choose an available solver for the current board. |
 
-## Solver algorithms
+**Keyboard:** arrow keys move between cells; Enter or Space places the selected
+item. With Walls or Warps selected, Shift + Arrow edits a wall or an outward warp
+edge. Ctrl/⌘ + Z undoes the last edit.
 
-**Heuristic BFS** is the default solver. **Z3 SAT (exact solver)** is available in Board
-options for Classic, walls, Bridges, and Warps on square or rectangular boards
-from 5×5 to 19×19. **A\*** is available for Classic square boards without walls.
-All available algorithms support Blocks on their supported board types.
+## Generate a solvable puzzle
+
+Select **Generate** to create a puzzle in any supported mode. Remove existing
+walls and blocks first: generation does not preserve custom layouts with unused
+cells.
+
+Each generated puzzle has a validated full-board solution. The number of pairs
+is random within the board's color limit, capped at 16. Bridges puzzles use 1–3
+spaced crossings. Generation does not check uniqueness or certify difficulty.
+
+## How the solvers work
+
+| Solver | Available boards | Implementation |
+| --- | --- | --- |
+| **Heuristic BFS** · default | Classic, walls, Bridges, and Warps; square or rectangular | C compiled to WebAssembly, adapted from [Matt Zucker's flow_solver](https://github.com/mzucker/flow_solver). |
+| **Z3 SAT** · exact solver | Classic, walls, Bridges, and Warps; square or rectangular | Constraint solving with [Z3](https://github.com/Z3Prover/z3), compiled to WebAssembly. |
+| **A\*** | Classic square boards without walls | Heuristic search written in TypeScript. |
+
+All available solvers support **Blocks** on their supported board types and run
+in background Web Workers.
 
 Manually entered puzzles automatically try SAT if heuristic search reaches its
-limit. SAT checks playable-cell coverage, path connectivity, walls, crossing lanes, and warp openings;
-a search timeout preserves the editable puzzle.
-The status changes to **Solving with SAT…** only while automatic SAT fallback is
-running. Finished results show the usual status and time, with no solver badge.
-For Bridges and Warps, SAT first spends up to five seconds looking for paths
-without self-touching contacts, then tries the general path model within the
-same 30-second budget if needed.
+limit. SAT checks playable-cell coverage, path connectivity, walls, crossing
+lanes, and warp openings. A timeout preserves the editable puzzle.
 
-| Solver | Implementation |
-| --- | --- |
-| **Heuristic BFS** | C compiled to WebAssembly, adapted from [Matt Zucker's flow_solver](https://github.com/mzucker/flow_solver). |
-| **A\*** | Heuristic search written in TypeScript. |
-| **Z3 SAT (exact solver)** | Constraint solving with [Z3](https://github.com/Z3Prover/z3), compiled to WebAssembly. |
+For Bridges and Warps, SAT spends up to five seconds looking for paths without
+self-touching contacts, then tries the general path model within the same
+30-second budget if needed. The status shows **Solving with SAT…** during
+automatic fallback; completed results show the usual status and elapsed time.
 
-All solvers run in background Web Workers so the editor stays responsive.
+Generated puzzles retain their validated solution for use if a solve reaches
+its search limit. When SAT is selected, Z3 verifies that solution against its
+full constraints. Editing the puzzle discards the retained solution.
 
-### Limits
-
-The solvers return one complete solution. Difficult puzzles can reach a search
-limit; solve times depend on the puzzle and device. Hexes and combined
-Bridges + Warps boards are not supported.
-
-Generated puzzles retain a validated solution, which is used if a solve reaches
-its search limit. When SAT is selected, Z3 verifies that cover against its full
-constraints. Editing the puzzle discards that solution. Generated puzzles are
-guaranteed solvable; manually entered puzzles can be unsolvable or reach a
-search limit. Generation does not check uniqueness or certify difficulty.
+The solvers return one complete solution when they find one. Manually entered
+puzzles can be unsolvable or reach a search limit; solve times depend on the
+puzzle and device. Hexes and combined Bridges + Warps boards are not supported.
 
 ## Local development
 
@@ -130,21 +142,40 @@ checked in, so web development does not require Emscripten.
 
 | Command | Purpose |
 | --- | --- |
+| `npm run dev` | Start the development server. |
 | `npm run build` | Type-check and build the app. |
 | `npm run preview` | Serve the production build locally. |
 | `npm run build:wasm` | Compile native solver changes. |
+| `npm run watch:wasm` | Recompile when native source files change. |
+| `npm run sync:wasm` | Copy matched Z3 runtime assets from the installed package. |
 | `npm run check` | Rebuild Wasm and run unit, native, and browser checks. |
 
+### Native solver and runtime assets
+
 Native builds and the full check require the Emscripten version in
-`.emscripten-version`. Install the test browsers with
-`npx playwright install chromium webkit`. After changing C, rebuild and commit
-both generated C artifacts. Never edit generated Wasm glue by hand.
+`.emscripten-version`. Install the test browsers with:
+
+```sh
+npx playwright install chromium webkit
+```
+
+After changing C, run `npm run build:wasm` and include both generated C artifacts
+with the source change. Never edit generated Wasm glue by hand. Use
+`npm run sync:wasm` to keep Z3's glue and binary matched to the installed
+`z3-solver` package.
+
+TypeScript boards use `[x][y]` (column-major). The C API takes text rows and
+returns row-major ASCII color codes; conversions belong in
+`src/solver/logic/heuristic-solver.ts`.
 
 Native puzzle text uses `.` for a playable empty cell and `#` for a block.
 Classic results contain zero at blocks; variant paths never include them. Native
 cell IDs remain row-major, including unused slots, followed by bridge lanes.
 
-For worker or asset changes, also verify development and subpath hosting:
+### Verification and hosting
+
+Run `npm run check` before finishing implementation changes. For worker or asset
+changes, also verify development and subpath hosting:
 
 ```sh
 E2E_SERVER=dev npm run test:e2e
@@ -152,8 +183,9 @@ VITE_BASE_PATH=/flow-free-solver/ npm run build
 VITE_BASE_PATH=/flow-free-solver/ npm run test:e2e
 ```
 
-Z3 requires cross-origin isolation. Keep the COOP/COEP headers in
-`vite.config.js` and `vercel.json` when changing hosting configuration.
+Load public Wasm assets using `import.meta.env.BASE_URL`. Z3 requires
+cross-origin isolation: keep the COOP/COEP headers in `vite.config.js` and
+`vercel.json` when changing hosting configuration.
 
 ## License
 

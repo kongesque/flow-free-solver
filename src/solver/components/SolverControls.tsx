@@ -188,10 +188,11 @@ const SolverControls = ({
             </div>
             <div className="solver-about selectable-text">
                 <p>
-                <span className="solver-methods">Solve Flow Free puzzles locally. </span>
-                <a href="https://www.kongesque.com/blog/flow-free-solver" target="_blank" rel="noreferrer"
-                    aria-label="Read more about this solver (opens in a new tab)">Read more</a>
-            </p></div>
+                    <span className="solver-methods">Solve Flow Free &amp; Numberlink locally. </span>
+                    <a href="https://www.kongesque.com/blog/flow-free-solver" target="_blank" rel="noreferrer"
+                        aria-label="Read more about this solver (opens in a new tab)">Read more</a>
+                </p>
+            </div>
         </div>
     );
 };

@@ -17,7 +17,7 @@ test('the footer fits a 320px screen without the hosted font', async ({ page }) 
     await expect(page.getByRole('button', { name: 'Solve', exact: true })).toBeEnabled();
     await page.evaluate(() => document.fonts.ready);
     const footer = page.locator('.solver-about p');
-    await expect(footer).toHaveText('Solve Flow Free puzzles locally. Read more');
+    await expect(footer).toHaveText('Solve Flow Free & Numberlink locally. Read more');
     expect(await footer.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
@@ -69,8 +69,8 @@ for (const viewport of [
         await expect(readMore).toBeVisible();
         await expect(readMore).toHaveAttribute('href', 'https://www.kongesque.com/blog/flow-free-solver');
         await expect(readMore).toHaveAttribute('target', '_blank');
-        await expect(page.locator('.solver-about > p')).toHaveText('Solve Flow Free puzzles locally. Read more');
-        await expect(page.locator('.solver-methods')).toHaveText('Solve Flow Free puzzles locally.');
+        await expect(page.locator('.solver-about > p')).toHaveText('Solve Flow Free & Numberlink locally. Read more');
+        await expect(page.locator('.solver-methods')).toHaveText('Solve Flow Free & Numberlink locally.');
         expect(await page.locator('.solver-about p').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
         expect(await readMore.evaluate(element => getComputedStyle(element).color)).toBe('rgb(138, 142, 140)');
         expect(await page.locator('.solver-about').evaluate(element => getComputedStyle(element).textAlign))
