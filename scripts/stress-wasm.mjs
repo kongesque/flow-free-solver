@@ -12,6 +12,7 @@ import { assertSolution } from '../tests/fixtures/assert-solution.mjs';
 import { assertTopologySolution, decodeNativeSolution } from '../tests/fixtures/assert-topology-solution.mjs';
 import { largeBridgeCover, warpRows, warpSnake } from '../tests/fixtures/topology-puzzles.mjs';
 import { wallText } from '../tests/fixtures/wall-puzzles.mjs';
+import { bridgeScreenshot } from '../tests/fixtures/bridge-screenshot.mjs';
 
 if (!isMainThread) {
   const { default: createModule } = await import(workerData.module);
@@ -83,6 +84,9 @@ if (!isMainThread) {
   for (const name of ['nested_19x19', 'search_limit_15x18_screenshot']) {
     cases.push({ name, mode: 'classic', input: readFileSync(new URL(`${name}.txt`, fixtures), 'utf8') });
   }
+  // This manual board is independently solved/validated by the SAT browser
+  // regression. Unlike generated cases, it has no retained witness to supply.
+  cases.push({ ...bridgeScreenshot(), name: 'bridges-12x15-screenshot', knownSolvable: true, pairCount: 9 });
   for (const entry of cases) {
     if (entry.width == null) {
       const rows = entry.input.trim().split(/\r?\n/);
@@ -145,7 +149,7 @@ if (!isMainThread) {
       if (status === 'solved') assertTopologySolution(entry, decodeNativeSolution(entry, raw));
     }
     // All generated/synthetic cases have independently validated witnesses.
-    assert.ok(status !== 'unsatisfiable' || !entry.solution, `${solver.label}: rejected known-solvable ${entry.name}`);
+    assert.ok(status !== 'unsatisfiable' || !(entry.solution || entry.knownSolvable), `${solver.label}: rejected known-solvable ${entry.name}`);
     return { status, ms: response.ms, ...(nodes == null ? {} : { nodes }) };
   }
   const measurements = [];

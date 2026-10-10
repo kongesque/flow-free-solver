@@ -1,5 +1,10 @@
 # Heuristic solver performance
 
+The first two results sections record earlier optimization milestones, including
+their test counts. The October 10 revalidation below covers the current native
+search and distinguishes additional solves from faster searches that still fail
+within the budget.
+
 Run `node scripts/benchmark-wasm.mjs` with Node.js 24 after rebuilding Wasm.
 To compare a previous build, pass its module path:
 
@@ -14,7 +19,7 @@ Every solution is independently checked for coverage, endpoints, connectivity,
 walls, and crossing lanes outside the timed interval. Worker startup, SAT
 fallback, generation, and retained generated solutions are excluded.
 
-## October 2026 optimization
+## Earlier October 2026 optimization
 
 Baseline: `a9bb618`. Local measurements used Node.js 24.21.0 and the pinned
 Emscripten 4.0.23 compiler. Times are representative of this machine and corpus,
@@ -58,9 +63,9 @@ bind localhost inside the sandbox, so that phase was rerun successfully with
 the required local-server permission. No dependency or hosting-header changes
 were needed.
 
-## Extreme and rectangular stress cases
+## Earlier extreme and rectangular stress cases
 
-The bounded stress harness includes 56 puzzles, of which 35 are rectangular:
+The original bounded stress harness included 56 puzzles, of which 35 were rectangular:
 generated 13×13, 19×19, 19×5, 5×19, 19×13, and 13×19 boards with seeds 16 and 42
 in all four modes; sparse walls; a 19×19 board with 289 crossings and 650 logical
 vertices; open and constrained crossing/warp layouts; 19×16 and 16×19 seam
@@ -120,3 +125,84 @@ The expanded `npm run check` passed: 120 native tests, 110 unit tests,
 TypeScript checks, the production build, and all 188 browser tests in Chromium
 and mobile WebKit. This follow-up adds benchmark infrastructure and regression
 fixtures; production solver code and search budgets remain as optimized above.
+
+
+## October 10 revalidation and native search improvement
+
+Baseline for this follow-up: `159d8b3`, the deployed SAT-fallback fix. Both Wasm
+builds use pinned Emscripten 4.0.23; measurements use Node.js 24.21.0 on the same
+machine. Benchmark searches ran serially without another benchmark running.
+
+Bridges and Warps now grow a path from either end, choosing the end with the
+fewest legal moves. Cached move masks update only when occupancy changes next
+to an end, or when that color moves; backtracking restores those masks. A free
+region must be accessible to both ends of at least one unfinished matching
+pair. Move ordering visits tighter cells first and prefers continuing straight
+on ties. These are graph checks and ordering rules; they do not assume a planar
+board, reject legal self-touching paths, or call SAT. Classic/Walls search code
+is unchanged. The native variant search is depth-first, despite the editor's
+historical “Heuristic BFS” label.
+
+The original budgets remain: two million visited states and ten seconds for
+variant search. Per-depth move snapshots live in the allocated search state
+rather than adding arrays to the bounded Wasm stack. Wasm was rebuilt from
+source; the generated JavaScript glue did not change.
+
+The fresh fixed-corpus run against the earlier `a9bb618` baseline confirmed the
+earlier performance trend, with ordinary timing variation:
+
+| Mode | Puzzles | `a9bb618` total | Current total |
+| --- | ---: | ---: | ---: |
+| Classic | 28 | 3,424 ms | 2,436 ms |
+| Walls | 36 | 0.52 ms | 0.48 ms |
+| Bridges | 5 | 2.92 ms | 0.18 ms |
+| Warps | 5 | 1.10 ms | 0.18 ms |
+
+These are median totals from one warmup and five measured rounds. They do not
+show an additional Classic/Walls optimization in this follow-up, and the tiny
+forced-route totals remain sensitive to noise.
+
+The complete earlier 56-case stress corpus was compared once against `159d8b3`.
+There were no lost solves, invalid solutions, false unsatisfiable results, or
+external watchdog deadlines. Bridges improved from 6 solved / 8 limited to
+7 solved / 7 limited. Classic remained 7 / 7, Walls 7 / 5, and Warps 8 / 8.
+This sweep is exploratory; four selected cases were then repeated three times,
+with alternating build order. Median native search times:
+
+| Case | `159d8b3` | Current | Result in every repeat |
+| --- | ---: | ---: | --- |
+| Bridges 13×13, seed 42 | 2,261 ms | 15.72 ms | Baseline limit; current solved in 18,073 visits |
+| Bridges 19×19, seed 16 | 2,590 ms | 1,296 ms | Both limited at 2,000,001 visits |
+| Warps 19×19, seed 16 | 3,579 ms | 1,397 ms | Both limited at 2,000,001 visits |
+| Bridges 12×15, user screenshot | 2,787 ms | 1,821 ms | Both limited at 2,000,001 visits |
+
+The manual screenshot is now included in the stress harness, making its default
+corpus 57 cases, of which 36 are rectangular. Its solvability is checked by the
+independent SAT browser regression; it has no retained generated cover. Run the
+follow-up comparison with:
+
+```sh
+node scripts/stress-wasm.mjs /path/to/159d8b3/flow_solver_c.mjs --output=/tmp/stress-current.jsonl
+node scripts/stress-wasm.mjs /path/to/159d8b3/flow_solver_c.mjs \
+  '--filter=^bridges-(13x13-seed42|12x15-screenshot|19x19-seed16)$|^warps-19x19-seed16$' \
+  --rounds=3 --output=/tmp/stress-current-repeat.jsonl
+```
+
+The 12×15 screenshot still requires automatic SAT fallback. The lower native
+search time is a reduction in fallback delay, not a claim that heuristic search
+now solves that board or every board. A dense forced 19×19 crossing cover was
+slightly slower in the one-shot sweep (0.185 ms versus 0.138 ms). Different
+move ordering can help or hurt other puzzles; these measurements do not promise
+a universal speedup.
+
+Focused regressions validate the newly solvable 13×13 cover without a certificate
+or SAT assets, self-touching covers, joining paths grown from opposite ends,
+and duplicate neighbors in a two-column wrapped board. The existing independent
+small-board oracles continue to check general graph search.
+
+The required `npm run check` passed with pinned Emscripten: 145 native tests,
+121 unit tests, TypeScript checks, the production build, and all 216 browser
+tests in Chromium and mobile WebKit. The eight focused native/SAT regressions
+also passed in development and under `/flow-free-solver/`. The root production
+build was restored after subpath verification. No dependencies, solver budgets,
+or hosting headers changed.

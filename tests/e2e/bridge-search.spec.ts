@@ -1,9 +1,26 @@
 import { expect, test } from '@playwright/test';
 import { bridgeScreenshot } from '../fixtures/bridge-screenshot.mjs';
+import { heuristicBridge } from '../fixtures/heuristic-bridge.mjs';
 import { assertTopologySolution } from '../fixtures/assert-topology-solution.mjs';
 import { solverWorkerUrl, solveSat } from './z3-test-worker';
 import { openBoardOptions } from './board-options';
 import type { PuzzleSolution } from '../../src/solver/logic/solution';
+
+test('native heuristic solves the uncached 13x13 Bridges cover without SAT assets', async ({ page }) => {
+  const requests: string[] = [];
+  page.on('request', request => requests.push(request.url()));
+  const fixture = heuristicBridge(), url = await solverWorkerUrl(page);
+  const result = await page.evaluate(({ url, fixture }) => new Promise<{ status: string; solution: PuzzleSolution | null }>((resolve, reject) => {
+    const worker = new Worker(url, { type: 'module' });
+    worker.onmessage = event => { worker.terminate(); resolve(event.data); };
+    worker.onerror = event => { worker.terminate(); reject(new Error(event.message)); };
+    worker.postMessage({ board: fixture.board, ...fixture.topology, mode: fixture.mode, type: 'heuristic_bfs', allowFallback: false });
+  }), { url, fixture });
+  expect(result.status).toBe('solved');
+  assertTopologySolution(fixture, result.solution!);
+  expect(requests.some(url => url.includes('flow_solver_c.wasm'))).toBe(true);
+  expect(requests.some(url => /z3-(?:built|solver|topology)/.test(url))).toBe(false);
+});
 
 test('SAT solves the 12x15 Bridges screenshot without a generated certificate', async ({ page }) => {
   const fixture = bridgeScreenshot(), url = await solverWorkerUrl(page);

@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import createModule from '../../public/wasm/flow_solver_c.mjs';
 import { warpRows, warpSnake, bridgeCross, largeBridgeCover } from '../fixtures/topology-puzzles.mjs';
 import { assertTopologySolution, decodeNativeSolution } from '../fixtures/assert-topology-solution.mjs';
+import { heuristicBridge } from '../fixtures/heuristic-bridge.mjs';
 
 const module = await createModule();
 const solve = module.cwrap('solve_puzzle_topology_wasm', 'string', ['string', 'string']);
@@ -11,6 +12,31 @@ const wire = ({ mode, topology }) => `V1\nMODE,${mode === 'warps' ? 'W' : 'B'}\n
   topology.walls.map(w => `W,${w.x},${w.y},${w.side === 'right' ? 'R' : 'D'}\n`).join('') +
   [...topology.bridges].reverse().map(b => `B,${b.x},${b.y},${b.over === 'horizontal' ? 'H' : 'V'}\n`).join('') +
   topology.warps.map(w => `S,${w.axis === 'horizontal' ? 'H' : 'V'},${w.index}\n`).join('');
+
+test('two-ended native search solves the uncached 13x13 bridge cover within its original budget', () => {
+  const f = heuristicBridge(), result = JSON.parse(solve(f.input, wire(f)));
+  assert.equal(result.status, 'solved');
+  assert.ok(result.nodeCount < 100000);
+  assertTopologySolution(f, decodeNativeSolution(f, result));
+});
+
+test('two-ended paths join without omitting a node and permit self-touching covers', () => {
+  for (const mode of ['bridges', 'warps']) {
+    const f = { width: 2, height: 2, input: 'RR\n..\n', board: [[1, 0], [1, 0]], mode,
+      topology: { walls: [], bridges: [], warps: [] } };
+    const result = JSON.parse(solve(f.input, wire(f)));
+    assert.equal(result.status, 'solved');
+    assertTopologySolution(f, decodeNativeSolution(f, result));
+  }
+});
+
+test('cached moves count a duplicated two-column warp neighbor only once', () => {
+  const f = { width: 2, height: 3, input: 'RR\n..\n..\n', board: [[1, 0, 0], [1, 0, 0]], mode: 'warps',
+    topology: { walls: [], bridges: [], warps: [0, 1, 2].map(index => ({ axis: 'horizontal', index })) } };
+  const result = JSON.parse(solve(f.input, wire(f)));
+  assert.equal(result.status, 'solved');
+  assertTopologySolution(f, decodeNativeSolution(f, result));
+});
 
 for (const fixture of [warpRows(), warpRows(8, 5), warpRows(15, 15), warpRows(19, 16), warpRows(19, 16, true), warpSnake(), warpRows(8, 5, true), bridgeCross(), bridgeCross(true), bridgeCross(false, 'vertical'), largeBridgeCover(), largeBridgeCover(19)]) {
   test(`real C graph cover: ${fixture.mode} ${fixture.width}x${fixture.height}`, () => {
