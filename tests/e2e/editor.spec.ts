@@ -22,6 +22,25 @@ test('the footer fits a 320px screen without the hosted font', async ({ page }) 
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
+test('the desktop footer fits with larger fallback text', async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 768 });
+    await page.route('https://fonts.googleapis.com/**', route => route.abort());
+    await page.route('https://fonts.gstatic.com/**', route => route.abort());
+    await page.goto('./');
+    await expect(page.getByRole('button', { name: 'Solve', exact: true })).toBeEnabled();
+    await page.evaluate(() => document.fonts.ready);
+    // Exercise wider fallback metrics and 125% text sizing without relying on the host OS font.
+    await page.addStyleTag({ content: '.solver-about p { font-family: monospace; font-size: 13.75px; }' });
+    const footer = page.locator('.solver-about p');
+    await expect(footer).toHaveText('Solve Flow Free & Numberlink locally. Read more');
+    expect(await footer.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+    const footerBounds = await layoutBounds(footer);
+    const linkBounds = await layoutBounds(footer.getByRole('link'));
+    expect(linkBounds.x).toBeGreaterThanOrEqual(footerBounds.x);
+    expect(linkBounds.x + linkBounds.width).toBeLessThanOrEqual(footerBounds.x + footerBounds.width);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
 for (const viewport of [
     { width: 320, height: 568 },
     { width: 360, height: 640 },
@@ -44,6 +63,7 @@ for (const viewport of [
         await page.setViewportSize(viewport);
         await page.goto('./');
         await expect(page.locator('.control-actions button')).toHaveCount(2);
+        await page.evaluate(() => document.fonts.ready);
         await expect(page.getByRole('combobox')).toHaveCount(2);
         await expect(page.getByText('Size', { exact: true })).toBeVisible();
         await expect(page.getByRole('combobox', { name: 'Solver Algorithm' })).toBeHidden();

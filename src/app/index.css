@@ -318,6 +318,8 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
   .game-controls { grid-column: 2; grid-row: 2; }
   .solver-controls { min-height: 0; }
   .solver-about { text-align: left; }
+  .solver-about p { white-space: normal; }
+  .solver-about a { white-space: nowrap; }
   .board-options summary { justify-content: flex-start; }
 }
 
