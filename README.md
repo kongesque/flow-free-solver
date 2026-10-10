@@ -2,7 +2,7 @@
 
 > **Connect matching dots. Fill every playable cell. Solve in your browser.**
 
-A free, open-source **Flow Free and Numberlink puzzle solver** for desktop and
+An open-source **Flow Free and Numberlink puzzle solver** for desktop and
 mobile. Recreate a puzzle or generate a new one, then find a complete solution
 locally on your device.
 
