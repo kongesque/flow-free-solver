@@ -62,10 +62,10 @@ test('Blocks: interleaved boards do not retain a previous mask', () => {
   }
 });
 
-test('Blocks: a difficult 19x19 mask reports its search limit without claiming unsatisfiable', () => {
+test('Blocks: graph search solves the 19x19 mask that previously reached its memory limit', () => {
   const f = blockRows(19, 19, 'standard', 15);
   assertTopologySolution(f, f.solution);
-  assert.equal(classic(f.input), 'Error: No solution found (result code 2)');
+  assertSolution(f.input, JSON.parse(classic(f.input)));
 });
 
 test('Blocks: Classic and variant pruning agree with an exhaustive masked-board oracle', () => {

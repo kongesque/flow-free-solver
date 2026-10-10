@@ -1,7 +1,6 @@
 import { readFileSync } from 'node:fs';
 
-// The open screenshot now solves with the diagonal probe. A wall between
-// different paths preserves that cover while exercising the legacy search's
-// real memory limit and the worker's SAT fallback/recovery behavior.
+// Both the open screenshot and this walled version now solve with Pruned DFS.
+// Keep the wall case as a regression for graph search and direct C solving.
 export const input = readFileSync(new URL('./puzzles/screenshot_15x18.txt', import.meta.url), 'utf8');
 export const walls = [{ x: 0, y: 1, side: 'down' }];

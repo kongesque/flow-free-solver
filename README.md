@@ -111,12 +111,15 @@ spaced crossings. Generation does not check uniqueness or certify difficulty.
 All available solvers support **Blocks** on their supported board types and run
 in background Web Workers.
 
-For classic boards without walls or blocks, Pruned DFS first tries a bounded
-diagonal edge search inspired by [Thomas Ahle's Numberlink algorithm](https://github.com/thomasahle/numberlink#how-it-works).
-Our independent C implementation tracks partial-path components and prunes
-cycles, mismatched endpoints, and self-touching paths before extending them.
-If this probe fails or reaches its budget, the existing heuristic search runs.
-Walls, blocks, Bridges, and Warps continue to use their existing searches.
+Pruned DFS uses bounded diagonal edge searches inspired by
+[Thomas Ahle's Numberlink algorithm](https://github.com/thomasahle/numberlink#how-it-works).
+Open Classic boards retain their specialized fast path. A separate graph search
+supports walls and Blocks, independent crossing lanes in Bridges, and wrap
+connections in Warps. It tracks rollback path components and rejects cycles,
+mismatched endpoints, and same-color crossings. Classic also forbids self-touching
+paths; variants first try that smaller search space, then permit self-touching.
+Variant boards with forced routes finish before the graph probe is allocated.
+Graph attempts share a roughly 25 ms budget and fall back to the original searches.
 
 Manually entered puzzles automatically try SAT if heuristic search reaches its
 limit. SAT checks playable-cell coverage, path connectivity, walls, crossing
@@ -210,7 +213,7 @@ cross-origin isolation: keep the COOP/COEP headers in `vite.config.js` and
 files, including the native topology helper, are covered by
 [CC BY-NC 2.0](https://creativecommons.org/licenses/by-nc/2.0/):
 
-- `native/flow_solver.c`, `native/diagonal_solver.h`, and `native/topology_solver.h`
+- `native/flow_solver.c`, `native/diagonal_solver.h`, `native/graph_cover.h`, and `native/topology_solver.h`
 - `public/wasm/flow_solver_c.mjs` and `public/wasm/flow_solver_c.wasm`
 - `src/solver/logic/heuristic-solver.ts`
 

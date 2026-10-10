@@ -2169,6 +2169,7 @@ int game_search(const game_info_t *info, const game_state_t *init_state,
 }
 
 #include "diagonal_solver.h"
+#include "graph_cover.h"
 
 static const char *solve_puzzle(const char *input_str, const char *wall_str) {
 
@@ -2217,7 +2218,10 @@ static const char *solve_puzzle(const char *input_str, const char *wall_str) {
   }
   game_build_neighbors(&info);
   game_state_t final_state;
-  int result = game_diagonal_probe(&info, &state, &final_state) ? SEARCH_SUCCESS : SEARCH_IN_PROGRESS;
+  int solved = info.num_walls || info.num_blocks
+    ? game_graph_probe(&info, &state, &final_state)
+    : game_diagonal_probe(&info, &state, &final_state);
+  int result = solved ? SEARCH_SUCCESS : SEARCH_IN_PROGRESS;
   game_complete_adjacent(&info, &state);
 
   game_order_colors(&info, &state, NULL);

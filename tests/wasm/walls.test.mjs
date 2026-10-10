@@ -11,9 +11,9 @@ const module = await createFlowSolver();
 const solve = module.cwrap('solve_puzzle_with_walls_wasm', 'string', ['string', 'string']);
 const legacy = module.cwrap('solve_puzzle_wasm', 'string', ['string']);
 
-test('wall bypass preserves the valid screenshot cover and real search-limit status', () => {
+test('graph probe solves the wall screenshot that previously reached its memory limit', () => {
   assertSolution(limitInput, JSON.parse(legacy(limitInput)), limitWalls);
-  assert.equal(solve(limitInput, wallText(limitWalls)), 'Error: No solution found (result code 2)');
+  assertSolution(limitInput, JSON.parse(solve(limitInput, wallText(limitWalls))), limitWalls);
   assertSolution(limitInput, JSON.parse(legacy(limitInput)));
 });
 
