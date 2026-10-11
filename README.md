@@ -120,6 +120,8 @@ mismatched endpoints, and same-color crossings. Classic also forbids self-touchi
 paths; variants first try that smaller search space, then permit self-touching.
 Variant boards with forced routes finish before the graph probe is allocated.
 Graph attempts share a roughly 25 ms budget and fall back to the original searches.
+Variant graph and fallback searches keep DFS frames on the heap to avoid mobile
+Safari call-stack limits on large boards.
 
 Manually entered puzzles automatically try SAT if heuristic search reaches its
 limit. SAT checks playable-cell coverage, path connectivity, walls, crossing

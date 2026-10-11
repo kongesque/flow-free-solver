@@ -8,7 +8,8 @@
 
 typedef struct {
   // Keep backtracking snapshots off the bounded Wasm stack on long covers.
-  uint16_t moves[4];
+  uint16_t moves[4], old_head, target;
+  uint8_t end, count, next_move;
   uint8_t saved_moves[2 * MAX_COLORS];
 } topology_frame_t;
 
@@ -141,30 +142,39 @@ static int topo_choose(const topology_search_t *s, const uint16_t *forced, int *
   return chosen;
 }
 
-static int topo_search(topology_search_t *s, unsigned depth) {
+// Both the forced pass and fallback use heap frames: no per-cell Wasm calls.
+static int topo_search(topology_search_t *s) {
+  unsigned depth = 0;
+  int best, chosen, reverse, finishing;
+  uint16_t next, old_head, target, n;
+  topology_frame_t *frame;
+enter:
   if (++s->visits > TOPO_NODE_LIMIT ||
       ((s->visits & 255u) == 0 && (double)(clock() - s->started) / CLOCKS_PER_SEC > 10.0)) {
-    s->limit = 1; return 0;
+    s->limit = 1; goto backtrack;
   }
-  if (s->complete == (uint16_t)((1u << s->colors) - 1u)) return s->free_count == 0;
-  int best, chosen = topo_choose(s, NULL, &best);
-  if (chosen < 0) return 0;
-  uint16_t next = TOPO_NONE;
+  if (s->complete == (uint16_t)((1u << s->colors) - 1u)) {
+    if (!s->free_count) return 1;
+    goto backtrack;
+  }
+  chosen = topo_choose(s, NULL, &best);
+  if (chosen < 0) goto backtrack;
+  next = TOPO_NONE;
   if (best > 1) {
-    if (!topo_viable(s, s->forced)) return 0;
+    if (!topo_viable(s, s->forced)) goto backtrack;
     chosen = topo_choose(s, s->forced, &best);
-    if (chosen < 0) return 0;
+    if (chosen < 0) goto backtrack;
     next = s->forced[chosen];
   }
   // Finish deterministic covers before allocating the graph probe. A branch
   // unwinds to the original endpoints; it is not an unsatisfiability result.
-  if (s->force_only && best > 1) { s->limit = 1; return 0; }
+  if (s->force_only && best > 1) { s->limit = 1; goto backtrack; }
   // With one legal move, a complete cover has to take it. Defer flood fills
   // until the next branch instead of repeating them along every forced lane.
-  int reverse = chosen & 1; chosen /= 2;
-  uint16_t old_head = reverse ? s->goal[chosen] : s->head[chosen];
-  uint16_t target = reverse ? s->head[chosen] : s->goal[chosen];
-  topology_frame_t *frame = &s->frames[depth];
+  reverse = chosen & 1; chosen /= 2;
+  old_head = reverse ? s->goal[chosen] : s->head[chosen];
+  target = reverse ? s->head[chosen] : s->goal[chosen];
+  frame = &s->frames[depth];
   int scores[4], count = 0;
   // Visit tighter cells first; on ties, continue straight. Closing a path last
   // retains the original preference to fill space before finishing.
@@ -187,37 +197,46 @@ static int topo_search(topology_search_t *s, unsigned depth) {
     }
     frame->moves[at] = n; scores[at] = score;
   }
-  for (int i = 0; i < count; i++) {
-    uint16_t n = frame->moves[i];
-    int finishing = n == target;
-    memcpy(frame->saved_moves, s->moves, sizeof(frame->saved_moves));
-    if (reverse) { s->goal[chosen] = n; s->path[chosen][TOPO_MAX - 1 - s->back_length[chosen]++] = n; }
-    else { s->head[chosen] = n; s->path[chosen][s->length[chosen]++] = n; }
-    s->end_at[old_head] = -1;
-    if (finishing) { s->complete |= 1u << chosen; s->end_at[n] = -1; }
-    else {
-      s->owner[n] = chosen; --s->free_count; s->end_at[n] = 2 * chosen + reverse;
-      // Only ends adjacent to the newly occupied cell lose a legal move.
-      // The moved color also needs its new location and bridge-mate exclusion.
-      for (int d = 0; d < 4; d++) {
-        uint16_t adjacent = s->neighbors[n][d];
-        int end = adjacent == TOPO_NONE ? -1 : s->end_at[adjacent];
-        if (end < 0 || end / 2 == chosen) continue;
-        for (int e = 0; e < 4; e++) if (s->neighbors[adjacent][e] == n) s->moves[end] &= ~(1u << e);
-      }
-      topo_refresh(s, chosen);
+  frame->end = 2 * chosen + reverse; frame->old_head = old_head; frame->target = target;
+  frame->count = count; frame->next_move = 0;
+try_moves:
+  frame = &s->frames[depth];
+  if (s->limit || frame->next_move == frame->count) goto backtrack;
+  chosen = frame->end / 2; reverse = frame->end & 1;
+  old_head = frame->old_head; target = frame->target;
+  n = frame->moves[frame->next_move++]; finishing = n == target;
+  memcpy(frame->saved_moves, s->moves, sizeof(frame->saved_moves));
+  if (reverse) { s->goal[chosen] = n; s->path[chosen][TOPO_MAX - 1 - s->back_length[chosen]++] = n; }
+  else { s->head[chosen] = n; s->path[chosen][s->length[chosen]++] = n; }
+  s->end_at[old_head] = -1;
+  if (finishing) { s->complete |= 1u << chosen; s->end_at[n] = -1; }
+  else {
+    s->owner[n] = chosen; --s->free_count; s->end_at[n] = 2 * chosen + reverse;
+    // Only ends adjacent to the newly occupied cell lose a legal move.
+    // The moved color also needs its new location and bridge-mate exclusion.
+    for (int d = 0; d < 4; d++) {
+      uint16_t adjacent = s->neighbors[n][d];
+      int end = adjacent == TOPO_NONE ? -1 : s->end_at[adjacent];
+      if (end < 0 || end / 2 == chosen) continue;
+      for (int e = 0; e < 4; e++) if (s->neighbors[adjacent][e] == n) s->moves[end] &= ~(1u << e);
     }
-    if (topo_search(s, depth + 1)) return 1;
-    if (finishing) s->complete &= ~(1u << chosen);
-    else { s->owner[n] = -1; ++s->free_count; }
-    if (reverse) { --s->back_length[chosen]; s->goal[chosen] = old_head; }
-    else { --s->length[chosen]; s->head[chosen] = old_head; }
-    s->end_at[old_head] = 2 * chosen + reverse;
-    s->end_at[n] = finishing ? 2 * chosen + !reverse : -1;
-    memcpy(s->moves, frame->saved_moves, sizeof(frame->saved_moves));
-    if (s->limit) return 0;
+    topo_refresh(s, chosen);
   }
-  return 0;
+  ++depth; goto enter;
+backtrack:
+  if (!depth) return 0;
+  frame = &s->frames[--depth];
+  chosen = frame->end / 2; reverse = frame->end & 1;
+  old_head = frame->old_head;
+  n = frame->moves[frame->next_move - 1]; finishing = n == frame->target;
+  if (finishing) s->complete &= ~(1u << chosen);
+  else { s->owner[n] = -1; ++s->free_count; }
+  if (reverse) { --s->back_length[chosen]; s->goal[chosen] = old_head; }
+  else { --s->length[chosen]; s->head[chosen] = old_head; }
+  s->end_at[old_head] = 2 * chosen + reverse;
+  s->end_at[n] = finishing ? 2 * chosen + !reverse : -1;
+  memcpy(s->moves, frame->saved_moves, sizeof(frame->saved_moves));
+  goto try_moves;
 }
 
 static int topo_cover_probe(topology_search_t *s) {
@@ -359,12 +378,12 @@ const char *solve_puzzle_topology_wasm(const char *board_text, const char *topol
   for (int c = 0; c < (int)s->colors; c++) topo_refresh(s, c);
   s->free_count = s->count - info.num_blocks - 2 * s->colors; s->started = clock();
   s->force_only = 1;
-  int solved = topo_search(s, 0), probed = 0;
+  int solved = topo_search(s), probed = 0;
   if (!solved && s->limit) {
     s->force_only = s->limit = 0; s->visits = 0;
     probed = topo_cover_probe(s);
     s->started = clock();
-    solved = probed || topo_search(s, 0);
+    solved = probed || topo_search(s);
   }
   size_t used = (size_t)snprintf(result, sizeof(result), "{\"version\":1,\"status\":\"%s\",\"nodeCount\":%zu,\"searchMethod\":\"%s\"", solved ? "solved" : s->limit ? "limit" : "unsatisfiable", s->visits, probed ? "pruned-dfs" : "path-search");
   if (solved) {

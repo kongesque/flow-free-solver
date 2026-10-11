@@ -122,3 +122,25 @@ fixture and 15×18 wall screenshot now solve directly in C.
 node scripts/benchmark-wasm.mjs /path/to/f1b5b26/flow_solver_c.mjs --output=/tmp/all-modes.json
 node scripts/stress-wasm.mjs /path/to/f1b5b26/flow_solver_c.mjs --filter='^(walls|bridges|warps)' --rounds=3 --output=/tmp/all-modes-stress.jsonl
 ```
+
+## Mobile Safari stack regression (2026-10-11)
+
+A 19×19 Bridges puzzle (generator seed 42) solved in Chromium but threw
+`Maximum call stack size exceeded` in WebKit. Graph probes and the variant
+fallback now use explicit heap frames instead of one Wasm call per cell.
+The reconstructed 19×19 user screenshot and seed 42 solve in real Chromium and
+mobile WebKit workers without SAT or retained generation certificates. The
+specialized open Classic diagonal search is unchanged.
+
+Node.js 24, one warmup and five alternating measured rounds against production
+commit `da9244c`; every returned solution was independently validated:
+
+| Corpus | Before total median | After total median |
+| --- | ---: | ---: |
+| Classic (28 puzzles) | 1.219 ms | 1.176 ms |
+| Walls (36 puzzles) | 0.494 ms | 0.492 ms |
+| Bridges (5 puzzles) | 0.184 ms | 0.170 ms |
+| Warps (5 puzzles) | 0.159 ms | 0.151 ms |
+
+These small timings include measurement noise; no performance regression was
+observed. The Wasm artifact grows from 59,563 to 59,877 bytes.
