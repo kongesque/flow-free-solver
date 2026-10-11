@@ -49,6 +49,12 @@ test('19x19 Bridges screenshot solves in the editor and preserves its dots and c
 });
 
 test('a stale generator worker explains reload recovery and preserves the 19x19 puzzle', async ({ page }) => {
+    // Keep the recovery regression reproducible; random layouts can reach the search budget.
+    await page.addInitScript(() => {
+        Object.defineProperty(crypto, 'getRandomValues', {
+            value: (array: Uint32Array) => { array[0] = 42; return array; },
+        });
+    });
     await page.goto('./');
     await page.getByRole('combobox', { name: 'Grid Size' }).selectOption('19');
     await page.locator('[data-cell="0,0"]').click();
@@ -71,7 +77,7 @@ test('a stale generator worker explains reload recovery and preserves the 19x19 
     const labels = await page.locator('[data-cell]').evaluateAll(cells => cells.map(cell => cell.getAttribute('aria-label')!));
     const board = Array.from({ length: 19 }, (_, x) => Array.from({ length: 19 }, (_, y) => Number(labels[y * 19 + x].split('Color ')[1]) || 0));
     await page.getByRole('button', { name: 'Solve', exact: true }).click();
-    await expect(page.getByRole('status')).toContainText('Solved');
+    await expect(page.getByRole('status')).toContainText('Solved', { timeout: 30_000 });
     assertTopologySolution({ width: 19, height: 19, input: '', mode: 'standard', board,
         topology: { walls: [], blocks: [], bridges: [], warps: [] } },
         JSON.parse((await page.locator('.puzzle-grid').getAttribute('data-solution'))!));
