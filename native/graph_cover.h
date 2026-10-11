@@ -29,7 +29,10 @@ typedef struct {
   uint64_t members[COVER_WORDS], forbidden[COVER_WORDS], colored[COVER_WORDS];
 } cover_undo_t;
 
-typedef struct { cover_undo_t *undo; uint8_t count, capacity; } cover_frame_t;
+typedef struct {
+  cover_undo_t *undo;
+  uint8_t count, capacity, next_mask, needed, required, excluded;
+} cover_frame_t;
 
 typedef struct {
   const cover_graph_t *graph;
@@ -110,26 +113,38 @@ static int cover_separate(cover_search_t *s, cover_frame_t *f, uint16_t a, uint1
   return 1;
 }
 
-static int cover_search(cover_search_t *s, uint16_t depth) {
+// Explicit heap frames avoid WebKit's small Wasm call-stack limit on 19x19
+// boards. The traversal, pruning, mask order and rollback match recursive DFS.
+static int cover_search(cover_search_t *s) {
+  uint16_t depth = 0, id;
+  int count, needed;
+  unsigned required, excluded, mask;
+  cover_frame_t *f;
+enter:
   if (++s->visits > COVER_VISIT_LIMIT ||
       (!(s->visits & 255) && (double)(clock() - s->started) / CLOCKS_PER_SEC > 0.025)) {
     s->limited = 1; return 0;
   }
   if (depth == s->count) return 1;
-  uint16_t id = s->order[depth];
-  int needed = s->target[id] - s->degree[id], count = s->future_count[id];
-  if (needed < 0 || needed > count) return 0;
-  unsigned required = 0, excluded = 0;
+  id = s->order[depth];
+  needed = s->target[id] - s->degree[id]; count = s->future_count[id];
+  if (needed < 0 || needed > count) goto backtrack;
+  required = excluded = 0;
   for (int i = 0; i < count; i++) {
     uint16_t n = s->future[id][i];
     int left = s->target[n] - s->degree[n];
     if (!left) excluded |= 1u << i;
     else if (left == s->remaining[n]) required |= 1u << i;
-    else if (left < 0 || left > s->remaining[n]) return 0;
+    else if (left < 0 || left > s->remaining[n]) goto backtrack;
   }
-  for (unsigned mask = 0; mask < (1u << count); mask++) {
-    if (__builtin_popcount(mask) != needed || (mask & required) != required || (mask & excluded)) continue;
-    cover_frame_t *f = &s->frames[depth]; f->count = 0;
+  f = &s->frames[depth];
+  f->next_mask = 0; f->needed = needed; f->required = required; f->excluded = excluded;
+try_masks:
+  id = s->order[depth]; count = s->future_count[id]; f = &s->frames[depth];
+  for (mask = f->next_mask; mask < (1u << count); mask++) {
+    f->next_mask = mask + 1;
+    if (__builtin_popcount(mask) != f->needed || (mask & f->required) != f->required || (mask & f->excluded)) continue;
+    f->count = 0;
     int valid = 1;
     for (int i = 0; i < count && valid; i++) {
       uint16_t n = s->future[id][i];
@@ -142,16 +157,19 @@ static int cover_search(cover_search_t *s, uint16_t depth) {
         --s->remaining[n]; s->degree[n] += (mask >> i) & 1;
       }
       s->chosen[id] = mask;
-      if (cover_search(s, depth + 1)) return 1;
-      for (int i = 0; i < count; i++) {
-        uint16_t n = s->future[id][i];
-        ++s->remaining[n]; s->degree[n] -= (mask >> i) & 1;
-      }
+      ++depth; goto enter;
     }
     cover_restore(s, f);
-    if (s->limited) return 0;
   }
-  return 0;
+backtrack:
+  if (!depth) return 0;
+  --depth; id = s->order[depth]; mask = s->chosen[id];
+  for (int i = 0; i < s->future_count[id]; i++) {
+    uint16_t n = s->future[id][i];
+    ++s->remaining[n]; s->degree[n] -= (mask >> i) & 1;
+  }
+  cover_restore(s, &s->frames[depth]);
+  goto try_masks;
 }
 
 static int cover_probe(cover_graph_t *g) {
@@ -207,7 +225,7 @@ static int cover_probe(cover_graph_t *g) {
     offset += s->frames[i].capacity;
   }
   s->started = g->started;
-  int solved = cover_search(s, 0);
+  int solved = cover_search(s);
   g->visits += s->visits; g->limited = s->limited;
   if (solved) {
     memset(g->selected, 0xff, sizeof(g->selected));

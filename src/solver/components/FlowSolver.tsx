@@ -382,7 +382,7 @@ const FlowSolver = () => {
             return true;
         };
         const fail = () => {
-            if (finish()) setError(operation === 'solve' ? 'Could not run the solver. Try Solve again.' : 'Could not generate puzzle. Try Generate again.');
+            if (finish()) setError(operation === 'solve' ? 'Could not run the solver. Try Solve again.' : 'Could not generate puzzle. Reload the page and try again.');
         };
         setIsSolving(operation === 'solve'); setIsGenerating(operation === 'generate');
         try {

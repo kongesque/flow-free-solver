@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import createModule from '../../public/wasm/flow_solver_c.mjs';
 import { assertSolution } from '../fixtures/assert-solution.mjs';
 import { assertTopologySolution, decodeNativeSolution } from '../fixtures/assert-topology-solution.mjs';
+import { bridgesSafariScreenshot } from '../fixtures/bridges-safari-screenshot.mjs';
 import { bridgeScreenshot } from '../fixtures/bridge-screenshot.mjs';
 import { blockRows, blockWire } from '../fixtures/block-puzzles.mjs';
 
@@ -104,4 +105,10 @@ test('relaxed graph probe finds a self-touching cover after the induced attempt 
     assert.equal(raw.status, 'solved'); assert.equal(raw.searchMethod, 'pruned-dfs');
     assertTopologySolution(fixture, decodeNativeSolution(fixture, raw));
   }
+});
+
+test('19x19 Safari screenshot yields an independently validated cover', () => {
+  const f = bridgesSafariScreenshot(), raw = JSON.parse(topology(f.input, blockWire(f)));
+  assert.equal(raw.status, 'solved');
+  assertTopologySolution(f, decodeNativeSolution(f, raw));
 });
