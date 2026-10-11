@@ -104,7 +104,7 @@ async function validateFreshSolve(page: Page) {
     for (const color of order) for (let y = 0; y < 5; y++) for (let x = 0; x < 5; x++) {
         if (recovery[x][y] === color) await page.locator(`[data-cell="${x},${y}"]`).click();
     }
-    const loadingAgain = page.waitForRequest(/\/wasm\/z3-built\.wasm/);
+    const loadingAgain = page.waitForRequest(/\/wasm\/z3-built\.[a-f0-9]{64}\.wasm/);
     await page.getByRole('button', { name: 'Solve', exact: true }).click();
     await loadingAgain;
     await expect(page.getByRole('status')).toContainText('Solved', { timeout: 15_000 });
@@ -119,7 +119,7 @@ test('the open screenshot solves in the real C worker without SAT fallback', asy
     await page.getByRole('button', { name: 'Solve', exact: true }).click();
     await validateScreenshot(page, []);
     expect(requests.some(url => url.includes('flow_solver_c.wasm'))).toBe(true);
-    expect(requests.some(url => url.includes('z3-built.wasm'))).toBe(false);
+    expect(requests.some(url => /z3-built\.[a-f0-9]{64}\.wasm/.test(url))).toBe(false);
 });
 
 test('the screenshot with a wall solves directly in C without SAT fallback', async ({ page }) => {
@@ -131,7 +131,7 @@ test('the screenshot with a wall solves directly in C without SAT fallback', asy
     await validateScreenshot(page);
     await expect(page.getByRole('status')).not.toContainText('SAT');
     expect(requests.some(url => url.includes('flow_solver_c.wasm'))).toBe(true);
-    expect(requests.some(url => url.includes('z3-built.wasm'))).toBe(false);
+    expect(requests.some(url => /z3-built\.[a-f0-9]{64}\.wasm/.test(url))).toBe(false);
     expect(errors).toEqual([]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: test.info().outputPath('screenshot-puzzle-solved.png'), fullPage: true });
@@ -166,12 +166,12 @@ test('a search limit preserves the board and permits a fresh solve', async ({ pa
 test('Cancel during automatic SAT loading preserves endpoints and permits a fresh solve', async ({ page }) => {
     let release!: () => void;
     const gate = new Promise<void>(resolve => { release = resolve; });
-    await page.route(/\/wasm\/z3-built\.wasm/, async route => {
+    await page.route(/\/wasm\/z3-built\.[a-f0-9]{64}\.wasm/, async route => {
         await gate; await route.continue().catch(() => {});
     });
     try {
         await placeLimitPuzzle(page);
-        const loading = page.waitForRequest(/\/wasm\/z3-built\.wasm/, { timeout: 20_000 });
+        const loading = page.waitForRequest(/\/wasm\/z3-built\.[a-f0-9]{64}\.wasm/, { timeout: 20_000 });
         await page.getByRole('button', { name: 'Solve', exact: true }).click(); await loading;
         await expect(page.getByRole('status')).toContainText('Solving with SAT');
         await expect(page.getByRole('status').getByText('SAT', { exact: true })).toHaveCount(0);
@@ -181,7 +181,7 @@ test('Cancel during automatic SAT loading preserves endpoints and permits a fres
         await expect(page.locator('.endpoint-dot')).toHaveCount(limitEndpoints);
         await expect(page.locator('[data-blocked]')).toHaveCount(editorLimit.topology.blocks!.length);
         await expect(page.locator('[data-wall]')).toHaveCount(editorLimit.topology.walls.length);
-        release(); await page.unroute(/\/wasm\/z3-built\.wasm/);
+        release(); await page.unroute(/\/wasm\/z3-built\.[a-f0-9]{64}\.wasm/);
 
         await validateFreshSolve(page);
     } finally { release(); }

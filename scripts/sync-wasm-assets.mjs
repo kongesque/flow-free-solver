@@ -1,4 +1,5 @@
-import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync, readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -18,6 +19,8 @@ for (const name of readdirSync(output)) {
   if (/^z3-built/.test(name) && !assets.includes(name)) rmSync(join(output, name));
 }
 for (const name of assets) copyFileSync(join(z3, name), join(output, name));
+const wasmHash = createHash('sha256').update(readFileSync(join(z3, 'z3-built.wasm'))).digest('hex');
+copyFileSync(join(z3, 'z3-built.wasm'), join(output, `z3-built.${wasmHash}.wasm`));
 copyFileSync(require.resolve('coi-serviceworker/coi-serviceworker.js'), join(root, 'public/coi-serviceworker.js'));
 for (const name of ['flow_solver_c.mjs', 'flow_solver_c.wasm']) {
   if (!existsSync(join(output, name))) throw new Error(`Missing ${name}. Run npm run build:wasm first.`);

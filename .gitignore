@@ -10,6 +10,7 @@
 
 # production
 /dist
+/public/wasm/z3-built.*.wasm
 /build
 /.emsdk
 /.emscripten-cache

@@ -71,7 +71,7 @@ test('generated 17x17, 18x18 and 19x19 puzzles in every mode solve with actual Z
             topology: { walls: saved.walls ?? [], bridges: saved.bridges ?? [], warps: saved.warps ?? [] } }, solution);
         await page.getByRole('button', { name: 'Edit', exact: true }).click();
     }
-    expect(requests.some(url => url.includes('z3-built.wasm'))).toBe(true);
+    expect(requests.some(url => /z3-built\.[a-f0-9]{64}\.wasm/.test(url))).toBe(true);
     expect(requests.some(url => url.includes('flow_solver_c.wasm'))).toBe(false);
     for (const name of ['generator', 'solver']) {
         const scripts = workers.filter(url => url.includes(`${name}.worker`));

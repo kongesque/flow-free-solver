@@ -32,6 +32,15 @@
             ]
         },
         {
+            "source": "/wasm/z3-built.:hash([a-f0-9]{64}).wasm",
+            "headers": [
+                {
+                    "key": "Cache-Control",
+                    "value": "public, max-age=31536000, immutable"
+                }
+            ]
+        },
+        {
             "source": "/wasm/z3-built.js",
             "headers": [
                 {
