@@ -3,6 +3,10 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
 import { fileURLToPath, URL } from 'node:url';
+import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+
+const z3WasmHash = createHash('sha256').update(readFileSync(new URL('./public/wasm/z3-built.wasm', import.meta.url))).digest('hex');
 
 const isolationHeaders = {
     'Cross-Origin-Opener-Policy': 'same-origin',
@@ -12,8 +16,11 @@ const isolationHeaders = {
 // Vite's static middleware returns 304 before applying server/preview headers.
 // Safari rejects cached workers without COEP, including Z3's nested pthread.
 function applyIsolationHeaders({ middlewares }) {
-    middlewares.use((_request, response, next) => {
+    middlewares.use((request, response, next) => {
         for (const [name, value] of Object.entries(isolationHeaders)) response.setHeader(name, value);
+        if (/\/wasm\/z3-built\.[a-f0-9]{64}\.wasm$/.test(request.url?.split('?')[0] ?? '')) {
+            response.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        }
         next();
     });
 }
@@ -49,6 +56,7 @@ export default defineConfig({
     },
     preview: { headers: isolationHeaders },
     define: {
+        __Z3_WASM_FILE__: JSON.stringify(`z3-built.${z3WasmHash}.wasm`),
         global: 'globalThis',
     },
     worker: {

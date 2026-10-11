@@ -50,7 +50,7 @@ test('Pruned DFS solves the Bridges screenshot in the editor without SAT and pre
   const solution = JSON.parse((await page.locator('.puzzle-grid').getAttribute('data-solution'))!) as PuzzleSolution;
   assertTopologySolution(fixture, solution);
   expect(requests.some(url => url.includes('flow_solver_c.wasm'))).toBe(true);
-  expect(requests.some(url => url.includes('z3-built.wasm'))).toBe(false);
+  expect(requests.some(url => /z3-built\.[a-f0-9]{64}\.wasm/.test(url))).toBe(false);
   await expect(page.locator('.endpoint-dot')).toHaveCount(18);
   await page.screenshot({ path: test.info().outputPath('bridge-screenshot-solved.png'), fullPage: true });
   await page.getByRole('button', { name: 'Edit', exact: true }).click();

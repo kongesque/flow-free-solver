@@ -29,7 +29,7 @@ export async function createZ3Context() {
         locateFile: (path: string) => {
             if (path.endsWith('.wasm')) {
                 if (import.meta.env.DEV) console.log(`[Z3Solver] locateFile for WASM: ${path}`);
-                return baseUrl + 'wasm/z3-built.wasm';
+                return baseUrl + 'wasm/' + __Z3_WASM_FILE__;
             }
             if (path.endsWith('.worker.js')) {
                 if (import.meta.env.DEV) console.log(`[Z3Solver] locateFile for worker: ${path}`);
