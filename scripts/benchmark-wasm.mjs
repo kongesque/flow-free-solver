@@ -1,9 +1,9 @@
-// Compare actual Wasm search, without worker startup, SAT fallback, or cached
-// generated solutions. Optional argument: a baseline flow_solver_c.mjs path.
-// --output=FILE writes raw samples and per-puzzle medians for reproducible comparisons.
+// Measure actual Wasm search, without worker startup, SAT fallback, or cached
+// generated solutions. Measures only the current checked-in solver.
+// --output=FILE writes raw samples and per-puzzle medians.
+// --batch=N and --rounds=N support steadier throughput measurements (defaults 1/5).
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
 import { performance } from 'node:perf_hooks';
 import { assertSolution } from '../tests/fixtures/assert-solution.mjs';
 import { assertTopologySolution, decodeNativeSolution } from '../tests/fixtures/assert-topology-solution.mjs';
@@ -39,36 +39,36 @@ const wire = ({ mode, topology }) => `V1\nMODE,${mode === 'warps' ? 'W' : 'B'}\n
   topology.warps.map(w => `S,${w.axis === 'horizontal' ? 'H' : 'V'},${w.index}\n`).join('');
 for (const entry of cases) entry.wire = entry.topology ? wire(entry) : wallText(entry.walls ?? []);
 
-const paths = [new URL('../public/wasm/flow_solver_c.mjs', import.meta.url)];
 const args = process.argv.slice(2);
-const baseline = args.find(arg => !arg.startsWith('--'));
 const output = args.find(arg => arg.startsWith('--output='))?.slice('--output='.length);
-if (args.filter(arg => !arg.startsWith('--')).length > 1 || args.some(arg => arg.startsWith('--') && !arg.startsWith('--output='))) {
-  throw new Error('Usage: node scripts/benchmark-wasm.mjs [baseline.mjs] [--output=FILE]');
+const batch = Number(args.find(arg => arg.startsWith('--batch='))?.slice('--batch='.length) ?? 1);
+const rounds = Number(args.find(arg => arg.startsWith('--rounds='))?.slice('--rounds='.length) ?? 5);
+if (!Number.isInteger(batch) || batch < 1 || batch > 256 || !Number.isInteger(rounds) || rounds < 1) throw new Error('Invalid batch/rounds');
+if (args.some(arg => !arg.startsWith('--')) || args.some(arg => arg.startsWith('--') && !['--output=', '--batch=', '--rounds='].some(prefix => arg.startsWith(prefix)))) {
+  throw new Error('Usage: node scripts/benchmark-wasm.mjs [--output=FILE] [--batch=N] [--rounds=N]');
 }
-if (baseline) paths.push(pathToFileURL(resolve(baseline)));
-const solvers = [];
-for (const path of paths) {
-  const { default: createModule } = await import(path.href);
-  const module = await createModule();
-  solvers.push({ label: solvers.length ? 'baseline' : 'current',
-    classic: module.cwrap('solve_puzzle_wasm', 'string', ['string']),
-    walls: module.cwrap('solve_puzzle_with_walls_wasm', 'string', ['string', 'string']),
-    topology: module.cwrap('solve_puzzle_topology_wasm', 'string', ['string', 'string']) });
-}
+const { default: createModule } = await import('../public/wasm/flow_solver_c.mjs');
+const module = await createModule();
+const solvers = [{ label: 'current',
+  classic: module.cwrap('solve_puzzle_wasm', 'string', ['string']),
+  walls: module.cwrap('solve_puzzle_with_walls_wasm', 'string', ['string', 'string']),
+  topology: module.cwrap('solve_puzzle_topology_wasm', 'string', ['string', 'string']) }];
 const samples = [];
-for (let round = -1; round < 5; round++) for (const solver of (round % 2 ? [...solvers].reverse() : solvers)) {
+for (let round = -1; round < rounds; round++) for (const solver of solvers) {
   for (const entry of cases) {
+    const results = Array(batch);
     const started = performance.now();
-    const result = entry.mode === 'classic' ? solver.classic(entry.input)
+    for (let i = 0; i < batch; i++) results[i] = entry.mode === 'classic' ? solver.classic(entry.input)
       : entry.mode === 'walls' ? solver.walls(entry.input, entry.wire) : solver.topology(entry.input, entry.wire);
-    const ms = performance.now() - started;
-    // Validate every cover outside the measured interval.
-    if (entry.topology) {
-      const raw = JSON.parse(result);
-      if (raw.status !== 'solved') throw new Error(`${solver.label}: ${entry.name}: ${raw.status}`);
-      assertTopologySolution(entry, decodeNativeSolution(entry, raw));
-    } else assertSolution(entry.input, JSON.parse(result), entry.walls);
+    const ms = (performance.now() - started) / batch;
+    // Validate every cover from every batch outside the measured interval.
+    for (const result of results) {
+      if (entry.topology) {
+        const raw = JSON.parse(result);
+        if (raw.status !== 'solved') throw new Error(`${solver.label}: ${entry.name}: ${raw.status}`);
+        assertTopologySolution(entry, decodeNativeSolution(entry, raw));
+      } else assertSolution(entry.input, JSON.parse(result), entry.walls);
+    }
     if (round >= 0) samples.push({ solver: solver.label, mode: entry.mode, name: entry.name, round, ms });
   }
 }
@@ -76,12 +76,11 @@ const median = values => [...values].sort((a, b) => a - b)[Math.floor(values.len
 const puzzles = cases.map(entry => ({ name: entry.name, mode: entry.mode,
   medianMs: Object.fromEntries(solvers.map(solver => [solver.label, median(samples
     .filter(row => row.name === entry.name && row.solver === solver.label).map(row => row.ms))])) }));
-if (output) writeFileSync(resolve(output), JSON.stringify({ node: process.version, warmups: 1, rounds: 5, puzzles, samples }, null, 2) + '\n');
-console.log(`Node ${process.version}; 1 warmup + 5 measured rounds; every solution independently validated.`);
+if (output) writeFileSync(resolve(output), JSON.stringify({ node: process.version, warmups: 1, rounds, batch, puzzles, samples }, null, 2) + '\n');
+console.log(`Node ${process.version}; 1 warmup + ${rounds} measured rounds, ${batch} calls per batch; every solution independently validated.`);
 for (const mode of ['classic', 'walls', 'bridges', 'warps']) {
   const totals = {};
-  for (const solver of solvers) totals[solver.label] = median(Array.from({ length: 5 }, (_, round) =>
+  for (const solver of solvers) totals[solver.label] = median(Array.from({ length: rounds }, (_, round) =>
     samples.filter(row => row.mode === mode && row.solver === solver.label && row.round === round).reduce((sum, row) => sum + row.ms, 0)));
-  console.log(JSON.stringify({ mode, puzzles: cases.filter(entry => entry.mode === mode).length, medianTotalMs: totals,
-    ...(totals.baseline ? { speedup: totals.baseline / totals.current } : {}) }));
+  console.log(JSON.stringify({ mode, puzzles: cases.filter(entry => entry.mode === mode).length, medianTotalMs: totals }));
 }

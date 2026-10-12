@@ -64,14 +64,14 @@ for (const topology of ['', 'V2\nMODE,W\n', 'V1\nMODE,X\n', 'V1\nMODE,W\nS,H,5',
 }
 
 test('repeated variant, invalid and Standard calls do not retain topology', () => {
-  const legacy = module.cwrap('solve_puzzle_wasm', 'string', ['string']);
+  const classic = module.cwrap('solve_puzzle_wasm', 'string', ['string']);
   for (let i = 0; i < 5; i++) {
     for (const f of [bridgeCross(), warpRows()]) {
       const result = JSON.parse(solve(f.input, wire(f)));
       assertTopologySolution(f, decodeNativeSolution(f, result));
       assert.equal(JSON.parse(solve(f.input, 'invalid')).status, 'invalid');
     }
-    assert.ok(Array.isArray(JSON.parse(legacy('R...R\nB...B\nY...Y\nG...G\nO...O\n'))));
+    assert.ok(Array.isArray(JSON.parse(classic('R...R\nB...B\nY...Y\nG...G\nO...O\n'))));
   }
 });
 

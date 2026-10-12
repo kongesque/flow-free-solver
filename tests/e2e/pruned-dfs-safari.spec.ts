@@ -82,3 +82,33 @@ test('a stale generator worker explains reload recovery and preserves the 19x19 
         topology: { walls: [], blocks: [], bridges: [], warps: [] } },
         JSON.parse((await page.locator('.puzzle-grid').getAttribute('data-solution'))!));
 });
+
+test('Classic frontier handles 19x19 open, blocked and walled boards in real workers', async ({ page }) => {
+    const { blockRows, screenshotBlocks } = await import('../fixtures/block-puzzles.mjs');
+    const { wallCorridor } = await import('../fixtures/wall-puzzles.mjs');
+    const chars = '.RBYGOCMmPAWgTbcp';
+    const corridor = wallCorridor(19, 19);
+    const rows = corridor.input.trim().split('\n');
+    const corridorFixture = { mode: 'standard', width: 19, height: 19, input: corridor.input,
+        board: Array.from({ length: 19 }, (_, x) => rows.map(row => chars.indexOf(row[x]))),
+        topology: { walls: corridor.walls, blocks: [], bridges: [], warps: [] } };
+    const url = await solverWorkerUrl(page);
+    const generated = generateModePuzzle(19, 19, 'standard', 42);
+    for (const fixture of [{ ...generated, mode: 'standard', input: '' }, blockRows(19, 19),
+        corridorFixture, screenshotBlocks()]) {
+        const result = await page.evaluate(({ url, fixture }) => new Promise<{
+            status: string; error?: string; solution: PuzzleSolution | null; fallbackUsed: boolean;
+        }>((resolve, reject) => {
+            const worker = new Worker(url, { type: 'module' });
+            worker.onerror = event => { worker.terminate(); reject(new Error(event.message)); };
+            worker.onmessage = ({ data }) => { worker.terminate(); resolve(data); };
+            // No retained generation solution or SAT fallback is supplied.
+            worker.postMessage({ board: fixture.board, ...fixture.topology, mode: 'standard',
+                type: 'heuristic_bfs', allowFallback: false });
+        }), { url, fixture });
+        expect(result.status, result.error).toBe('solved');
+        expect(result.fallbackUsed).toBe(false);
+        expect(result.solution).not.toBeNull();
+        assertTopologySolution(fixture, result.solution);
+    }
+});

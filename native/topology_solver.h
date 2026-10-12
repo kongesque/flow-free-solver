@@ -2,6 +2,8 @@
  * This module is covered by the same Matt Zucker CC BY-NC 2.0 exception.
  * It deliberately does not use Classic's grid positions or geometric pruning.
  */
+#include "variant_frontier.h"
+
 #define TOPO_MAX (2 * MAX_CELLS)
 #define TOPO_NONE UINT16_MAX
 #define TOPO_NODE_LIMIT 2000000u
@@ -253,9 +255,9 @@ static int topo_cover_probe(topology_search_t *s) {
   // Try the other diagonal orientation if bounded, then permit self-touching
   // paths. All attempts share one time budget; none of their failures is UNSAT.
   g->induced = 1;
-  int solved = cover_probe(g);
-  if (!solved && g->limited) { g->transpose = 1; solved = cover_probe(g); }
-  if (!solved) { g->induced = 0; solved = cover_probe(g); }
+  int solved = variant_frontier_probe(g);
+  if (!solved && g->limited) { g->transpose = 1; solved = variant_frontier_probe(g); }
+  if (!solved) { g->induced = 0; solved = variant_frontier_probe(g); }
   if (solved) {
     for (int c = 0; c < (int)s->colors; c++) {
       uint16_t id = s->head[c], previous = TOPO_NONE;
@@ -270,6 +272,16 @@ static int topo_cover_probe(topology_search_t *s) {
     s->visits = g->visits;
   }
   free(g); return solved;
+}
+
+// Node IDs and ASCII colors are bounded below 1000. Direct decimal writes
+// avoid a formatting-library call for every vertex in the returned paths.
+static size_t topo_write_uint(char *out, unsigned value) {
+  size_t used = 0;
+  if (value >= 100) { out[used++] = '0' + value / 100; value %= 100; out[used++] = '0' + value / 10; }
+  else if (value >= 10) out[used++] = '0' + value / 10;
+  out[used++] = '0' + value % 10;
+  return used;
 }
 
 /* Strict unsigned decimal parser; rejects signs, whitespace, and overflow. */
@@ -390,8 +402,13 @@ const char *solve_puzzle_topology_wasm(const char *board_text, const char *topol
     used += (size_t)snprintf(result + used, sizeof(result) - used, ",\"paths\":[");
     for (int c = 0; c < (int)s->colors; c++) {
       used += (size_t)snprintf(result + used, sizeof(result) - used, "%s{\"color\":%d,\"nodes\":[", c ? "," : "", color_dict[info.color_ids[c]].input_char);
-      for (uint16_t i = 0; i < s->length[c]; i++) used += (size_t)snprintf(result + used, sizeof(result) - used, "%s%u", i ? "," : "", s->path[c][i]);
-      for (uint16_t i = TOPO_MAX - s->back_length[c] + 1; i < TOPO_MAX; i++) used += (size_t)snprintf(result + used, sizeof(result) - used, ",%u", s->path[c][i]);
+      for (uint16_t i = 0; i < s->length[c]; i++) {
+        if (i) result[used++] = ',';
+        used += topo_write_uint(result + used, s->path[c][i]);
+      }
+      for (uint16_t i = TOPO_MAX - s->back_length[c] + 1; i < TOPO_MAX; i++) {
+        result[used++] = ','; used += topo_write_uint(result + used, s->path[c][i]);
+      }
       used += (size_t)snprintf(result + used, sizeof(result) - used, "]}");
     }
     used += (size_t)snprintf(result + used, sizeof(result) - used, "]");

@@ -9,12 +9,12 @@ import { input as limitInput, walls as limitWalls } from '../fixtures/search-lim
 
 const module = await createFlowSolver();
 const solve = module.cwrap('solve_puzzle_with_walls_wasm', 'string', ['string', 'string']);
-const legacy = module.cwrap('solve_puzzle_wasm', 'string', ['string']);
+const classic = module.cwrap('solve_puzzle_wasm', 'string', ['string']);
 
 test('graph probe solves the wall screenshot that previously reached its memory limit', () => {
-  assertSolution(limitInput, JSON.parse(legacy(limitInput)), limitWalls);
+  assertSolution(limitInput, JSON.parse(classic(limitInput)), limitWalls);
   assertSolution(limitInput, JSON.parse(solve(limitInput, wallText(limitWalls))), limitWalls);
-  assertSolution(limitInput, JSON.parse(legacy(limitInput)));
+  assertSolution(limitInput, JSON.parse(classic(limitInput)));
 });
 
 // Captured from the extreme stress corpus, rather than regenerated here:
@@ -53,7 +53,7 @@ test('wall parsing accepts duplicates and CRLF; calls do not retain walls', () =
   assertSolution(input, JSON.parse(solve(input, wallText([...walls, walls[0]]).replaceAll('\n', '\r\n'))), walls);
   const empty = 'R.R\nB.B\nY.Y\n';
   for (let i = 0; i < 5; i++) {
-    assertSolution(empty, JSON.parse(legacy(empty)));
+    assertSolution(empty, JSON.parse(classic(empty)));
     assertSolution(empty, JSON.parse(solve(empty, '')));
     assertSolution(input, JSON.parse(solve(input, wallText(walls))), walls);
   }

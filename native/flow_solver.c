@@ -676,7 +676,17 @@ int game_read_buffer(const char *input_buffer, game_info_t *info,
     for (size_t x = 0; x < info->width; ++x) {
       uint8_t c = buf[x];
 
-      if (c < 128 && get_color_id(c) >= 0) {
+      // Empty cells dominate puzzle input; avoid palette lookup for them.
+      if (c == '.') { ++state->num_free; continue; }
+      if (c == '#') {
+        pos_t pos = pos_from_coords(x, y);
+        info->blocks[pos] = 1; ++info->num_blocks;
+        state->cells[pos] = CELL_BLOCKED;
+        continue;
+      }
+      int id = c < 128 ? get_color_id(c) : -1;
+      if (id < 0) return 0;
+      {
         pos_t pos = pos_from_coords(x, y);
         int color = info->color_tbl[c];
 
@@ -684,8 +694,6 @@ int game_read_buffer(const char *input_buffer, game_info_t *info,
           // New color
           if (info->num_colors == MAX_COLORS)
             return 0;
-
-          int id = get_color_id(c);
 
           info->color_ids[info->num_colors] = id;
           color = info->num_colors;
@@ -703,15 +711,7 @@ int game_read_buffer(const char *input_buffer, game_info_t *info,
           info->goal_pos[color] = pos;
           state->cells[pos] = cell_create(TYPE_GOAL, color, 0);
         }
-      } else if (c == '.') {
-        ++state->num_free;
-      } else if (c == '#') {
-        pos_t pos = pos_from_coords(x, y);
-        info->blocks[pos] = 1;
-        ++info->num_blocks;
-        state->cells[pos] = CELL_BLOCKED;
-      } else {
-        return 0;
+
       }
     }
     y++;
@@ -2171,6 +2171,38 @@ int game_search(const game_info_t *info, const game_state_t *init_state,
 #include "diagonal_solver.h"
 #include "graph_cover.h"
 
+static void game_format_solution(char *result_json, const game_info_t *info, const game_state_t *final_state) {
+    // At most 19*19 ASCII color codes (0..127), bounded by this static buffer.
+    // Direct decimal output avoids a printf call for every cell and delimiter.
+    char decimal[MAX_COLORS][3];
+    uint8_t lengths[MAX_COLORS];
+    for (size_t c = 0; c < info->num_colors; c++) {
+      unsigned code = color_dict[info->color_ids[c]].input_char;
+      lengths[c] = code >= 100 ? 3 : 2;
+      if (code >= 100) { decimal[c][0] = '1'; code -= 100; }
+      decimal[c][lengths[c] - 2] = '0' + code / 10;
+      decimal[c][lengths[c] - 1] = '0' + code % 10;
+    }
+    char *ptr = result_json; *ptr++ = '[';
+    for (size_t y = 0; y < info->height; y++) {
+      if (y) *ptr++ = ',';
+      *ptr++ = '[';
+      for (size_t x = 0; x < info->width; x++) {
+        if (x) *ptr++ = ',';
+        pos_t pos = pos_from_coords(x, y);
+        cell_t cell = final_state->cells[pos];
+        if (info->blocks[pos] || cell_get_type(cell) == TYPE_FREE) *ptr++ = '0';
+        else {
+          unsigned color = cell_get_color(cell);
+          memcpy(ptr, decimal[color], 2); ptr += 2;
+          if (lengths[color] == 3) *ptr++ = decimal[color][2];
+        }
+      }
+      *ptr++ = ']';
+    }
+    *ptr++ = ']'; *ptr = '\0';
+}
+
 static const char *solve_puzzle(const char *input_str, const char *wall_str) {
 
   static char result_json[1024 * 64]; // Static buffer for result
@@ -2218,55 +2250,29 @@ static const char *solve_puzzle(const char *input_str, const char *wall_str) {
   }
   game_build_neighbors(&info);
   game_state_t final_state;
-  int solved = info.num_walls || info.num_blocks
-    ? game_graph_probe(&info, &state, &final_state)
-    : game_diagonal_probe(&info, &state, &final_state);
+  clock_t probe_started = clock();
+  // Sparse large masks weaken geometric corner pruning. Preserve the stronger
+  // component/contact probe there; compact frontier search leads on ordinary
+  // grids, small masks, and dense forced layouts. Attempts share one budget.
+  int masked = info.num_walls || info.num_blocks;
+  int graph_first = masked && info.width * info.height >= 100 &&
+    info.num_walls + info.num_blocks < info.width * info.height / 2;
+  int solved = graph_first && game_graph_probe(&info, &state, &final_state, probe_started);
+  if (!solved && (!graph_first || (double)(clock() - probe_started) / CLOCKS_PER_SEC < 0.025))
+    solved = game_diagonal_probe(&info, &state, &final_state, probe_started);
+  if (!solved && masked && !graph_first)
+    solved = game_graph_probe(&info, &state, &final_state, probe_started);
   int result = solved ? SEARCH_SUCCESS : SEARCH_IN_PROGRESS;
-  game_complete_adjacent(&info, &state);
-
-  game_order_colors(&info, &state, NULL);
-
-  double elapsed;
-  size_t nodes;
-  if (result != SEARCH_SUCCESS)
+  if (result != SEARCH_SUCCESS) {
+    game_complete_adjacent(&info, &state);
+    game_order_colors(&info, &state, NULL);
+    double elapsed;
+    size_t nodes;
     result = game_search(&info, &state, 0, &elapsed, &nodes, &final_state);
+  }
 
   if (result == SEARCH_SUCCESS) {
-    // Serialize to JSON [ [row1...], [row2...] ]
-    // We want raw ASCII codes for the colors, 0 for empty.
-
-    char *ptr = result_json;
-    ptr += sprintf(ptr, "[");
-    for (size_t y = 0; y < info.height; ++y) {
-      ptr += sprintf(ptr, "[");
-      for (size_t x = 0; x < info.width; ++x) {
-        pos_t pos = pos_from_coords(x, y);
-        cell_t cell = final_state.cells[pos];
-        int color = cell_get_color(cell);
-        int type = cell_get_type(cell);
-
-        int output_code = 0;
-        if (type != TYPE_FREE) {
-          // Map color index back to original char if possible,
-          // but here we just return the "standard" char for that color index
-          // based on get_color_id reverse lookup or just send the ASCII of the
-          // standard set The JS side expects ASCII codes.
-
-          // Color ID -> Char
-          // We need to look up in the static color_dict using the
-          // info.color_ids
-          output_code = color_dict[info.color_ids[color]].input_char;
-        }
-
-        ptr += sprintf(ptr, "%d", output_code);
-        if (x < info.width - 1)
-          ptr += sprintf(ptr, ",");
-      }
-      ptr += sprintf(ptr, "]");
-      if (y < info.height - 1)
-        ptr += sprintf(ptr, ",");
-    }
-    ptr += sprintf(ptr, "]");
+    game_format_solution(result_json, &info, &final_state);
   } else {
     sprintf(result_json, "Error: No solution found (result code %d)", result);
   }
