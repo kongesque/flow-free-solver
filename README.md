@@ -1,210 +1,151 @@
 # Flow Free Solver
 
-> **Connect matching dots. Fill every playable cell. Solve in your browser.**
+A fast Flow Free and Numberlink solver with a C/WebAssembly core and a React
+editor. It uses pruned DFS with compact path tracking to reject invalid
+connections early, plus Z3 fallback for difficult puzzles. All solving runs
+locally in the browser.
 
-An open-source **Flow Free and Numberlink puzzle solver** for desktop and
-mobile. Recreate a puzzle or generate a new one, then find a complete solution
-locally on your device.
-
-**[Open the solver →](https://flow.kongesque.com/)** ·
-[How it works](https://www.kongesque.com/blog/flow-free-solver) ·
-[Development](#local-development)
+**[Open the solver](https://flow.kongesque.com/)** ·
+[Algorithms](#algorithms) · [Performance](#performance) · [Development](#development)
 
 ## Supported puzzles
 
-| Mode | What it supports |
+| Mode | Rules |
 | --- | --- |
-| **Classic / Numberlink** | Connect matching endpoints with paths that fill the board. |
-| **Classic with walls** | Add barriers between neighboring cells, including Courtyard layouts. |
-| **Bridges** | Cross two different colors at an overpass. |
+| **Classic / Numberlink** | Connect matching endpoints and fill every playable cell. |
+| **Walls / Courtyard** | Block movement between neighboring cells. |
+| **Bridges** | Cross two different colors in independent horizontal and vertical lanes. |
 | **Warps** | Connect paths through openings on opposite board edges. |
 
-- **5×5 to 19×19 boards**, with independent width and height for rectangles.
-- **Blocks in every mode** for missing corners, interior holes, and irregular shapes.
-- **Local solving in Web Workers**, keeping the editor responsive.
-- **Puzzle generation, undo, and saved boards** for each mode on your device.
+**5×5 to 19×19**, square or rectangular, with up to **16 colors**. Every mode
+supports **blocks** for missing corners, holes, and irregular shapes. Hex boards
+and combined Bridges + Warps boards are unsupported.
 
-## See it in action
+## Demo
 
-<table width="100%">
-  <tr>
-    <td align="center" width="50%">
-      <a href="./assets/demos/classic.gif"><img src="./assets/demos/classic.gif" width="100%" alt="Solving a 5×5 Classic Flow Free puzzle" /></a><br />
-      <strong>Classic</strong>
-    </td>
-    <td align="center" width="50%">
-      <a href="./assets/demos/walls.gif"><img src="./assets/demos/walls.gif" width="100%" alt="Solving a 7×7 Courtyard puzzle with walls" /></a><br />
-      <strong>Classic with walls</strong>
-    </td>
-  </tr>
-  <tr>
-    <td align="center" width="50%">
-      <a href="./assets/demos/bridges.gif"><img src="./assets/demos/bridges.gif" width="100%" alt="Solving a Bridges puzzle with two paths crossing at an overpass" /></a><br />
-      <strong>Bridges</strong>
-    </td>
-    <td align="center" width="50%">
-      <a href="./assets/demos/warps.gif"><img src="./assets/demos/warps.gif" width="100%" alt="Solving a Warps puzzle through opposite board edges" /></a><br />
-      <strong>Warps</strong>
-    </td>
-  </tr>
-</table>
+<p align="center">
+  <img src="./assets/demos/bridges-19x19.gif" alt="Solving a 19×19 Flow Free Bridges puzzle" width="800">
+  <br>
+  <sub>19×19 Bridges · 14 color pairs · 3 crossings · Solved in 44 ms.</sub>
+</p>
 
 ## How to solve a Flow Free puzzle
 
-1. Choose a **Mode** and **Size**. For a rectangle, set **Width** and **Height** in **Board options**.
-2. Select **Dots** and place two endpoints of each color.
-3. Recreate any walls, blocks, bridges, or warp openings with the matching tool.
-4. Select **Solve** to reveal the paths, then **Edit** to return to your puzzle.
+1. Choose a mode and board size.
+2. Use **Dots** to place a matching pair for each color. Select a dot again to remove it.
+3. Add **Walls** along grid lines, **Blocks** in unused cells, **Bridges** at interior crossings, or **Warps** at board borders.
+4. Select **Solve** to see the paths. Use **Edit** to return to the puzzle.
 
-Use **Undo** to reverse an edit, **Cancel** to stop solving, and **Reset** to clear
-the board. Each mode saves its own puzzle on your device.
+**Undo** reverses edits, **Cancel** stops a solve, and **Reset** clears the board.
+Puzzles save locally for each mode. Board options let you choose a solver, add
+color labels, and enable guides for press-and-slide placement on mobile.
 
-### Editor tools
+Blocks cannot contain dots or bridges. Bridges require four playable neighbors;
+blocking a warp border closes its opening.
 
-| Tool | How to use it |
-| --- | --- |
-| **Dots** | Select an empty cell to place a dot, or an existing dot to remove it. |
-| **Walls** | Tap or drag along an internal grid line to block movement between neighboring cells. |
-| **Blocks** | Select an empty cell to make it unused; select it again to restore it. Available in every mode. |
-| **Bridges** | Select an empty interior cell to add a crossing. The horizontal path passes over the vertical path. |
-| **Warps** | Select a row or column border to connect it to the opposite edge. Paths may use these openings. |
+**Keyboard:** arrows move between cells; Enter/Space places an item;
+Shift + Arrow edits walls or warp edges; Ctrl/⌘ + Z undoes an edit.
 
-Every solution preserves the endpoints, connects matching colors, and fills
-every playable cell. Paths cross only at bridges, where both lanes must be
-filled by different colors.
+**Generate** gives you a solvable puzzle in any mode. Clear existing walls and
+blocks first. Bridges puzzles use 1–3 spaced crossings; generation does not
+check uniqueness or rate difficulty.
 
-Blocks stay empty and cannot contain dots or crossing lanes. Remove a dot or
-bridge before blocking its cell; bridges need four playable neighbors. Blocking
-a warp border closes that opening. Undo restores the cell and opening together.
+## Algorithms
 
-### Board options and keyboard controls
-
-| Option | Purpose |
-| --- | --- |
-| **Color label** | Add letters to the dots. Off by default. |
-| **Board guides** | Show column letters, row numbers, and a placement highlight. Off by default. On mobile, enable guides to press, slide, and release a dot or bridge. |
-| **Puzzle generator** | Show or hide the Generate button. |
-| **Solver Algorithm** | Choose an available solver for the current board. |
-
-**Keyboard:** arrow keys move between cells; Enter or Space places the selected
-item. With Walls or Warps selected, Shift + Arrow edits a wall or an outward warp
-edge. Ctrl/⌘ + Z undoes the last edit.
-
-## Generate a solvable puzzle
-
-Select **Generate** to create a puzzle in any supported mode. Remove existing
-walls and blocks first: generation does not preserve custom layouts with unused
-cells.
-
-Each generated puzzle has a validated full-board solution. The number of pairs
-is random within the board's color limit, capped at 16. Bridges puzzles use 1–3
-spaced crossings. Generation does not check uniqueness or certify difficulty.
-
-## How the solvers work
-
-| Solver | Available boards | Implementation |
+| Solver | Boards | Method |
 | --- | --- | --- |
-| **Pruned DFS** · default | Classic, walls, Bridges, and Warps; square or rectangular | C compiled to WebAssembly, adapted from [Matt Zucker's flow_solver](https://github.com/mzucker/flow_solver), with an independent diagonal search inspired by [Thomas Ahle's Numberlink](https://github.com/thomasahle/numberlink). |
-| **Z3 SAT** · exact solver | Classic, walls, Bridges, and Warps; square or rectangular | Constraint solving with [Z3](https://github.com/Z3Prover/z3), compiled to WebAssembly. |
-| **A\*** | Classic square boards without walls | Heuristic search written in TypeScript. |
+| **Pruned DFS** · recommended | All supported modes | Compact frontier and graph searches in C/Wasm. |
+| **Z3 SAT** | All supported modes | Exact constraint solving. |
+| **A\*** | Classic square boards without walls | TypeScript heuristic search. |
 
-All available solvers support **Blocks** on their supported board types and run
-in background Web Workers.
+All solvers support blocks on their available board types. Solving runs in
+background workers, so the editor stays responsive.
 
-Pruned DFS uses bounded diagonal edge searches inspired by
-[Thomas Ahle's Numberlink algorithm](https://github.com/thomasahle/numberlink#how-it-works).
-Open Classic boards retain their specialized fast path. A separate graph search
-supports walls and Blocks, independent crossing lanes in Bridges, and wrap
-connections in Warps. It tracks rollback path components and rejects cycles,
-mismatched endpoints, and same-color crossings. Classic also forbids self-touching
-paths; variants first try that smaller search space, then permit self-touching.
-Variant boards with forced routes finish before the graph probe is allocated.
-Graph attempts share a roughly 25 ms budget and fall back to the original searches.
-Variant graph and fallback searches keep DFS frames on the heap to avoid mobile
-Safari call-stack limits on large boards.
+**Classic, walls, and blocks:** search moves diagonally across the grid,
+tracking the open ends of unfinished paths. It forces required moves and rejects
+cycles and mismatched colors early. Corner rules prune impossible turns across
+open, playable contacts. Precomputed patterns handle open rectangles; large
+sparse masks first use component/contact checks. Classic paths cannot touch
+themselves.
 
-Manually entered puzzles automatically try SAT if heuristic search reaches its
-limit. SAT checks playable-cell coverage, path connectivity, walls, crossing
-lanes, and warp openings. A timeout preserves the editable puzzle.
+**Bridges and Warps:** graph search treats crossing lanes independently and
+adds edges for wrap openings. Circular component lists and local contact masks
+keep backtracking updates small. Forced moves, degree checks, endpoint colors,
+and crossing constraints reject invalid choices before deeper search. Variants
+first try paths without self-touching, then allow it. Heap-based search frames
+support long paths on mobile Safari.
 
-For Bridges and Warps, SAT spends up to five seconds looking for paths without
-self-touching contacts, then tries the general path model within the same
-30-second budget if needed. The status shows **Solving with SAT…** during
-automatic fallback; completed results show the usual status and elapsed time.
+When Pruned DFS reaches its search limit, manually entered puzzles automatically
+try Z3 with a 30-second budget. Generated puzzles keep a validated solution for
+fallback; editing discards it. Each solver returns one complete solution when
+found. Difficult puzzles can reach the search limit.
 
-Generated puzzles retain their validated solution for use if a solve reaches
-its search limit. When SAT is selected, Z3 verifies that solution against its
-full constraints. Editing the puzzle discards the retained solution.
+The C core is adapted from [Matt Zucker's flow_solver](https://github.com/mzucker/flow_solver),
+with independent frontier techniques inspired by
+[Thomas Ahle's Numberlink](https://github.com/thomasahle/numberlink#how-it-works).
 
-The solvers return one complete solution when they find one. Manually entered
-puzzles can be unsolvable or reach a search limit; solve times depend on the
-puzzle and device. Hexes and combined Bridges + Warps boards are not supported.
+## Performance
 
-## Local development
+Compact search state, early pruning, and C/Wasm execution make Pruned DFS fast.
+The warmed Wasm total for the 28 Classic fixtures is **0.184 ms**.
 
-Use **Node.js 24 LTS** and npm:
+The website uses **C/Wasm**. Both columns measure the same C core on Apple
+Silicon: native C with Apple Clang 21.0.0 (`-O3`), and Wasm in Node.js 24.21.0.
+
+| Mode | Fixtures | Native C | C/Wasm |
+| --- | ---: | ---: | ---: |
+| Classic | 28 | 0.133 ms | 0.184 ms |
+| Walls | 36 | 0.066 ms | 0.109 ms |
+| Bridges | 5 | 0.031 ms | 0.061 ms |
+| Warps | 5 | 0.029 ms | 0.062 ms |
+
+Totals represent one solve per fixture: median round totals from one warmup and
+11 alternating rounds of 64-call batches. Timing includes parsing, search,
+JSON output, and output copying or the JavaScript call boundary. Covers are
+independently validated outside the timer. Startup, file/message I/O, generation,
+SAT, cached solutions, and drawing are excluded. These fixture timings are not
+browser end-to-end latency; results vary by puzzle and device.
+
+Measure the current Wasm solver and run large-board stress checks:
+
+```sh
+node scripts/benchmark-wasm.mjs --batch=64 --rounds=11 --output=/tmp/benchmark.json
+node scripts/stress-wasm.mjs --rounds=1 --output=/tmp/stress.jsonl
+```
+
+## Development
+
+**Node.js 24 LTS + npm.** Built with React, TypeScript, Vite, and WebAssembly.
 
 ```sh
 npm ci
 npm run dev
 ```
 
-Built with React, TypeScript, Vite, and WebAssembly. Compiled Wasm assets are
-checked in, so web development does not require Emscripten.
-
 | Command | Purpose |
 | --- | --- |
-| `npm run dev` | Start the development server. |
 | `npm run build` | Type-check and build the app. |
-| `npm run preview` | Serve the production build locally. |
-| `npm run build:wasm` | Compile native solver changes. |
-| `npm run watch:wasm` | Recompile when native source files change. |
-| `npm run sync:wasm` | Copy matched Z3 runtime assets from the installed package. |
-| `npm run check` | Rebuild Wasm and run unit, native, and browser checks. |
+| `npm run preview` | Serve the production build. |
+| `npm run build:wasm` | Compile the C solver. |
+| `npm run watch:wasm` | Recompile C during development. |
+| `npm run sync:wasm` | Copy matching runtime assets from installed Z3. |
+| `npm run check` | Rebuild Wasm and run native, unit, and browser checks. |
 
-### Native solver and runtime assets
+Wasm assets are checked in; web development does not require Emscripten. Native
+builds and full verification require the version in `.emscripten-version`
+(`EMCC` can select the compiler). Install test browsers with
+`npx playwright install chromium webkit`.
 
-Native builds and the full check require the Emscripten version in
-`.emscripten-version`. Install the test browsers with:
+After C changes, run `npm run build:wasm` and include both generated C artifacts.
+Never hand-edit the generated glue or binary. Use `npm run sync:wasm` to keep
+Z3's JavaScript and Wasm versions matched.
 
-```sh
-npx playwright install chromium webkit
-```
-
-After changing C, run `npm run build:wasm` and include both generated C artifacts
-with the source change. Never edit generated Wasm glue by hand. Use
-`npm run sync:wasm` to keep Z3's glue and binary matched to the installed
-`z3-solver` package.
-
-Z3 Wasm downloads use a SHA-256 content hash in their filename, generated by
-`npm run sync:wasm`. Vercel marks these binaries immutable with a one-year
-browser cache lifetime; changing the installed binary produces a new URL
-automatically.
-The generated hashed copy is ignored by Git. The pthread entry script retains
-its fresh URL and `no-store` policy for Safari cross-origin isolation.
-Production HTTP compression is handled by Vercel, without changing Wasm code.
-
-To compare search performance, preserve a baseline copy of both C Wasm assets,
-then run `node scripts/benchmark-wasm.mjs /path/to/baseline/flow_solver_c.mjs --output=/tmp/benchmark.json`.
-It performs one warmup and five measured rounds, validates every returned cover,
-and records per-puzzle medians without worker startup, SAT fallback, or cached
-generated solutions. `scripts/stress-wasm.mjs` adds large generated boards and a
-per-search watchdog (see its command-line options).
-See [the recorded diagonal-search comparison](./BENCHMARKS.md) for measured
-search and production-worker timings.
-
-TypeScript boards use `[x][y]` (column-major). The C API takes text rows and
-returns row-major ASCII color codes; conversions belong in
+TypeScript boards use `[x][y]`; C reads text rows and returns row-major data.
+Native input uses `.` for empty cells and `#` for blocks. Keep conversions in
 `src/solver/logic/heuristic-solver.ts`.
 
-Native puzzle text uses `.` for a playable empty cell and `#` for a block.
-Classic results contain zero at blocks; variant paths never include them. Native
-cell IDs remain row-major, including unused slots, followed by bridge lanes.
-
-### Verification and hosting
-
-Run `npm run check` before finishing implementation changes. For worker or asset
-changes, also verify development and subpath hosting:
+Run `npm run check` before finishing implementation changes. For worker or
+asset changes, also verify development and subpath hosting:
 
 ```sh
 E2E_SERVER=dev npm run test:e2e
@@ -212,22 +153,17 @@ VITE_BASE_PATH=/flow-free-solver/ npm run build
 VITE_BASE_PATH=/flow-free-solver/ npm run test:e2e
 ```
 
-Load public Wasm assets using `import.meta.env.BASE_URL`. Z3 requires
-cross-origin isolation: keep the COOP/COEP headers in `vite.config.js` and
-`vercel.json` when changing hosting configuration.
+Load public assets with `import.meta.env.BASE_URL`. Z3 requires cross-origin
+isolation; preserve COOP/COEP in `vite.config.js` and `vercel.json`.
 
 ## License
 
-[MIT](./LICENSE), with an exception for the heuristic solver adapted from
-[Matt Zucker's flow_solver](https://github.com/mzucker/flow_solver). The following
-files, including the native topology helper, are covered by
-[CC BY-NC 2.0](https://creativecommons.org/licenses/by-nc/2.0/):
+[MIT](./LICENSE), except the heuristic solver adapted from Matt Zucker, which
+is covered by [CC BY-NC 2.0](https://creativecommons.org/licenses/by-nc/2.0/):
 
-- `native/flow_solver.c`, `native/diagonal_solver.h`, `native/graph_cover.h`, and `native/topology_solver.h`
+- `native/flow_solver.c`, `native/diagonal_solver.h`, `native/graph_cover.h`, `native/variant_frontier.h`, and `native/topology_solver.h`
 - `public/wasm/flow_solver_c.mjs` and `public/wasm/flow_solver_c.wasm`
 - `src/solver/logic/heuristic-solver.ts`
 
 Commercial use requires excluding this module or obtaining a separate license
 from its original author.
-
-Built by [Kongesque](https://www.kongesque.com/).
