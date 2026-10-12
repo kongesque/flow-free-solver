@@ -153,7 +153,7 @@ test('Blocks: keyboard, conflicts, warp closure and separate mode histories are 
     await page.getByRole('combobox', { name: 'Game Mode' }).selectOption('standard');
     await expect(page.locator('[data-blocked]')).toHaveCount(2);
     await page.getByRole('button', { name: 'Undo', exact: true }).click(); await expect(page.locator('[data-blocked]')).toHaveCount(1);
-    await expect.poll(async () => (await savedState(page))?.drafts.warps.blocks).toEqual([{ x: 0, y: 2 }]);
+    await expect.poll(async () => (await savedState(page))?.drafts?.warps?.blocks).toEqual([{ x: 0, y: 2 }]);
     await page.reload(); await expect(page.locator('[data-blocked]')).toHaveCount(1);
     await page.getByRole('combobox', { name: 'Game Mode' }).selectOption('warps'); await expect(cell(page, 0, 2)).toHaveAccessibleName('Cell 0,2 Blocked');
 });
