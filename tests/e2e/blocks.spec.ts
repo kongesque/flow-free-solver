@@ -65,9 +65,12 @@ for (const mode of ['standard', 'bridges', 'warps'] as const) {
         await expect(cell(page, block.x, block.y)).not.toHaveAttribute('data-blocked');
         await page.getByRole('button', { name: 'Undo', exact: true }).click();
         await expect(cell(page, block.x, block.y)).toHaveAccessibleName(`Cell ${block.x},${block.y} Blocked`);
-        await expect.poll(async () => (await savedState(page))?.blocks).toEqual(f.topology.blocks);
+        await expect.poll(() => savedState(page)).toMatchObject({
+            mode, width: f.width, height: f.height, board: f.board, blocks: f.topology.blocks,
+        });
         await page.reload();
         await expect(page.locator('[data-blocked]')).toHaveCount(f.topology.blocks!.length);
+        await expect(page.locator('.endpoint-dot')).toHaveCount(used.length * 2);
         await page.getByRole('button', { name: 'Solve', exact: true }).click();
         await expect(page.getByRole('status')).toContainText('Solved');
         assertTopologySolution(f, JSON.parse((await page.locator('.puzzle-grid').getAttribute('data-solution'))!));
