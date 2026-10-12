@@ -41,27 +41,40 @@ for (const failure of ['startup', 'postMessage'] as const) for (const operation 
     test(`${operation} recovers from a worker ${failure} failure without refresh`, async ({ page }) => {
         const errors: string[] = [];
         page.on('pageerror', error => errors.push(error.message));
-        await page.addInitScript(failure => {
+        await page.addInitScript(({ failure, operation }) => {
             const NativeWorker = Worker;
             let fail = true;
             window.Worker = class extends NativeWorker {
+                private targeted: boolean;
                 constructor(url: string | URL, options?: WorkerOptions) {
-                    if (fail && failure === 'startup') { fail = false; throw new DOMException('Worker startup blocked', 'SecurityError'); }
+                    const targeted = String(url).includes(operation === 'Solve' ? 'solver.worker' : 'generator.worker');
+                    if (fail && targeted && failure === 'startup') { fail = false; throw new DOMException('Worker startup blocked', 'SecurityError'); }
                     super(url, options);
+                    this.targeted = targeted;
                 }
                 postMessage(message: unknown, transfer: Transferable[] = []) {
-                    if (fail && failure === 'postMessage') { fail = false; throw new DOMException('Request could not be cloned', 'DataCloneError'); }
+                    const warmup = typeof message === 'object' && message !== null && 'kind' in message && message.kind === 'warmup';
+                    if (fail && this.targeted && !warmup && failure === 'postMessage') { fail = false; throw new DOMException('Request could not be cloned', 'DataCloneError'); }
                     super.postMessage(message, transfer);
                 }
             };
             localStorage.setItem('flow-show-generator', 'true');
-        }, failure);
+        }, { failure, operation });
         await page.goto('./');
         if (operation === 'Solve') for (let y = 0; y < 5; y++) {
             await button(page, `Cell 0,${y} Empty`).click();
             await button(page, `Cell 4,${y} Empty`).click();
         }
         await button(page, operation).click();
+        if (operation === 'Solve' && failure === 'startup') {
+            // A failed preload is retried by the first real Solve request.
+            await expect(button(page, 'Edit')).toBeEnabled();
+            await expect.poll(async () => (await saved(page))?.board.flat().filter(Boolean).length).toBe(10);
+            const draft = await saved(page);
+            assertTopologySolution({ ...draft, input: '', topology: { walls: draft.walls, bridges: draft.bridges, warps: draft.warps } },
+                JSON.parse((await page.locator('.puzzle-grid').getAttribute('data-solution'))!));
+            await button(page, 'Edit').click();
+        }
         await expect(button(page, 'Solve')).toBeEnabled();
         await expect(button(page, 'Generate')).toBeEnabled();
         expect(errors).toEqual([]);
