@@ -1,12 +1,10 @@
-// Bounded, reproducible extreme cases. Node 24; optional baseline module path.
+// Bounded, reproducible extreme cases for the current solver. Node 24.
 // Run --rounds=3 for repeat measurements, --filter=REGEX for selected cases,
 // --timeout-ms=15000 for the per-search watchdog, --output=FILE for JSONL.
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync, appendFileSync } from 'node:fs';
 import { registerHooks } from 'node:module';
-import { resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
-import { pathToFileURL } from 'node:url';
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { assertSolution } from '../tests/fixtures/assert-solution.mjs';
 import { assertTopologySolution, decodeNativeSolution } from '../tests/fixtures/assert-topology-solution.mjs';
@@ -41,7 +39,9 @@ if (!isMainThread) {
     return next(specifier, context);
   } });
   const { generateModePuzzle } = await import('../src/solver/logic/variant-generator.ts');
-  const options = Object.fromEntries(process.argv.slice(2).filter(arg => arg.startsWith('--')).map(arg => {
+  const args = process.argv.slice(2);
+  assert.ok(args.every(arg => arg.startsWith('--')), 'Use named options; only the current solver is tested');
+  const options = Object.fromEntries(args.map(arg => {
     const split = arg.indexOf('=');
     assert.ok(split > 2, `Use --option=value: ${arg}`);
     return [arg.slice(2, split), arg.slice(split + 1)];
@@ -102,8 +102,6 @@ if (!isMainThread) {
   const selected = cases.filter(entry => !options.filter || new RegExp(options.filter).test(entry.name));
   assert.ok(selected.length, 'No matching cases');
   const solvers = [{ label: 'current', module: new URL('../public/wasm/flow_solver_c.mjs', import.meta.url).href }];
-  const baseline = process.argv.slice(2).find(arg => !arg.startsWith('--'));
-  if (baseline) solvers.push({ label: 'baseline', module: pathToFileURL(resolve(baseline)).href });
   async function start(solver) {
     solver.worker = new Worker(new URL(import.meta.url), { workerData: { module: solver.module } });
     const worker = solver.worker;
@@ -157,7 +155,7 @@ if (!isMainThread) {
   console.log(`Node ${process.version}; ${selected.length} cases; ${rounds} measured round(s); ${timeout}ms watchdog; no fallback/cached cover.`);
   try {
     for (let round = 0; round < rounds; round++) for (const entry of selected) {
-      for (const solver of round % 2 ? [...solvers].reverse() : solvers) {
+      for (const solver of solvers) {
         const result = await run(solver, entry);
         const row = { solver: solver.label, name: entry.name, mode: entry.mode, width: entry.width, height: entry.height,
           pairs: entry.pairCount, walls: (entry.walls ?? entry.topology?.walls ?? []).length,

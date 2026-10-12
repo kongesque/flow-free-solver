@@ -26,7 +26,7 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:wasm": "npm run build:wasm && node --test tests/wasm/*.test.mjs",
+    "test:wasm": "npm run build:wasm && node --test --test-concurrency=1 tests/wasm/*.test.mjs",
     "test:e2e": "playwright test",
     "check": "npm run test:wasm && npm test && npm run build && npm run test:e2e"
   },

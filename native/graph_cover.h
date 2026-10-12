@@ -244,10 +244,10 @@ static int cover_probe(cover_graph_t *g) {
   free(s->undo); free(s); return solved;
 }
 
-static int game_graph_probe(const game_info_t *info, const game_state_t *initial, game_state_t *result) {
+static int game_graph_probe(const game_info_t *info, const game_state_t *initial, game_state_t *result, clock_t started) {
   cover_graph_t *g = calloc(1, sizeof(*g));
   if (!g) return 0;
-  g->count = info->width * info->height; g->width = info->width; g->induced = 1;
+  g->count = info->width * info->height; g->width = info->width; g->induced = 1; g->started = started;
   memset(g->neighbors, 0xff, sizeof(g->neighbors)); memset(g->mate, 0xff, sizeof(g->mate));
   for (uint16_t id = 0; id < g->count; id++) {
     int x = id % info->width, y = id / info->width;
