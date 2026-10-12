@@ -80,12 +80,12 @@ test('a malformed solve response leaves the board usable and a real worker can r
     const errors: string[] = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.addInitScript(() => localStorage.setItem('flow-show-generator', 'true'));
-    await page.goto('./');
-    const draft = await generate(page);
     await page.route(SOLVER_WORKER_REQUEST, route => route.fulfill({
         contentType: 'text/javascript', headers: { 'Cross-Origin-Embedder-Policy': 'require-corp' },
         body: 'self.onmessage = () => self.postMessage({ board: [[1]] });',
     }));
+    await page.goto('./');
+    const draft = await generate(page);
     await button(page, 'Solve').click();
     await expect(page.getByRole('status')).toContainText('invalid solution');
     await expect(button(page, 'Solve')).toBeEnabled();
@@ -128,8 +128,6 @@ for (const operation of ['Solve', 'Generate'] as const) {
         await page.addInitScript(() => {
             Object.defineProperty(crypto, 'getRandomValues', { value: (array: Uint32Array) => { array[0] = 42; return array; } });
         });
-        await page.goto('./');
-        const standard = operation === 'Solve' ? await generate(page) : null;
         const workerURL = operation === 'Solve' ? SOLVER_WORKER_REQUEST : GENERATOR_WORKER_REQUEST;
         let release!: () => void;
         const gate = new Promise<void>(resolve => { release = resolve; });
@@ -137,8 +135,11 @@ for (const operation of ['Solve', 'Generate'] as const) {
             await gate;
             await route.continue().catch(() => {});
         });
+        let standard: Awaited<ReturnType<typeof generate>> | null = null;
         try {
             const request = page.waitForRequest(workerURL);
+            await page.goto('./');
+            standard = operation === 'Solve' ? await generate(page) : null;
             await button(page, operation).click();
             await request;
             await expect(button(page, 'Cancel')).toBeEnabled();

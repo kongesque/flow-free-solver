@@ -30,6 +30,8 @@ test('19x19 graph probes and bounded fallback do not overflow the Wasm call stac
 });
 
 test('19x19 Bridges screenshot solves in the editor and preserves its dots and crossings', async ({ page }) => {
+    const wasmRequests: string[] = [];
+    page.on('request', request => { if (request.url().includes('flow_solver_c.wasm')) wasmRequests.push(request.url()); });
     const original = bridgesSafariScreenshot(), order = [1, 4, 2, 3, 5, 6, 7, 8, 9, 11, 10, 12, 13, 14];
     const fixture = { ...original, board: original.board.map(col => col.map(color => color ? order[color - 1] : 0)) };
     await page.goto('./'); await openBoardOptions(page);
@@ -46,6 +48,10 @@ test('19x19 Bridges screenshot solves in the editor and preserves its dots and c
     await page.getByRole('button', { name: 'Edit', exact: true }).click();
     await expect(page.locator('.endpoint-dot')).toHaveCount(28);
     await expect(page.locator('[data-bridge]')).toHaveCount(3);
+    await page.getByRole('button', { name: 'Solve', exact: true }).click();
+    await expect(page.getByRole('status')).toContainText('Solved');
+    assertTopologySolution(fixture, JSON.parse((await page.locator('.puzzle-grid').getAttribute('data-solution'))!));
+    expect(wasmRequests).toHaveLength(1);
 });
 
 test('a stale generator worker explains reload recovery and preserves the 19x19 puzzle', async ({ page }) => {

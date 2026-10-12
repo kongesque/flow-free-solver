@@ -296,8 +296,8 @@ test('Cancel preserves a variant puzzle and a fresh worker can solve it', async 
     });
     try {
         const fixture = editorFixture(bridgeCross());
-        await page.goto('./'); await recreate(page, fixture);
         const request = page.waitForRequest(SOLVER_WORKER_REQUEST);
+        await page.goto('./'); await recreate(page, fixture);
         await page.getByRole('button', { name: 'Solve', exact: true }).click();
         await request;
         await expect(page.getByRole('status')).toContainText('Solving');
