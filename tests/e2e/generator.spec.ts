@@ -73,7 +73,8 @@ test('generates, independently solves, and edits every supported grid size in re
         await page.getByRole('button', { name: 'Edit', exact: true }).click();
         expect(await readGrid(page, size)).toEqual(input);
     }
-    expect(workers).toBe(33);
+    // One warm C worker serves all 22 solves; generation still uses 11 workers.
+    expect(workers).toBe(12);
     expect(errors).toEqual([]);
 });
 

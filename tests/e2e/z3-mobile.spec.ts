@@ -47,11 +47,25 @@ test('generated 17x17, 18x18 and 19x19 puzzles in every mode solve with actual Z
     page.on('worker', worker => workers.push(worker.url()));
     page.on('request', request => requests.push(request.url())); page.on('pageerror', error => errors.push(error.message));
     await page.addInitScript(() => {
+        const BaseWorker = Worker;
+        (window as unknown as { solverReady: boolean }).solverReady = false;
+        window.Worker = class extends BaseWorker {
+            constructor(url: string | URL, options?: WorkerOptions) {
+                super(url, options);
+                this.addEventListener('message', event => {
+                    if (event.data?.kind === 'ready') (window as unknown as { solverReady: boolean }).solverReady = true;
+                });
+            }
+        };
         Object.defineProperty(crypto, 'getRandomValues', { value: (array: Uint32Array) => { array[0] = 42; return array; } });
     });
     await page.goto('./'); await openBoardOptions(page);
+    await expect.poll(() => page.evaluate(() => (window as unknown as { solverReady: boolean }).solverReady)).toBe(true);
     await page.getByRole('switch', { name: 'Color label', exact: true }).check();
     await page.getByRole('combobox', { name: 'Solver Algorithm' }).selectOption('z3');
+    // Count only the selected Z3 runs, after the default C preload is retired.
+    requests.length = 0;
+    workers.length = 0;
     for (const size of [17, 18, 19]) for (const mode of ['standard', 'bridges', 'warps'] as const) {
         await page.getByRole('combobox', { name: 'Game Mode' }).selectOption(mode);
         await page.getByRole('combobox', { name: 'Grid Size' }).selectOption(String(size));

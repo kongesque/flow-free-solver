@@ -78,6 +78,10 @@ async function loadModule(): Promise<FlowModule> {
   return modulePromise;
 }
 
+export async function warmHeuristicSolver(): Promise<void> {
+  await loadModule();
+}
+
 export async function solveHeuristicBFS(board: Board, walls: Wall[] = [], blocks: Block[] = []): Promise<Board | null> {
   const input = serializeBoard(board, blocks);
   const wallInput = serializeWalls(walls, board.length, board[0].length);

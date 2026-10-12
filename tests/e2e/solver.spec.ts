@@ -6,8 +6,8 @@ import { assertSolution } from '../fixtures/assert-solution.mjs';
 const input = readFileSync(new URL('../fixtures/puzzles/regular_5x5_01.txt', import.meta.url), 'utf8');
 const colors = ['', 'R', 'B', 'Y', 'G', 'O', 'C', 'M', 'm', 'P', 'A', 'W', 'g', 'T', 'b', 'c', 'p'];
 
-async function placePuzzle(page: Page) {
-  const rows = input.trim().split('\n');
+async function placePuzzle(page: Page, puzzleInput = input) {
+  const rows = puzzleInput.trim().split('\n');
   for (const color of [1, 4, 2, 3, 5].map(id => colors[id])) {
     for (let y = 0; y < 5; y++) {
       for (let x = 0; x < 5; x++) {
@@ -61,6 +61,42 @@ for (const algorithm of ['heuristic_bfs', 'astar', 'z3']) {
   });
 }
 
+test('Pruned DFS warms before Solve and reuses its worker for a different puzzle', async ({ page }) => {
+  await page.addInitScript(() => {
+    const BaseWorker = Worker;
+    (window as unknown as { solverReady: boolean }).solverReady = false;
+    window.Worker = class extends BaseWorker {
+      constructor(url: string | URL, options?: WorkerOptions) {
+        super(url, options);
+        this.addEventListener('message', event => {
+          if (event.data?.kind === 'ready') (window as unknown as { solverReady: boolean }).solverReady = true;
+        });
+      }
+    };
+  });
+  const assets: string[] = [], workers: string[] = [];
+  page.on('request', request => {
+    if (/solver\.worker|flow_solver_c\.(mjs|wasm)/.test(request.url())) assets.push(request.url());
+  });
+  page.on('worker', worker => workers.push(worker.url()));
+  await page.goto('./');
+  await expect.poll(() => page.evaluate(() => (window as unknown as { solverReady: boolean }).solverReady)).toBe(true);
+  const warmedAssets = [...assets];
+  const rotated = input.trim().split('\n').reverse().map(row => [...row].reverse().join('')).join('\n') + '\n';
+  for (const puzzleInput of [input, rotated]) {
+    await placePuzzle(page, puzzleInput);
+    await page.getByRole('button', { name: 'Solve', exact: true }).click();
+    await expect(page.getByRole('status')).toContainText('Solved');
+    const values = await page.locator('[data-cell]').evaluateAll(cells => cells.map(cell => Number(cell.getAttribute('aria-label')?.split('Color ')[1]) || 0));
+    assertSolution(puzzleInput, Array.from({ length: 5 }, (_, y) => values.slice(y * 5, (y + 1) * 5).map(color => colors[color].charCodeAt(0))));
+    expect(assets).toEqual(warmedAssets);
+    expect(workers).toHaveLength(1);
+    await page.getByRole('button', { name: 'Edit', exact: true }).click();
+    page.once('dialog', dialog => dialog.accept());
+    await page.getByRole('button', { name: 'Reset', exact: true }).click();
+  }
+});
+
 test('reset cancels an active Wasm solve and allows a fresh puzzle', async ({ page }) => {
   let release!: () => void;
   const gate = new Promise<void>(resolve => { release = resolve; });
@@ -69,12 +105,12 @@ test('reset cancels an active Wasm solve and allows a fresh puzzle', async ({ pa
     await route.continue().catch(() => {}); // Reset can cancel the pending fetch.
   });
   try {
+    const request = page.waitForRequest(/flow_solver_c\.wasm/);
     await page.goto('./');
+    await request;
     await openBoardOptions(page);
     await placePuzzle(page);
-    const request = page.waitForRequest(/flow_solver_c\.wasm/);
     await page.getByRole('button', { name: 'Solve', exact: true }).click();
-    await request;
     await expect(page.getByRole('status')).toContainText('Solving');
     await expect(page.getByRole('combobox', { name: 'Grid Size' })).toBeDisabled();
     await expect(page.getByRole('combobox', { name: 'Solver Algorithm' })).toBeDisabled();

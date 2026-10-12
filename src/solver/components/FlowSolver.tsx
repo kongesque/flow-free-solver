@@ -96,6 +96,39 @@ const FlowSolver = () => {
     const [invalidSavedWalls, setInvalidSavedWalls] = useState(false);
     const saveTimeoutRef = useRef<number | null>(null);
     const workerRef = useRef<Worker | null>(null);
+    const idleSolverRef = useRef<Worker | null>(null);
+
+    const parkSolverWorker = (worker: Worker) => {
+        idleSolverRef.current = worker;
+        const discard = () => {
+            if (idleSolverRef.current !== worker) return;
+            idleSolverRef.current = null;
+            worker.terminate();
+        };
+        worker.onmessage = event => { if (event.data?.kind === 'warmup-error') discard(); };
+        worker.onerror = event => { event.preventDefault(); discard(); };
+        worker.onmessageerror = discard;
+    };
+
+    // Load C/Wasm while the puzzle is being edited, then keep it ready between
+    // solves. Only the worker running an operation is cancelled by Reset/Cancel.
+    useEffect(() => {
+        if (solverType !== 'heuristic_bfs') {
+            idleSolverRef.current?.terminate();
+            idleSolverRef.current = null;
+            return;
+        }
+        if (!isLoaded || error || isSolving || isGenerating || idleSolverRef.current) return;
+        let worker: Worker | null = null;
+        try {
+            worker = createRunWorker(solverWorkerUrl);
+            parkSolverWorker(worker);
+            worker.postMessage({ kind: 'warmup' });
+        } catch {
+            worker?.terminate();
+            idleSolverRef.current = null;
+        }
+    }, [isLoaded, solverType, isSolving, isGenerating, error]);
 
     const currentDraft = (): PuzzleDraft => ({ width, height, board, walls, bridges, warps, blocks, solverType, activeColor, isPlacingSecond, generatedSolution, generatedPathSolution });
     const restoreDraft = (draft: PuzzleDraft, draftMode: GameMode) => {
@@ -183,6 +216,8 @@ const FlowSolver = () => {
         return () => {
             workerRef.current?.terminate();
             workerRef.current = null;
+            idleSolverRef.current?.terminate();
+            idleSolverRef.current = null;
         };
     }, []);
 
@@ -365,18 +400,19 @@ const FlowSolver = () => {
         setEditHistory(history => history.slice(0, -1));
     };
 
-    // Every exit releases the worker and busy state. Late events from a cancelled
-    // mode are ignored, and invalid responses never reach React's render path.
-    const runWorker = <T,>(createWorker: () => Worker, request: unknown, operation: 'solve' | 'generate', onResult: (result: T) => void) => {
+    // Successful heuristic solves retain their loaded module. Cancellation and
+    // worker failures terminate the active worker; late responses are ignored.
+    const runWorker = <T,>(createWorker: () => Worker, request: unknown, operation: 'solve' | 'generate', onResult: (result: T) => void, reusable = false) => {
         workerRef.current?.terminate();
         workerRef.current = null;
         let worker: Worker | null = null;
-        const finish = () => {
+        const finish = (keepWorker = false) => {
             if (worker && workerRef.current !== worker) return false;
             workerRef.current = null;
             if (worker) {
                 worker.onmessage = null; worker.onerror = null; worker.onmessageerror = null;
-                worker.terminate();
+                if (keepWorker && reusable) parkSolverWorker(worker);
+                else worker.terminate();
             }
             setIsSolving(false); setIsGenerating(false);
             return true;
@@ -390,13 +426,22 @@ const FlowSolver = () => {
             workerRef.current = worker;
             worker.onmessage = event => {
                 if (workerRef.current !== worker) return;
+                if (event.data?.kind === 'ready' || event.data?.kind === 'warmup-error') return;
                 if (operation === 'solve' && event.data?.kind === 'progress') {
                     if (event.data.phase === 'sat-fallback') setFallbackUsed(true);
                     return;
                 }
-                if (!finish()) return;
+                // SAT can own pthreads and substantial memory; release it once
+                // fallback completes instead of retaining it in the warm pool.
+                if (!finish(event.data?.fallbackUsed !== true)) return;
                 try { onResult(event.data); }
-                catch { setError(operation === 'solve' ? 'Solver returned an invalid solution. Try Solve again.' : 'Invalid generated puzzle. Try Generate again.'); }
+                catch {
+                    if (idleSolverRef.current === worker) {
+                        idleSolverRef.current = null;
+                        worker?.terminate();
+                    }
+                    setError(operation === 'solve' ? 'Solver returned an invalid solution. Try Solve again.' : 'Invalid generated puzzle. Try Generate again.');
+                }
             };
             worker.onerror = event => { event.preventDefault(); fail(); };
             worker.onmessageerror = fail;
@@ -463,7 +508,11 @@ const FlowSolver = () => {
             const display = preferInducedGeneratedSolution(board, topology, solution, generatedPathSolution);
             setSolvedBoard(solutionBoard(board, display)); setPathSolution(display); setSolveTime(performance.now() - startTime);
         };
-        runWorker(() => createRunWorker(solverWorkerUrl),
+        runWorker(() => {
+            const worker = solverType === 'heuristic_bfs' ? idleSolverRef.current : null;
+            idleSolverRef.current = null;
+            return worker ?? createRunWorker(solverWorkerUrl);
+        },
             { board, type: solverType, mode, walls, bridges, warps, blocks, allowFallback: generatedSolution === null,
                 satCandidate: solverType === 'z3' ? generatedPathSolution : null }, 'solve',
             (result: { board: number[][] | null; solution?: PuzzleSolution | null; timedOut?: boolean; error?: string; fallbackUsed?: boolean }) => {
@@ -477,7 +526,7 @@ const FlowSolver = () => {
                     setError(solverType === 'astar' ? 'Search limit reached. Try Pruned DFS.' : 'Search limit reached. Your puzzle is preserved.');
                 } else if (result.error) setError('Solver error: ' + result.error);
                 else setError('No solution found');
-            });
+            }, solverType === 'heuristic_bfs');
     };
 
     // ── Render ────────────────────────────────────────────────────────────────

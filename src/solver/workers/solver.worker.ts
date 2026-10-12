@@ -1,5 +1,5 @@
 import type { Board } from '../logic/astar-solver';
-import { serializeBoard, solveHeuristicBFS, solveTopology } from '../logic/heuristic-solver';
+import { serializeBoard, solveHeuristicBFS, solveTopology, warmHeuristicSolver } from '../logic/heuristic-solver';
 import { requireStandardMode, type GameMode } from '../logic/game-modes';
 import { normalizeTopology, validateBoard, type PuzzleTopology } from '../logic/topology';
 import { boardToSolution, solutionBoard, validateSolution, type PuzzleSolution } from '../logic/solution';
@@ -24,8 +24,19 @@ self.onmessage = async (event: MessageEvent<{
     walls?: unknown; bridges?: unknown; warps?: unknown; blocks?: unknown;
     allowFallback?: boolean;
     satCandidate?: PuzzleSolution | null;
-}>) => {
-    const { board, type, mode = 'standard' } = event.data;
+} | { kind: 'warmup' }>) => {
+    if ('kind' in event.data) {
+        try {
+            await warmHeuristicSolver();
+            self.postMessage({ kind: 'ready' });
+        } catch {
+            // The module loader clears failed initialization so Solve can retry.
+            self.postMessage({ kind: 'warmup-error' });
+        }
+        return;
+    }
+    const request = event.data;
+    const { board, type, mode = 'standard' } = request;
     let fallbackUsed = false;
     const startFallback = () => {
         fallbackUsed = true;
@@ -34,13 +45,13 @@ self.onmessage = async (event: MessageEvent<{
     try {
         validateBoard(board);
         serializeBoard(board); // Every algorithm requires exactly two endpoints per color.
-        const topology = normalizeTopology(event.data, board, mode);
+        const topology = normalizeTopology(request, board, mode);
         if (!['astar', 'z3', 'heuristic_bfs'].includes(type)) throw new Error('Unknown solver algorithm');
         if (type === 'astar' && (mode !== 'standard' || topology.walls.length || board.length !== board[0].length)) {
             throw new Error('A* does not support this board. Choose Pruned DFS or SAT (Z3).');
         }
         if (type === 'z3') {
-            const candidate = event.data.satCandidate ?? undefined;
+            const candidate = request.satCandidate ?? undefined;
             if (candidate) validateSolution(board, topology, candidate);
             let solution;
             if (mode === 'standard' && !candidate) {
@@ -53,7 +64,7 @@ self.onmessage = async (event: MessageEvent<{
         }
         if (mode !== 'standard') {
             let result = await solveTopology(board, topology, mode);
-            if (result.status === 'limit' && event.data.allowFallback !== false && self.crossOriginIsolated) {
+            if (result.status === 'limit' && request.allowFallback !== false && self.crossOriginIsolated) {
                 startFallback();
                 const solution = await solveZ3Topology(board, topology);
                 result = { solution, status: solution ? 'solved' : 'unsatisfiable', nodeCount: result.nodeCount };
@@ -66,7 +77,7 @@ self.onmessage = async (event: MessageEvent<{
         const solveClassic = async () => {
             try { return await solveHeuristicBFS(board, topology.walls, topology.blocks); }
             catch (error) {
-                if (!isSearchLimitError(error) || event.data.allowFallback === false || !self.crossOriginIsolated) throw error;
+                if (!isSearchLimitError(error) || request.allowFallback === false || !self.crossOriginIsolated) throw error;
                 startFallback();
                 return solveZ3(board, topology.walls, topology.blocks);
             }
